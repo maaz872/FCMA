@@ -13,6 +13,7 @@ export default async function TestimonialsPage() {
   const testimonials = await prisma.testimonial.findMany({
     where: { isPublished: true },
     orderBy: { displayOrder: "asc" },
+    select: { id: true, clientName: true, duration: true, quote: true },
   });
 
   return (

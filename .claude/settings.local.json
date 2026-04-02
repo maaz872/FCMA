@@ -66,7 +66,12 @@
       "Bash(curl -s \"https://level-up-v1-tau.vercel.app/api/auth/login\" -X POST -H \"Content-Type: application/json\" -d '{\"\"email\"\":\"\"admin@levelup.com\"\",\"\"password\"\":\"\"Admin2026Secure\"\"}')",
       "Bash(curl -s \"https://level-up-v1-tau.vercel.app/api/auth/login\" -X POST -H \"Content-Type: application/json\" -d '{\"\"email\"\":\"\"admin@levelup.com\"\",\"\"password\"\":\"\"adminuser1234\"\"}')",
       "Bash(mkdir -p \"D:/Documents/Deep Learn HQ/Clients/raheel/website/src/app/admin/workouts/[id]/edit\")",
-      "Bash(mkdir -p \"D:/Documents/Deep Learn HQ/Clients/raheel/website/src/app/hub/workouts/[slug]\")"
+      "Bash(mkdir -p \"D:/Documents/Deep Learn HQ/Clients/raheel/website/src/app/hub/workouts/[slug]\")",
+      "Bash(curl -s -w \"\\\\nHTTP:%{http_code}\" \"https://level-up-v1-tau.vercel.app/api/site-settings\")",
+      "Bash(curl -s \"https://level-up-v1-tau.vercel.app/api/recipes\" -w \"\\\\nHTTP:%{http_code}\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"https://level-up-v1-tau.vercel.app/about\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"https://level-up-v1-tau.vercel.app/nutrition\")",
+      "Bash(curl -s \"https://level-up-v1-tau.vercel.app/api/admin/testimonials\" -H \"Cookie: \")"
     ]
   }
 }

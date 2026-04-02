@@ -28,8 +28,9 @@ export default async function HomePage() {
   const [hubTestimonials, siteSettings] = await Promise.all([
     prisma.testimonial.findMany({
       where: { isPublished: true },
-      take: 40,
+      take: 12,
       orderBy: { displayOrder: "asc" },
+      select: { id: true, clientName: true, duration: true, quote: true, profilePhoto: false },
     }),
     prisma.siteContent.findMany(),
   ]);
@@ -145,7 +146,7 @@ export default async function HomePage() {
             clientName: t.clientName,
             duration: t.duration,
             quote: t.quote,
-            profilePhoto: t.profilePhoto,
+            profilePhoto: null,
           }))}
         />
       )}
