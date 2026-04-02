@@ -57,7 +57,6 @@ export default function Header() {
     if (!user) {
       return [
         { href: "/nutrition", label: "The Hub" },
-        { href: "/coaching/apply", label: "Coaching" },
         { href: "/testimonials", label: "Testimonials" },
         { href: "/about", label: "About" },
       ];

@@ -14,7 +14,32 @@
       "Bash(cp -r website/css website/js website/images website/*.html _static_backup/)",
       "Bash(rm -f *.html)",
       "Bash(rm -rf css js images .claude/launch.json)",
-      "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --use-npm)"
+      "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --use-npm)",
+      "Bash(npm install:*)",
+      "Bash(mkdir -p public/images)",
+      "Bash(cp \"../_static_backup/images/logo.svg\" public/images/)",
+      "Bash(mkdir -p src/components/layout src/components/ui src/lib src/types)",
+      "Bash(npx prisma:*)",
+      "Bash(npx next:*)",
+      "Bash(ls \"D:/Documents/Deep Learn HQ/Clients/raheel/website/src/generated/prisma/index\"*)",
+      "Bash(wc -l src/app/hub/recipes/page.tsx src/app/hub/recipes/\\\\[slug\\\\]/page.tsx src/app/hub/restaurants/page.tsx src/app/hub/restaurants/\\\\[slug\\\\]/page.tsx src/app/hub/calculator/page.tsx src/data/sample-recipes.ts src/data/sample-restaurants.ts)",
+      "Bash(npx tsx:*)",
+      "Bash(rm -f prisma/dev.db prisma/dev.db-journal prisma/dev.db-wal)",
+      "Bash(PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION=\"yes continue\" npx prisma db push --force-reset)",
+      "Bash(while read:*)",
+      "Bash(do sed:*)",
+      "Bash(grep -v \":0$\")",
+      "Bash(mkdir -p \"D:/Documents/Deep Learn HQ/Clients/raheel/website/src/app/api/admin/testimonials/[id]\")",
+      "Bash(mkdir -p \"D:/Documents/Deep Learn HQ/Clients/raheel/website/src/app/api/admin/restaurants/[id]\")",
+      "Bash(mkdir -p \"D:/Documents/Deep Learn HQ/Clients/raheel/website/src/app/api/admin/users/[id]\")",
+      "Bash(NODE_OPTIONS=\"--max-old-space-size=4096\" npx next build)",
+      "Bash(mv page.tsx \"\\(marketing\\)/\")",
+      "Bash(mv about:*)",
+      "Bash(mv nutrition:*)",
+      "Bash(mv testimonials:*)",
+      "Bash(mv newsletter:*)",
+      "Bash(rm -rf coaching)",
+      "Bash(rm -rf api/coaching)"
     ]
   }
 }
