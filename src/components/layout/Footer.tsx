@@ -3,32 +3,37 @@ import Image from "next/image";
 import { prisma } from "@/lib/db";
 
 export default async function Footer() {
-  const settings = await prisma.siteContent.findMany({
-    where: {
-      contentKey: {
-        in: [
-          "social_youtube",
-          "social_instagram",
-          "social_facebook",
-          "social_tiktok",
-          "social_youtube_visible",
-          "social_instagram_visible",
-          "social_facebook_visible",
-          "social_tiktok_visible",
-        ],
+  let socials: { name: string; url: string; visible: boolean }[] = [];
+
+  try {
+    const settings = await prisma.siteContent.findMany({
+      where: {
+        contentKey: {
+          in: [
+            "social_youtube", "social_instagram", "social_facebook", "social_tiktok",
+            "social_youtube_visible", "social_instagram_visible", "social_facebook_visible", "social_tiktok_visible",
+          ],
+        },
       },
-    },
-  });
+    });
 
-  const s: Record<string, string> = {};
-  for (const item of settings) s[item.contentKey] = item.contentValue;
+    const s: Record<string, string> = {};
+    for (const item of settings) s[item.contentKey] = item.contentValue;
 
-  const socials = [
-    { name: "YouTube", url: s.social_youtube, visible: s.social_youtube_visible === "true" },
-    { name: "Instagram", url: s.social_instagram, visible: s.social_instagram_visible === "true" },
-    { name: "Facebook", url: s.social_facebook, visible: s.social_facebook_visible === "true" },
-    { name: "TikTok", url: s.social_tiktok, visible: s.social_tiktok_visible === "true" },
-  ].filter((item) => item.visible);
+    socials = [
+      { name: "YouTube", url: s.social_youtube || "", visible: s.social_youtube_visible === "true" },
+      { name: "Instagram", url: s.social_instagram || "", visible: s.social_instagram_visible === "true" },
+      { name: "Facebook", url: s.social_facebook || "", visible: s.social_facebook_visible === "true" },
+      { name: "TikTok", url: s.social_tiktok || "", visible: s.social_tiktok_visible === "true" },
+    ].filter((item) => item.visible);
+  } catch {
+    // Fallback during build or when DB unavailable
+    socials = [
+      { name: "YouTube", url: "", visible: true },
+      { name: "Instagram", url: "", visible: true },
+      { name: "Facebook", url: "", visible: true },
+    ];
+  }
 
   return (
     <footer className="bg-[#0A0A0A] text-white pt-15 pb-8">

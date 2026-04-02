@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { Metadata } from "next";
 import { prisma } from "@/lib/db";
 import Section from "@/components/ui/Section";
