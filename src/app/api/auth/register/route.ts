@@ -5,7 +5,23 @@ import { prisma } from "@/lib/db";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { firstName, lastName, email, password, country, plan, planStatus } = body;
+    const {
+      firstName,
+      lastName,
+      email,
+      password,
+      country,
+      plan,
+      planStatus,
+      age,
+      gender,
+      heightCm,
+      currentWeightKg,
+      fitnessGoal,
+      activityLevel,
+      targetWeightKg,
+      dietaryPrefs,
+    } = body;
 
     if (!firstName || !lastName || !email || !password) {
       return NextResponse.json(
@@ -40,7 +56,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Create user in DB with unified plan model
+    // Create user in DB with unified plan model + health profile
     await prisma.user.create({
       data: {
         email: email.toLowerCase(),
@@ -53,6 +69,19 @@ export async function POST(request: Request) {
         isActive: true,
         plan: plan || "HUB",
         planStatus: planStatus || "PENDING",
+        // Health profile fields
+        ...(age && { age: parseInt(String(age)) }),
+        ...(gender && { gender }),
+        ...(heightCm && { heightCm: parseFloat(String(heightCm)) }),
+        ...(currentWeightKg && {
+          currentWeightKg: parseFloat(String(currentWeightKg)),
+        }),
+        ...(fitnessGoal && { fitnessGoal }),
+        ...(activityLevel && { activityLevel }),
+        ...(targetWeightKg && {
+          targetWeightKg: parseFloat(String(targetWeightKg)),
+        }),
+        ...(dietaryPrefs && { dietaryPrefs }),
       },
     });
 

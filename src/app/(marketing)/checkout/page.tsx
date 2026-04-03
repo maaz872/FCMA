@@ -5,7 +5,32 @@ import Link from "next/link";
 import Button from "@/components/ui/Button";
 import PasswordInput from "@/components/ui/PasswordInput";
 
-type Step = "account" | "payment" | "success";
+type Step = "account" | "health" | "payment" | "success";
+
+const FITNESS_GOALS = [
+  { value: "FAT_LOSS", label: "Fat Loss" },
+  { value: "MUSCLE_GAIN", label: "Muscle Gain" },
+  { value: "MAINTENANCE", label: "Maintenance" },
+  { value: "BODY_RECOMP", label: "Body Recomposition" },
+];
+
+const ACTIVITY_LEVELS = [
+  { value: "SEDENTARY", label: "Sedentary" },
+  { value: "LIGHTLY_ACTIVE", label: "Lightly Active" },
+  { value: "MODERATELY_ACTIVE", label: "Moderately Active" },
+  { value: "VERY_ACTIVE", label: "Very Active" },
+  { value: "EXTREMELY_ACTIVE", label: "Extremely Active" },
+];
+
+const DIETARY_OPTIONS = [
+  "Vegetarian",
+  "Vegan",
+  "Gluten-Free",
+  "Dairy-Free",
+  "Halal",
+  "Keto",
+  "None",
+];
 
 export default function CheckoutPage() {
   const [step, setStep] = useState<Step>("account");
@@ -21,6 +46,16 @@ export default function CheckoutPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [country, setCountry] = useState("");
   const [acceptTerms, setAcceptTerms] = useState(false);
+
+  // Health profile state
+  const [age, setAge] = useState("");
+  const [gender, setGender] = useState("");
+  const [heightCm, setHeightCm] = useState("");
+  const [currentWeightKg, setCurrentWeightKg] = useState("");
+  const [fitnessGoal, setFitnessGoal] = useState("");
+  const [activityLevel, setActivityLevel] = useState("");
+  const [targetWeightKg, setTargetWeightKg] = useState("");
+  const [dietaryPrefs, setDietaryPrefs] = useState<string[]>([]);
 
   // Payment form state
   const [screenshot, setScreenshot] = useState<string | null>(null);
@@ -54,7 +89,53 @@ export default function CheckoutPage() {
       return;
     }
 
+    setStep("health");
+  }
+
+  function handleHealthSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+
+    const ageNum = parseInt(age);
+    if (!age || isNaN(ageNum) || ageNum < 15 || ageNum > 80) {
+      setError("Please enter a valid age between 15 and 80");
+      return;
+    }
+    if (!gender) {
+      setError("Please select your gender");
+      return;
+    }
+    if (!heightCm || parseFloat(heightCm) <= 0) {
+      setError("Please enter your height in cm");
+      return;
+    }
+    if (!currentWeightKg || parseFloat(currentWeightKg) <= 0) {
+      setError("Please enter your current weight in kg");
+      return;
+    }
+    if (!fitnessGoal) {
+      setError("Please select your fitness goal");
+      return;
+    }
+    if (!activityLevel) {
+      setError("Please select your activity level");
+      return;
+    }
+
     setStep("payment");
+  }
+
+  function toggleDietaryPref(pref: string) {
+    if (pref === "None") {
+      setDietaryPrefs((prev) => (prev.includes("None") ? [] : ["None"]));
+      return;
+    }
+    setDietaryPrefs((prev) => {
+      const without = prev.filter((p) => p !== "None");
+      return without.includes(pref)
+        ? without.filter((p) => p !== pref)
+        : [...without, pref];
+    });
   }
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -96,7 +177,7 @@ export default function CheckoutPage() {
     setLoading(true);
 
     try {
-      // Step 1: Register account with unified model
+      // Step 1: Register account with health profile
       const registerRes = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -108,6 +189,15 @@ export default function CheckoutPage() {
           country,
           plan: "HUB",
           planStatus: "PENDING",
+          age,
+          gender,
+          heightCm,
+          currentWeightKg,
+          fitnessGoal,
+          activityLevel,
+          targetWeightKg: targetWeightKg || undefined,
+          dietaryPrefs:
+            dietaryPrefs.length > 0 ? JSON.stringify(dietaryPrefs) : undefined,
         }),
       });
 
@@ -150,14 +240,16 @@ export default function CheckoutPage() {
   const inputClass =
     "w-full py-3.5 px-4.5 border-2 border-[#2A2A2A] rounded-xl text-base bg-[#1E1E1E] text-white placeholder:text-white/30 focus:border-[#E51A1A] focus:outline-none transition-colors";
 
+  const stepLabels = ["Account", "Health Profile", "Payment", "Done"];
+  const stepKeys: Step[] = ["account", "health", "payment", "success"];
+
   return (
     <section className="bg-[#0A0A0A] py-15 min-h-screen">
       <div className="max-w-[1200px] mx-auto px-6">
         {/* Progress Steps */}
         <div className="flex items-center justify-center gap-4 mb-12">
-          {["Account", "Payment", "Done"].map((label, i) => {
-            const stepMap: Step[] = ["account", "payment", "success"];
-            const isActive = stepMap.indexOf(step) >= i;
+          {stepLabels.map((label, i) => {
+            const isActive = stepKeys.indexOf(step) >= i;
             return (
               <div key={label} className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
@@ -178,7 +270,7 @@ export default function CheckoutPage() {
                     {label}
                   </span>
                 </div>
-                {i < 2 && (
+                {i < stepLabels.length - 1 && (
                   <div
                     className={`w-12 h-0.5 ${
                       isActive ? "bg-[#E51A1A]" : "bg-[#2A2A2A]"
@@ -385,8 +477,197 @@ export default function CheckoutPage() {
                   </div>
 
                   <Button type="submit" fullWidth>
+                    Continue
+                  </Button>
+                </form>
+              )}
+
+              {step === "health" && (
+                <form onSubmit={handleHealthSubmit} className="space-y-5">
+                  <h2 className="text-2xl font-black text-white mb-2">
+                    Tell us about yourself
+                  </h2>
+                  <p className="text-white/50 text-sm mb-6">
+                    This helps us personalize your experience. You can update
+                    this later in Settings.
+                  </p>
+
+                  {error && (
+                    <div className="bg-[#E51A1A]/10 border border-[#E51A1A]/20 text-[#E51A1A] px-4 py-3 rounded-xl text-sm">
+                      {error}
+                    </div>
+                  )}
+
+                  {/* Age & Gender row */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block font-semibold text-sm text-white mb-1.5">
+                        Age *
+                      </label>
+                      <input
+                        type="number"
+                        min={15}
+                        max={80}
+                        value={age}
+                        onChange={(e) => setAge(e.target.value)}
+                        placeholder="e.g. 25"
+                        className={inputClass}
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-semibold text-sm text-white mb-1.5">
+                        Gender *
+                      </label>
+                      <div className="flex gap-2 mt-0.5">
+                        {["Male", "Female"].map((g) => (
+                          <button
+                            key={g}
+                            type="button"
+                            onClick={() => setGender(g.toUpperCase())}
+                            className={`flex-1 py-3.5 rounded-xl text-sm font-semibold border-2 transition-colors cursor-pointer ${
+                              gender === g.toUpperCase()
+                                ? "bg-[#E51A1A] border-[#E51A1A] text-white"
+                                : "bg-[#1E1E1E] border-[#2A2A2A] text-white/50 hover:border-white/20"
+                            }`}
+                          >
+                            {g}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Height & Current Weight */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block font-semibold text-sm text-white mb-1.5">
+                        Height (cm) *
+                      </label>
+                      <input
+                        type="number"
+                        min={100}
+                        max={250}
+                        value={heightCm}
+                        onChange={(e) => setHeightCm(e.target.value)}
+                        placeholder="e.g. 175"
+                        className={inputClass}
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-semibold text-sm text-white mb-1.5">
+                        Current Weight (kg) *
+                      </label>
+                      <input
+                        type="number"
+                        min={30}
+                        max={300}
+                        step="0.1"
+                        value={currentWeightKg}
+                        onChange={(e) => setCurrentWeightKg(e.target.value)}
+                        placeholder="e.g. 80"
+                        className={inputClass}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Fitness Goal */}
+                  <div>
+                    <label className="block font-semibold text-sm text-white mb-2">
+                      Fitness Goal *
+                    </label>
+                    <div className="grid grid-cols-2 gap-3">
+                      {FITNESS_GOALS.map((goal) => (
+                        <button
+                          key={goal.value}
+                          type="button"
+                          onClick={() => setFitnessGoal(goal.value)}
+                          className={`py-3.5 px-4 rounded-xl text-sm font-semibold border-2 transition-colors cursor-pointer text-left ${
+                            fitnessGoal === goal.value
+                              ? "bg-[#E51A1A] border-[#E51A1A] text-white"
+                              : "bg-[#1E1E1E] border-[#2A2A2A] text-white/50 hover:border-white/20"
+                          }`}
+                        >
+                          {goal.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Activity Level */}
+                  <div>
+                    <label className="block font-semibold text-sm text-white mb-1.5">
+                      Activity Level *
+                    </label>
+                    <select
+                      value={activityLevel}
+                      onChange={(e) => setActivityLevel(e.target.value)}
+                      className={inputClass}
+                    >
+                      <option value="">Select activity level</option>
+                      {ACTIVITY_LEVELS.map((level) => (
+                        <option key={level.value} value={level.value}>
+                          {level.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Target Weight (optional) */}
+                  <div>
+                    <label className="block font-semibold text-sm text-white mb-1.5">
+                      Target Weight (kg){" "}
+                      <span className="text-white/30 font-normal">(optional)</span>
+                    </label>
+                    <input
+                      type="number"
+                      min={30}
+                      max={300}
+                      step="0.1"
+                      value={targetWeightKg}
+                      onChange={(e) => setTargetWeightKg(e.target.value)}
+                      placeholder="e.g. 75"
+                      className={inputClass}
+                    />
+                  </div>
+
+                  {/* Dietary Preferences (optional multi-select chips) */}
+                  <div>
+                    <label className="block font-semibold text-sm text-white mb-2">
+                      Dietary Preferences{" "}
+                      <span className="text-white/30 font-normal">(optional)</span>
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {DIETARY_OPTIONS.map((pref) => (
+                        <button
+                          key={pref}
+                          type="button"
+                          onClick={() => toggleDietaryPref(pref)}
+                          className={`py-2 px-4 rounded-full text-sm font-medium border-2 transition-colors cursor-pointer ${
+                            dietaryPrefs.includes(pref)
+                              ? "bg-[#E51A1A] border-[#E51A1A] text-white"
+                              : "bg-[#1E1E1E] border-[#2A2A2A] text-white/50 hover:border-white/20"
+                          }`}
+                        >
+                          {pref}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <Button type="submit" fullWidth>
                     Continue to Payment
                   </Button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStep("account");
+                      setError("");
+                    }}
+                    className="w-full text-center mt-2 text-sm text-white/40 hover:text-white/60 cursor-pointer bg-transparent border-none"
+                  >
+                    &larr; Back
+                  </button>
                 </form>
               )}
 
@@ -560,12 +841,12 @@ export default function CheckoutPage() {
                   <button
                     type="button"
                     onClick={() => {
-                      setStep("account");
+                      setStep("health");
                       setError("");
                     }}
                     className="w-full text-center mt-2 text-sm text-white/40 hover:text-white/60 cursor-pointer bg-transparent border-none"
                   >
-                    &larr; Back to account details
+                    &larr; Back to health profile
                   </button>
                 </form>
               )}

@@ -32,6 +32,7 @@ const quickLinks = [
   { href: "/hub/snap-my-macros", label: "Meal Tracker", desc: "Photo-based meal tracking" },
   { href: "/hub/progress", label: "Progress", desc: "Log weight and photos" },
   { href: "/hub/analytics", label: "Analytics", desc: "Personal insights and trends" },
+  { href: "/hub/steps", label: "Steps", desc: "Track daily steps" },
   { href: "/hub/favourites", label: "Favourites", desc: "Your saved recipes" },
   { href: "/hub/messages", label: "Messages", desc: "Chat with your coach" },
   { href: "/hub/settings", label: "Settings", desc: "Manage your account" },

@@ -132,6 +132,12 @@ export async function GET(request: Request) {
     });
     const totalSteps = stepsInRange.reduce((sum, s) => sum + s.steps, 0);
 
+    // Today's steps (for sidebar)
+    const todaySteps = await prisma.stepLog.findFirst({
+      where: { userId, loggedDate: { gte: today } },
+      orderBy: { loggedDate: "desc" },
+    });
+
     // Favourites
     const favCount = await prisma.favourite.count({ where: { userId } });
 
@@ -161,6 +167,8 @@ export async function GET(request: Request) {
       mealTotals,
       isAverage: daysInRange > 1,
       totalSteps: daysInRange > 1 ? totalSteps : undefined,
+      stepsToday: todaySteps?.steps || 0,
+      stepGoal: todaySteps?.goal || 10000,
       targets: targets
         ? {
             calories: targets.calories,

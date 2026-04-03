@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
+import NotificationBell from "@/components/ui/NotificationBell";
 
 interface AuthUser {
   id: number;
@@ -120,51 +121,54 @@ export default function Header() {
             {loading ? (
               <div className="w-20 h-9" />
             ) : user ? (
-              /* Auth dropdown */
-              <div className="relative" ref={dropdownRef}>
-                <button
-                  onClick={() => setDropdownOpen(!dropdownOpen)}
-                  className="flex items-center gap-2 text-white/80 hover:text-white text-sm font-semibold transition-colors"
-                >
-                  {displayName}
-                  <svg
-                    className={`w-4 h-4 transition-transform ${dropdownOpen ? "rotate-180" : ""}`}
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
+              <>
+                <NotificationBell />
+                {/* Auth dropdown */}
+                <div className="relative" ref={dropdownRef}>
+                  <button
+                    onClick={() => setDropdownOpen(!dropdownOpen)}
+                    className="flex items-center gap-2 text-white/80 hover:text-white text-sm font-semibold transition-colors"
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-
-                {dropdownOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-48 bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl overflow-hidden shadow-xl z-50">
-                    {user.role === "ADMIN" ? (
-                      <Link
-                        href="/admin"
-                        onClick={() => setDropdownOpen(false)}
-                        className="block px-4 py-3 text-white/70 hover:text-white hover:bg-[#2A2A2A] text-sm transition-colors"
-                      >
-                        Admin Panel
-                      </Link>
-                    ) : (
-                      <Link
-                        href="/hub/settings"
-                        onClick={() => setDropdownOpen(false)}
-                        className="block px-4 py-3 text-white/70 hover:text-white hover:bg-[#2A2A2A] text-sm transition-colors"
-                      >
-                        Settings
-                      </Link>
-                    )}
-                    <button
-                      onClick={handleLogout}
-                      className="block w-full text-left px-4 py-3 text-white/70 hover:text-[#E51A1A] hover:bg-[#2A2A2A] text-sm transition-colors border-t border-[#2A2A2A]"
+                    {displayName}
+                    <svg
+                      className={`w-4 h-4 transition-transform ${dropdownOpen ? "rotate-180" : ""}`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
                     >
-                      Logout
-                    </button>
-                  </div>
-                )}
-              </div>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  {dropdownOpen && (
+                    <div className="absolute right-0 top-full mt-2 w-48 bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl overflow-hidden shadow-xl z-50">
+                      {user.role === "ADMIN" ? (
+                        <Link
+                          href="/admin"
+                          onClick={() => setDropdownOpen(false)}
+                          className="block px-4 py-3 text-white/70 hover:text-white hover:bg-[#2A2A2A] text-sm transition-colors"
+                        >
+                          Admin Panel
+                        </Link>
+                      ) : (
+                        <Link
+                          href="/hub/settings"
+                          onClick={() => setDropdownOpen(false)}
+                          className="block px-4 py-3 text-white/70 hover:text-white hover:bg-[#2A2A2A] text-sm transition-colors"
+                        >
+                          Settings
+                        </Link>
+                      )}
+                      <button
+                        onClick={handleLogout}
+                        className="block w-full text-left px-4 py-3 text-white/70 hover:text-[#E51A1A] hover:bg-[#2A2A2A] text-sm transition-colors border-t border-[#2A2A2A]"
+                      >
+                        Logout
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </>
             ) : (
               <Link
                 href="/login"
@@ -221,6 +225,10 @@ export default function Header() {
           {!loading && (
             user ? (
               <>
+                <div className="flex items-center gap-3 py-2.5 border-b border-white/10">
+                  <NotificationBell />
+                  <span className="text-white/60 text-[1rem] font-semibold">Notifications</span>
+                </div>
                 {user.role === "ADMIN" ? (
                   <Link
                     href="/admin"

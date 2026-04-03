@@ -28,7 +28,7 @@ export async function createToken(
   payload: JWTPayload,
   rememberMe = false
 ): Promise<string> {
-  const expiresIn = rememberMe ? "30d" : "7d";
+  const expiresIn = rememberMe ? "30d" : "14d";
   return new SignJWT(payload as unknown as Record<string, unknown>)
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
@@ -58,7 +58,7 @@ export async function setSessionCookie(
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
     path: "/",
-    maxAge: rememberMe ? 30 * 24 * 60 * 60 : 7 * 24 * 60 * 60,
+    maxAge: rememberMe ? 30 * 24 * 60 * 60 : 14 * 24 * 60 * 60,
   });
 }
 
