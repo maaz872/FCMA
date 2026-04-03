@@ -1,6 +1,23 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import TimeRangeFilter from "@/components/ui/TimeRangeFilter";
+
+const PROGRESS_RANGE_OPTIONS = [
+  { label: "Month", value: "30d" },
+  { label: "3 Months", value: "90d" },
+  { label: "Year", value: "1y" },
+  { label: "All Time", value: "all" },
+];
+
+function rangeToDays(range: string): number {
+  switch (range) {
+    case "30d": return 30;
+    case "90d": return 90;
+    case "1y": return 365;
+    default: return 0; // "all"
+  }
+}
 
 type Measurement = {
   id: number;
@@ -220,6 +237,7 @@ export default function ProgressPage() {
   const [activeTab, setActiveTab] = useState<"measurements" | "photos">("measurements");
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
   const [loading, setLoading] = useState(true);
+  const [chartRange, setChartRange] = useState("90d");
 
   // Log form state
   const [logDate, setLogDate] = useState(todayISO());
@@ -269,6 +287,18 @@ export default function ProgressPage() {
     () => [...measurements].sort((a, b) => a.loggedDate.localeCompare(b.loggedDate)),
     [measurements]
   );
+
+  // Filter measurements by chart range for chart display
+  const filteredSorted = useMemo(() => {
+    const days = rangeToDays(chartRange);
+    if (days === 0) return sorted; // "all"
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    const cutoffStr = cutoff.toISOString().slice(0, 10);
+    return sorted.filter((m) => m.loggedDate.slice(0, 10) >= cutoffStr);
+  }, [sorted, chartRange]);
+
+  const rangeLabel = chartRange === "all" ? "All Time" : chartRange === "1y" ? "1 Year" : chartRange === "90d" ? "3 Months" : "30 Days";
 
   const tableEntries = useMemo(() => {
     const desc = [...sorted].reverse();
@@ -568,7 +598,7 @@ export default function ProgressPage() {
           {/* Multi-Metric Chart */}
           <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-6">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-              <h2 className="text-lg font-bold">Trend (90 days)</h2>
+              <h2 className="text-lg font-bold">Trend ({rangeLabel})</h2>
               <div className="flex gap-2">
                 {(Object.entries(METRIC_CONFIG) as [MetricKey, typeof METRIC_CONFIG[MetricKey]][]).map(
                   ([key, cfg]) => {
@@ -602,7 +632,10 @@ export default function ProgressPage() {
                 )}
               </div>
             </div>
-            <MetricChart data={sorted} metrics={activeMetrics} />
+            <div className="mb-4">
+              <TimeRangeFilter value={chartRange} onChange={setChartRange} options={PROGRESS_RANGE_OPTIONS} />
+            </div>
+            <MetricChart data={filteredSorted} metrics={activeMetrics} />
           </div>
 
           {/* Measurement History Table */}

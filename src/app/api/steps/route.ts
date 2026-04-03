@@ -2,14 +2,33 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
-export async function GET() {
+function parseRange(rangeParam: string): number {
+  switch (rangeParam) {
+    case "7d": return 7;
+    case "30d": return 30;
+    case "90d": return 90;
+    case "1y": return 365;
+    case "all": return 0;
+    default: {
+      const num = parseInt(rangeParam);
+      return isNaN(num) ? 90 : num;
+    }
+  }
+}
+
+export async function GET(request: Request) {
   const session = await getCurrentUser();
   if (!session) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - 90);
+  const url = new URL(request.url);
+  const rangeParam = url.searchParams.get("range") || "90";
+  const range = parseRange(rangeParam);
+
+  const cutoff = range > 0
+    ? new Date(Date.now() - range * 24 * 60 * 60 * 1000)
+    : new Date(0);
 
   const logs = await prisma.stepLog.findMany({
     where: {

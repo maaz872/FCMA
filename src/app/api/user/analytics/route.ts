@@ -2,24 +2,39 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
-export async function GET() {
+function parseRange(rangeParam: string): number {
+  switch (rangeParam) {
+    case "7d": return 7;
+    case "30d": return 30;
+    case "90d": return 90;
+    case "1y": return 365;
+    case "all": return 0;
+    default: {
+      const num = parseInt(rangeParam);
+      return isNaN(num) ? 30 : num;
+    }
+  }
+}
+
+export async function GET(request: Request) {
   const session = await getCurrentUser();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const userId = session.userId;
+  const url = new URL(request.url);
+  const rangeParam = url.searchParams.get("range") || "30d";
+  const range = parseRange(rangeParam);
 
   try {
     const now = new Date();
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    sevenDaysAgo.setHours(0, 0, 0, 0);
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    thirtyDaysAgo.setHours(0, 0, 0, 0);
+    const since = range > 0 ? new Date(now.getTime() - range * 24 * 60 * 60 * 1000) : new Date(0);
+    since.setHours(0, 0, 0, 0);
 
-    // Last 7 days meals
+    // Meals within range
     const recentMeals = await prisma.mealLog.findMany({
-      where: { userId, loggedDate: { gte: sevenDaysAgo } },
+      where: { userId, loggedDate: { gte: since } },
       orderBy: { loggedDate: "asc" },
     });
 
@@ -29,8 +44,9 @@ export async function GET() {
       { date: string; calories: number; protein: number; carbs: number; fat: number }
     > = {};
 
-    // Initialize all 7 days
-    for (let i = 6; i >= 0; i--) {
+    // Initialize days in the range
+    const daysToInit = range > 0 ? Math.min(range, 365) : 365;
+    for (let i = daysToInit - 1; i >= 0; i--) {
       const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
       d.setHours(0, 0, 0, 0);
       const key = d.toISOString().split("T")[0];
@@ -53,11 +69,10 @@ export async function GET() {
       (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
     );
 
-    // Last 30 weight logs
+    // Weight logs within range
     const weightLogs = await prisma.weightLog.findMany({
-      where: { userId },
+      where: { userId, loggedDate: { gte: since } },
       orderBy: { loggedDate: "asc" },
-      take: 30,
     });
 
     // Macro targets
@@ -65,25 +80,31 @@ export async function GET() {
       where: { userId },
     });
 
-    // Total meal count
-    const totalMealCount = await prisma.mealLog.count({ where: { userId } });
+    // Total meal count within range
+    const totalMealCount = await prisma.mealLog.count({
+      where: { userId, loggedDate: { gte: since } },
+    });
 
-    // Distinct dates with meals in last 30 days
-    const last30Meals = await prisma.mealLog.findMany({
-      where: { userId, loggedDate: { gte: thirtyDaysAgo } },
+    // Distinct dates with meals in the range
+    const rangeMeals = await prisma.mealLog.findMany({
+      where: { userId, loggedDate: { gte: since } },
       select: { loggedDate: true },
     });
-    const uniqueDates30 = new Set<string>();
-    for (const m of last30Meals) {
+    const uniqueDates = new Set<string>();
+    for (const m of rangeMeals) {
       const d = new Date(m.loggedDate);
       d.setHours(0, 0, 0, 0);
-      uniqueDates30.add(d.toISOString().split("T")[0]);
+      uniqueDates.add(d.toISOString().split("T")[0]);
     }
-    const consistencyDays = uniqueDates30.size;
+    const consistencyDays = uniqueDates.size;
+    const consistencyTotal = range > 0 ? range : Math.max(
+      Math.ceil((now.getTime() - new Date(0).getTime()) / (24 * 60 * 60 * 1000)),
+      1
+    );
 
     // Max protein day
     const allMeals = await prisma.mealLog.findMany({
-      where: { userId },
+      where: { userId, loggedDate: { gte: since } },
       select: { loggedDate: true, protein: true },
     });
     const proteinByDay: Record<string, number> = {};
@@ -97,15 +118,15 @@ export async function GET() {
       ? Math.round(Math.max(...Object.values(proteinByDay)))
       : 0;
 
-    // Min weight
+    // Min weight within range
     const minWeight = await prisma.weightLog.findFirst({
-      where: { userId },
+      where: { userId, loggedDate: { gte: since } },
       orderBy: { weightKg: "asc" },
     });
 
-    // Longest streak
+    // Longest streak within range
     const allMealDates = await prisma.mealLog.findMany({
-      where: { userId },
+      where: { userId, loggedDate: { gte: since } },
       select: { loggedDate: true },
       orderBy: { loggedDate: "asc" },
     });
@@ -147,6 +168,7 @@ export async function GET() {
         : null,
       totalMealCount,
       consistencyDays,
+      consistencyTotal: range > 0 ? range : consistencyTotal,
       maxProteinDay,
       minWeight: minWeight ? minWeight.weightKg : null,
       longestStreak,

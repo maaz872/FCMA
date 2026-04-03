@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import TimeRangeFilter from "@/components/ui/TimeRangeFilter";
 
 type DayData = {
   date: string;
@@ -22,27 +23,39 @@ type AnalyticsData = {
   targets: { calories: number; protein: number; carbs: number; fat: number } | null;
   totalMealCount: number;
   consistencyDays: number;
+  consistencyTotal: number;
   maxProteinDay: number;
   minWeight: number | null;
   longestStreak: number;
 };
 
-function WeeklyCalorieChart({
+const RANGE_LABELS: Record<string, string> = {
+  "7d": "7 Days",
+  "30d": "30 Days",
+  "90d": "3 Months",
+  "1y": "1 Year",
+  all: "All Time",
+};
+
+function CalorieBarChart({
   data,
   target,
 }: {
   data: DayData[];
   target: number;
 }) {
+  // Show at most last 30 bars to keep chart readable
+  const visible = data.length > 30 ? data.slice(-30) : data;
   const maxCal = Math.max(
-    ...data.map((d) => d.calories),
+    ...visible.map((d) => d.calories),
     target || 0,
     1
   );
   const chartHeight = 200;
   const chartWidth = 600;
-  const barWidth = 50;
-  const gap = (chartWidth - barWidth * 7) / 8;
+  const barCount = visible.length || 1;
+  const barWidth = Math.max(4, Math.min(50, (chartWidth - 20) / barCount - 4));
+  const gap = (chartWidth - barWidth * barCount) / (barCount + 1);
 
   const targetY = target > 0 ? chartHeight - (target / maxCal) * chartHeight : -1;
 
@@ -78,7 +91,7 @@ function WeeklyCalorieChart({
         </>
       )}
 
-      {data.map((day, i) => {
+      {visible.map((day, i) => {
         const barHeight =
           day.calories > 0
             ? (day.calories / maxCal) * chartHeight
@@ -97,11 +110,11 @@ function WeeklyCalorieChart({
               y={y}
               width={barWidth}
               height={barHeight}
-              rx={6}
+              rx={Math.min(6, barWidth / 2)}
               fill={isOver ? "#E51A1A" : "#22C55E"}
               opacity={0.85}
             />
-            {day.calories > 0 && (
+            {day.calories > 0 && barWidth >= 20 && (
               <text
                 x={x + barWidth / 2}
                 y={y - 6}
@@ -113,16 +126,18 @@ function WeeklyCalorieChart({
                 {day.calories}
               </text>
             )}
-            <text
-              x={x + barWidth / 2}
-              y={chartHeight + 16}
-              fill="white"
-              fontSize={11}
-              textAnchor="middle"
-              opacity={0.5}
-            >
-              {dayLabel}
-            </text>
+            {barWidth >= 20 && (
+              <text
+                x={x + barWidth / 2}
+                y={chartHeight + 16}
+                fill="white"
+                fontSize={11}
+                textAnchor="middle"
+                opacity={0.5}
+              >
+                {dayLabel}
+              </text>
+            )}
           </g>
         );
       })}
@@ -415,19 +430,31 @@ function ConsistencyRing({
   );
 }
 
+function rangeToDays(range: string): number {
+  switch (range) {
+    case "7d": return 7;
+    case "30d": return 30;
+    case "90d": return 90;
+    case "1y": return 365;
+    default: return 0;
+  }
+}
+
 export default function AnalyticsPage() {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [range, setRange] = useState("30d");
 
   useEffect(() => {
-    fetch("/api/user/analytics")
+    setLoading(true);
+    fetch(`/api/user/analytics?range=${range}`)
       .then((r) => r.json())
       .then((d) => {
         if (!d.error) setData(d);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  }, [range]);
 
   if (loading) {
     return (
@@ -463,25 +490,33 @@ export default function AnalyticsPage() {
     );
   }
 
-  // Compute average macros for last 7 days
+  // Compute average macros for the period
   const totalProtein = data.weeklyData.reduce((a, d) => a + d.protein, 0);
   const totalCarbs = data.weeklyData.reduce((a, d) => a + d.carbs, 0);
   const totalFat = data.weeklyData.reduce((a, d) => a + d.fat, 0);
 
+  const rangeLabel = RANGE_LABELS[range] || range;
+  const days = rangeToDays(range);
+
   return (
     <div>
       <h1 className="text-3xl font-black text-white mb-2">Analytics</h1>
-      <p className="text-white/50 mb-8">
+      <p className="text-white/50 mb-6">
         Your personal insights and trends at a glance.
       </p>
 
+      {/* Time Range Filter */}
+      <div className="mb-8">
+        <TimeRangeFilter value={range} onChange={setRange} />
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Weekly Calorie Trend */}
+        {/* Calorie Trend */}
         <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-6">
           <h2 className="text-lg font-bold text-white mb-4">
-            Weekly Calorie Trend
+            Calorie Trend ({rangeLabel})
           </h2>
-          <WeeklyCalorieChart
+          <CalorieBarChart
             data={data.weeklyData}
             target={data.targets?.calories || 0}
           />
@@ -490,7 +525,7 @@ export default function AnalyticsPage() {
         {/* Macro Split */}
         <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-6">
           <h2 className="text-lg font-bold text-white mb-4">
-            Average Macro Split (7 days)
+            Average Macro Split ({rangeLabel})
           </h2>
           <MacroDonut
             protein={totalProtein}
@@ -502,7 +537,7 @@ export default function AnalyticsPage() {
         {/* Weight Progress */}
         <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-6">
           <h2 className="text-lg font-bold text-white mb-4">
-            Weight Progress
+            Weight Progress ({rangeLabel})
           </h2>
           <WeightLineChart data={data.weightLogs} />
         </div>
@@ -512,15 +547,15 @@ export default function AnalyticsPage() {
           <h2 className="text-lg font-bold text-white mb-4">
             Consistency Score
           </h2>
-          <ConsistencyRing days={data.consistencyDays} total={30} />
+          <ConsistencyRing days={data.consistencyDays} total={data.consistencyTotal || days || 30} />
           <p className="text-center text-sm text-white/40 mt-3">
-            Percentage of last 30 days with at least 1 meal logged
+            Percentage of {rangeLabel.toLowerCase()} with at least 1 meal logged
           </p>
         </div>
       </div>
 
       {/* Personal Records */}
-      <h2 className="text-xl font-bold text-white mb-4">Personal Records</h2>
+      <h2 className="text-xl font-bold text-white mb-4">Personal Records ({rangeLabel})</h2>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-5">
           <p className="text-xs font-semibold text-white/40 uppercase tracking-wide mb-1">

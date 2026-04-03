@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback } from "react";
+import TimeRangeFilter from "@/components/ui/TimeRangeFilter";
 
 type StepLog = {
   id: number;
@@ -8,6 +9,21 @@ type StepLog = {
   goal: number;
   loggedDate: string;
 };
+
+const STEP_RANGE_OPTIONS = [
+  { label: "Week", value: "7d" },
+  { label: "Month", value: "30d" },
+  { label: "3 Months", value: "90d" },
+];
+
+function rangeToDays(range: string): number {
+  switch (range) {
+    case "7d": return 7;
+    case "30d": return 30;
+    case "90d": return 90;
+    default: return 7;
+  }
+}
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -66,10 +82,11 @@ function CircularProgress({ steps, goal }: { steps: number; goal: number }) {
   );
 }
 
-function WeeklyChart({ logs, defaultGoal }: { logs: StepLog[]; defaultGoal: number }) {
-  const days = useMemo(() => {
+function StepBarChart({ logs, defaultGoal, days }: { logs: StepLog[]; defaultGoal: number; days: number }) {
+  const daysList = useMemo(() => {
+    const daysCount = days > 0 ? days : 90;
     const result: { date: string; day: string; steps: number; goal: number }[] = [];
-    for (let i = 6; i >= 0; i--) {
+    for (let i = daysCount - 1; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
       const dateStr = d.toISOString().slice(0, 10);
@@ -82,17 +99,18 @@ function WeeklyChart({ logs, defaultGoal }: { logs: StepLog[]; defaultGoal: numb
       });
     }
     return result;
-  }, [logs, defaultGoal]);
+  }, [logs, defaultGoal, days]);
 
-  const maxSteps = Math.max(...days.map((d) => d.steps), ...days.map((d) => d.goal), 1000);
+  const maxSteps = Math.max(...daysList.map((d) => d.steps), ...daysList.map((d) => d.goal), 1000);
 
   const W = 600;
   const H = 220;
   const pad = { top: 20, right: 20, bottom: 30, left: 50 };
   const cw = W - pad.left - pad.right;
   const ch = H - pad.top - pad.bottom;
-  const barWidth = cw / 7 * 0.6;
-  const barGap = cw / 7;
+  const barCount = daysList.length || 1;
+  const barWidth = Math.max(2, Math.min(cw / 7 * 0.6, cw / barCount * 0.7));
+  const barGap = cw / barCount;
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto">
@@ -111,12 +129,12 @@ function WeeklyChart({ logs, defaultGoal }: { logs: StepLog[]; defaultGoal: numb
       })}
 
       {/* Goal line */}
-      {days[0] && (
+      {daysList[0] && (
         <line
           x1={pad.left}
           x2={W - pad.right}
-          y1={pad.top + ch * (1 - days[0].goal / maxSteps)}
-          y2={pad.top + ch * (1 - days[0].goal / maxSteps)}
+          y1={pad.top + ch * (1 - daysList[0].goal / maxSteps)}
+          y2={pad.top + ch * (1 - daysList[0].goal / maxSteps)}
           stroke="#FFB800"
           strokeWidth={1.5}
           strokeDasharray="6 4"
@@ -125,7 +143,7 @@ function WeeklyChart({ logs, defaultGoal }: { logs: StepLog[]; defaultGoal: numb
       )}
 
       {/* Bars */}
-      {days.map((d, i) => {
+      {daysList.map((d, i) => {
         const barH = (d.steps / maxSteps) * ch;
         const x = pad.left + i * barGap + (barGap - barWidth) / 2;
         const y = pad.top + ch - barH;
@@ -137,20 +155,22 @@ function WeeklyChart({ logs, defaultGoal }: { logs: StepLog[]; defaultGoal: numb
               y={y}
               width={barWidth}
               height={Math.max(barH, 2)}
-              rx={4}
+              rx={Math.min(4, barWidth / 2)}
               fill={met ? "#22C55E" : "#E51A1A"}
               opacity={0.85}
             />
-            <text
-              x={x + barWidth / 2}
-              y={H - pad.bottom + 16}
-              textAnchor="middle"
-              fontSize={11}
-              fill="#888"
-              fontWeight={600}
-            >
-              {d.day}
-            </text>
+            {barCount <= 14 && (
+              <text
+                x={x + barWidth / 2}
+                y={H - pad.bottom + 16}
+                textAnchor="middle"
+                fontSize={11}
+                fill="#888"
+                fontWeight={600}
+              >
+                {d.day}
+              </text>
+            )}
           </g>
         );
       })}
@@ -166,10 +186,13 @@ export default function StepsPage() {
   const [showLogForm, setShowLogForm] = useState(false);
   const [showGoalEdit, setShowGoalEdit] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [range, setRange] = useState("7d");
+
+  const days = rangeToDays(range);
 
   const fetchLogs = useCallback(async () => {
     try {
-      const res = await fetch("/api/steps");
+      const res = await fetch(`/api/steps?range=${range}`);
       const data = await res.json();
       if (data.logs) setLogs(data.logs);
     } catch {
@@ -177,9 +200,10 @@ export default function StepsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [range]);
 
   useEffect(() => {
+    setLoading(true);
     fetchLogs();
   }, [fetchLogs]);
 
@@ -191,31 +215,27 @@ export default function StepsPage() {
   const currentGoal = todayLog?.goal || parseInt(goalInput) || 10000;
   const todaySteps = todayLog?.steps || 0;
 
-  // Weekly stats
-  const weekLogs = useMemo(() => {
+  // Stats for selected range
+  const rangeLogs = useMemo(() => {
+    if (range === "all") return logs;
     const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - 7);
+    cutoff.setDate(cutoff.getDate() - days);
     const cutoffStr = cutoff.toISOString().slice(0, 10);
     return logs.filter((l) => l.loggedDate.slice(0, 10) >= cutoffStr);
-  }, [logs]);
+  }, [logs, range, days]);
 
-  const avgSteps = weekLogs.length > 0
-    ? Math.round(weekLogs.reduce((sum, l) => sum + l.steps, 0) / weekLogs.length)
+  const avgSteps = rangeLogs.length > 0
+    ? Math.round(rangeLogs.reduce((sum, l) => sum + l.steps, 0) / rangeLogs.length)
     : 0;
-  const bestDay = weekLogs.length > 0
-    ? weekLogs.reduce((max, l) => (l.steps > max.steps ? l : max), weekLogs[0])
+  const bestDay = rangeLogs.length > 0
+    ? rangeLogs.reduce((max, l) => (l.steps > max.steps ? l : max), rangeLogs[0])
     : null;
-  const daysGoalMet = weekLogs.filter((l) => l.steps >= l.goal).length;
+  const daysGoalMet = rangeLogs.filter((l) => l.steps >= l.goal).length;
 
-  // Last 30 days for history
+  // History for table
   const historyLogs = useMemo(() => {
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - 30);
-    const cutoffStr = cutoff.toISOString().slice(0, 10);
-    return logs
-      .filter((l) => l.loggedDate.slice(0, 10) >= cutoffStr)
-      .sort((a, b) => b.loggedDate.localeCompare(a.loggedDate));
-  }, [logs]);
+    return [...rangeLogs].sort((a, b) => b.loggedDate.localeCompare(a.loggedDate));
+  }, [rangeLogs]);
 
   async function handleLogSteps() {
     const steps = parseInt(stepsInput);
@@ -244,7 +264,6 @@ export default function StepsPage() {
   async function handleUpdateGoal() {
     const goal = parseInt(goalInput);
     if (!goal || goal < 1) return;
-    // Update today's log with the new goal, or create one with 0 steps
     setSaving(true);
     try {
       await fetch("/api/steps", {
@@ -278,6 +297,8 @@ export default function StepsPage() {
     }
   }
 
+  const rangeLabel = range === "all" ? "All" : `${days}d`;
+
   if (loading) {
     return <div className="flex items-center justify-center h-64 text-white/30">Loading...</div>;
   }
@@ -285,7 +306,12 @@ export default function StepsPage() {
   return (
     <div>
       <h1 className="text-3xl font-black mb-2">Step Tracker</h1>
-      <p className="text-white/50 mb-8">Track your daily steps and hit your goals.</p>
+      <p className="text-white/50 mb-6">Track your daily steps and hit your goals.</p>
+
+      {/* Time Range Filter */}
+      <div className="mb-8">
+        <TimeRangeFilter value={range} onChange={setRange} options={STEP_RANGE_OPTIONS} />
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         {/* Today's Steps Card */}
@@ -349,18 +375,18 @@ export default function StepsPage() {
           )}
         </div>
 
-        {/* Weekly Chart */}
+        {/* Bar Chart */}
         <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-6">
-          <h2 className="text-lg font-bold mb-4">This Week</h2>
+          <h2 className="text-lg font-bold mb-4">Steps (Last {days} Days)</h2>
           {logs.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-white/30">
               <svg width="48" height="48" fill="none" viewBox="0 0 24 24" className="mb-3 opacity-40">
                 <path d="M3 12h4l3-9 4 18 3-9h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
-              <p className="text-sm">No step data yet. Log your first steps to see your weekly chart.</p>
+              <p className="text-sm">No step data yet. Log your first steps to see your chart.</p>
             </div>
           ) : (
-            <WeeklyChart logs={logs} defaultGoal={currentGoal} />
+            <StepBarChart logs={logs} defaultGoal={currentGoal} days={days} />
           )}
           <div className="flex items-center gap-4 mt-2 justify-center">
             <span className="flex items-center gap-1.5 text-xs text-white/40">
@@ -379,11 +405,11 @@ export default function StepsPage() {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-5">
-          <p className="text-xs font-semibold text-white/40 uppercase tracking-wide mb-1">Avg Steps (7d)</p>
+          <p className="text-xs font-semibold text-white/40 uppercase tracking-wide mb-1">Avg Steps ({rangeLabel})</p>
           <p className="text-2xl font-black">{avgSteps > 0 ? avgSteps.toLocaleString() : "--"}</p>
         </div>
         <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-5">
-          <p className="text-xs font-semibold text-white/40 uppercase tracking-wide mb-1">Best Day (7d)</p>
+          <p className="text-xs font-semibold text-white/40 uppercase tracking-wide mb-1">Best Day ({rangeLabel})</p>
           <p className="text-2xl font-black">
             {bestDay ? bestDay.steps.toLocaleString() : "--"}
           </p>
@@ -392,15 +418,15 @@ export default function StepsPage() {
           )}
         </div>
         <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-5">
-          <p className="text-xs font-semibold text-white/40 uppercase tracking-wide mb-1">Days Goal Met (7d)</p>
-          <p className="text-2xl font-black">{daysGoalMet > 0 ? `${daysGoalMet}/7` : "--"}</p>
+          <p className="text-xs font-semibold text-white/40 uppercase tracking-wide mb-1">Days Goal Met ({rangeLabel})</p>
+          <p className="text-2xl font-black">{daysGoalMet > 0 ? `${daysGoalMet}/${rangeLogs.length}` : "--"}</p>
         </div>
       </div>
 
       {/* History Table */}
       <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl overflow-hidden">
         <div className="p-6 pb-3">
-          <h2 className="text-lg font-bold">History (30 days)</h2>
+          <h2 className="text-lg font-bold">History (Last {days} days)</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">

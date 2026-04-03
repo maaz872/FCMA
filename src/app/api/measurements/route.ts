@@ -2,14 +2,19 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
-export async function GET() {
+export async function GET(request: Request) {
   const session = await getCurrentUser();
   if (!session) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - 90);
+  const url = new URL(request.url);
+  const rangeParam = url.searchParams.get("range") || "90";
+  const range = rangeParam === "all" ? 0 : parseInt(rangeParam) || 90;
+
+  const cutoff = range > 0
+    ? new Date(Date.now() - range * 24 * 60 * 60 * 1000)
+    : new Date(0);
 
   const measurements = await prisma.bodyMeasurement.findMany({
     where: {

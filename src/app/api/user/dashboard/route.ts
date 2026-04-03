@@ -2,22 +2,42 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
-export async function GET() {
+export async function GET(request: Request) {
   const session = await getCurrentUser();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const userId = session.userId;
+  const url = new URL(request.url);
+  const rangeParam = url.searchParams.get("range") || "today";
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
+  let since: Date;
+  let daysInRange: number;
+  switch (rangeParam) {
+    case "week":
+      since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      daysInRange = 7;
+      break;
+    case "month":
+      since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      daysInRange = 30;
+      break;
+    default: // "today"
+      since = today;
+      daysInRange = 1;
+      break;
+  }
+
   try {
-    // Today's meals
-    const todayMeals = await prisma.mealLog.findMany({
-      where: { userId, loggedDate: { gte: today } },
+    // Meals in range
+    const meals = await prisma.mealLog.findMany({
+      where: { userId, loggedDate: { gte: since } },
     });
-    const mealTotals = todayMeals.reduce(
+    const rawTotals = meals.reduce(
       (acc: { calories: number; protein: number; carbs: number; fat: number }, m: { calories: number; protein: number; carbs: number; fat: number }) => ({
         calories: acc.calories + m.calories,
         protein: acc.protein + m.protein,
@@ -26,6 +46,16 @@ export async function GET() {
       }),
       { calories: 0, protein: 0, carbs: 0, fat: 0 }
     );
+
+    // For multi-day ranges, compute daily averages
+    const mealTotals = daysInRange > 1
+      ? {
+          calories: Math.round(rawTotals.calories / daysInRange),
+          protein: Math.round(rawTotals.protein / daysInRange),
+          carbs: Math.round(rawTotals.carbs / daysInRange),
+          fat: Math.round(rawTotals.fat / daysInRange),
+        }
+      : rawTotals;
 
     // Macro targets
     const targets = await prisma.userMacroTarget.findUnique({
@@ -37,6 +67,14 @@ export async function GET() {
       where: { userId },
       orderBy: { loggedDate: "desc" },
     });
+
+    // Weight at start of range
+    const rangeStartWeight = await prisma.weightLog.findFirst({
+      where: { userId, loggedDate: { lte: since } },
+      orderBy: { loggedDate: "desc" },
+    });
+
+    // Also check week ago for default view
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const weekAgoWeight = await prisma.weightLog.findFirst({
       where: { userId, loggedDate: { lte: weekAgo } },
@@ -65,7 +103,6 @@ export async function GET() {
       const now = new Date();
       now.setHours(0, 0, 0, 0);
 
-      // Check if today or yesterday is the most recent logged date
       const mostRecent = new Date(sortedDates[0]);
       const diffFromToday = Math.round(
         (now.getTime() - mostRecent.getTime()) / (24 * 60 * 60 * 1000)
@@ -88,6 +125,12 @@ export async function GET() {
         }
       }
     }
+
+    // Steps in range
+    const stepsInRange = await prisma.stepLog.findMany({
+      where: { userId, loggedDate: { gte: since } },
+    });
+    const totalSteps = stepsInRange.reduce((sum, s) => sum + s.steps, 0);
 
     // Favourites
     const favCount = await prisma.favourite.count({ where: { userId } });
@@ -116,6 +159,8 @@ export async function GET() {
     return NextResponse.json({
       user,
       mealTotals,
+      isAverage: daysInRange > 1,
+      totalSteps: daysInRange > 1 ? totalSteps : undefined,
       targets: targets
         ? {
             calories: targets.calories,
@@ -128,6 +173,7 @@ export async function GET() {
       weight: {
         latest: latestWeight ? latestWeight.weightKg : null,
         weekAgo: weekAgoWeight ? weekAgoWeight.weightKg : null,
+        rangeStart: rangeStartWeight ? rangeStartWeight.weightKg : null,
       },
       streak,
       favCount,

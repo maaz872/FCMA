@@ -2,6 +2,32 @@
 
 import { useState, Fragment } from "react";
 import Link from "next/link";
+import TimeRangeFilter from "@/components/ui/TimeRangeFilter";
+
+const ADMIN_RANGE_OPTIONS = [
+  { label: "Month", value: "30d" },
+  { label: "3 Months", value: "90d" },
+  { label: "Year", value: "1y" },
+  { label: "All Time", value: "all" },
+];
+
+function adminRangeToDays(range: string): number {
+  switch (range) {
+    case "30d": return 30;
+    case "90d": return 90;
+    case "1y": return 365;
+    default: return 0;
+  }
+}
+
+function filterByRange<T extends { loggedDate: string }>(data: T[], range: string): T[] {
+  const days = adminRangeToDays(range);
+  if (days === 0) return data;
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  const cutoffStr = cutoff.toISOString().slice(0, 10);
+  return data.filter((d) => d.loggedDate.slice(0, 10) >= cutoffStr);
+}
 
 /* ── Types ─────────────────────────────────────────────────── */
 interface MacroTarget {
@@ -605,16 +631,19 @@ function MealLogsTab({ logs }: { logs: MealLog[] }) {
 
 /* ── Weight Tab ───────────────────────────────────────────── */
 function WeightTab({ logs }: { logs: WeightLog[] }) {
+  const [range, setRange] = useState("30d");
+
   if (!logs.length) return <EmptyState text="No weight logs recorded yet." />;
 
-  const sorted = [...logs].sort(
+  const filtered = filterByRange(logs, range);
+  const sorted = [...filtered].sort(
     (a, b) => new Date(a.loggedDate).getTime() - new Date(b.loggedDate).getTime()
   );
 
   const weights = sorted.map((w) => w.weightKg);
   const minW = Math.min(...weights) - 2;
   const maxW = Math.max(...weights) + 2;
-  const range = maxW - minW || 1;
+  const weightRange = maxW - minW || 1;
 
   const chartW = 700;
   const chartH = 200;
@@ -625,7 +654,7 @@ function WeightTab({ logs }: { logs: WeightLog[] }) {
 
   const points = sorted.map((w, i) => {
     const x = padX + (i / Math.max(sorted.length - 1, 1)) * plotW;
-    const y = padY + plotH - ((w.weightKg - minW) / range) * plotH;
+    const y = padY + plotH - ((w.weightKg - minW) / weightRange) * plotH;
     return { x, y, weight: w.weightKg, date: w.loggedDate };
   });
 
@@ -633,11 +662,14 @@ function WeightTab({ logs }: { logs: WeightLog[] }) {
 
   return (
     <div className="p-6 space-y-6">
+      <div className="mb-2">
+        <TimeRangeFilter value={range} onChange={setRange} options={ADMIN_RANGE_OPTIONS} />
+      </div>
       <div className="overflow-x-auto">
         <svg viewBox={`0 0 ${chartW} ${chartH}`} className="w-full max-w-[700px]">
           {[0, 0.25, 0.5, 0.75, 1].map((pct) => {
             const y = padY + plotH - pct * plotH;
-            const val = (minW + pct * range).toFixed(1);
+            const val = (minW + pct * weightRange).toFixed(1);
             return (
               <g key={pct}>
                 <line x1={padX} y1={y} x2={chartW - padX} y2={y} stroke="#2A2A2A" strokeWidth={1} />
@@ -693,9 +725,12 @@ function WeightTab({ logs }: { logs: WeightLog[] }) {
 
 /* ── Steps Tab ───────────────────────────────────────────── */
 function StepsTab({ logs }: { logs: StepLog[] }) {
+  const [range, setRange] = useState("30d");
+
   if (!logs.length) return <EmptyState text="No step logs recorded yet." />;
 
-  const sorted = [...logs].sort(
+  const filtered = filterByRange(logs, range);
+  const sorted = [...filtered].sort(
     (a, b) => new Date(a.loggedDate).getTime() - new Date(b.loggedDate).getTime()
   );
 
@@ -715,6 +750,9 @@ function StepsTab({ logs }: { logs: StepLog[] }) {
 
   return (
     <div className="p-6 space-y-6">
+      <div className="mb-2">
+        <TimeRangeFilter value={range} onChange={setRange} options={ADMIN_RANGE_OPTIONS} />
+      </div>
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-[#141414] border border-[#2A2A2A] rounded-xl p-4 text-center">
@@ -773,9 +811,12 @@ function StepsTab({ logs }: { logs: StepLog[] }) {
 
 /* ── Measurements Tab ────────────────────────────────────── */
 function MeasurementsTab({ data }: { data: BodyMeasurement[] }) {
+  const [range, setRange] = useState("30d");
+
   if (!data.length) return <EmptyState text="No body measurements recorded yet." />;
 
-  const sorted = [...data].sort(
+  const filtered = filterByRange(data, range);
+  const sorted = [...filtered].sort(
     (a, b) => new Date(a.loggedDate).getTime() - new Date(b.loggedDate).getTime()
   );
 
@@ -824,6 +865,9 @@ function MeasurementsTab({ data }: { data: BodyMeasurement[] }) {
 
   return (
     <div className="p-6 space-y-6">
+      <div className="mb-2">
+        <TimeRangeFilter value={range} onChange={setRange} options={ADMIN_RANGE_OPTIONS} />
+      </div>
       {/* Charts */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
         <MiniLineChart points={weightPoints} color="#E51A1A" label="Weight Over Time (kg)" />

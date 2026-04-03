@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import TimeRangeFilter from "@/components/ui/TimeRangeFilter";
 
 type DashboardData = {
   user: { firstName: string; lastName: string } | null;
   mealTotals: { calories: number; protein: number; carbs: number; fat: number };
+  isAverage?: boolean;
   targets: { calories: number; protein: number; carbs: number; fat: number; goal: string } | null;
   weight: { latest: number | null; weekAgo: number | null };
   streak: number;
@@ -13,6 +15,12 @@ type DashboardData = {
   unreadCount: number;
   latestPosts: { id: number; content: string; authorName: string; likes: number; comments: number; createdAt: string }[];
 };
+
+const DASHBOARD_RANGE_OPTIONS = [
+  { label: "Today", value: "today" },
+  { label: "This Week", value: "week" },
+  { label: "This Month", value: "month" },
+];
 
 const quickLinks = [
   { href: "/hub/dashboard", label: "Dashboard", desc: "Your daily overview" },
@@ -32,25 +40,30 @@ const quickLinks = [
 export default function HubDashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [range, setRange] = useState("today");
 
   useEffect(() => {
-    fetch("/api/user/dashboard")
+    setLoading(true);
+    fetch(`/api/user/dashboard?range=${range}`)
       .then((r) => r.json())
       .then((d) => {
         if (!d.error) setData(d);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  }, [range]);
 
   const calorieTarget = data?.targets?.calories || 0;
   const caloriesEaten = data?.mealTotals?.calories || 0;
   const calorieProgress = calorieTarget > 0 ? Math.min((caloriesEaten / calorieTarget) * 100, 100) : 0;
   const isOverTarget = caloriesEaten > calorieTarget && calorieTarget > 0;
+  const isAverage = data?.isAverage;
 
   const weightChange = data?.weight?.latest && data?.weight?.weekAgo
     ? Math.round((data.weight.latest - data.weight.weekAgo) * 10) / 10
     : null;
+
+  const calorieLabel = isAverage ? "Daily Avg Calories" : "Today's Calories";
 
   return (
     <div>
@@ -66,90 +79,98 @@ export default function HubDashboard() {
 
       {/* Stats Row */}
       {!loading && data && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          {/* Calories Card */}
-          <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-5">
-            <p className="text-xs font-semibold text-white/40 uppercase tracking-wide mb-1">
-              Today&apos;s Calories
-            </p>
-            <p className="text-2xl font-black text-white">
-              {caloriesEaten.toLocaleString()}
-              {calorieTarget > 0 && (
-                <span className="text-sm font-semibold text-white/40">
-                  {" "}/ {calorieTarget.toLocaleString()} kcal
-                </span>
-              )}
-            </p>
-            {calorieTarget > 0 && (
-              <div className="mt-3 h-2 bg-[#2A2A2A] rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all duration-500"
-                  style={{
-                    width: `${Math.min(calorieProgress, 100)}%`,
-                    backgroundColor: isOverTarget ? "#FF6B00" : "#E51A1A",
-                  }}
-                />
-              </div>
-            )}
-            {calorieTarget === 0 && (
-              <p className="text-xs text-white/30 mt-2">
-                No targets set yet
+        <>
+          {/* Time Range Filter for Stats */}
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-white">Stats</h2>
+            <TimeRangeFilter value={range} onChange={setRange} options={DASHBOARD_RANGE_OPTIONS} />
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            {/* Calories Card */}
+            <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-5">
+              <p className="text-xs font-semibold text-white/40 uppercase tracking-wide mb-1">
+                {calorieLabel}
               </p>
-            )}
-          </div>
-
-          {/* Weight Card */}
-          <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-5">
-            <p className="text-xs font-semibold text-white/40 uppercase tracking-wide mb-1">
-              Weight Trend
-            </p>
-            {data.weight.latest ? (
-              <>
-                <p className="text-2xl font-black text-white">
-                  {data.weight.latest}
-                  <span className="text-sm font-semibold text-white/40"> kg</span>
-                </p>
-                {weightChange !== null && (
-                  <p className={`text-sm font-semibold mt-1 ${weightChange < 0 ? "text-green-400" : weightChange > 0 ? "text-[#FF6B00]" : "text-white/40"}`}>
-                    {weightChange > 0 ? "+" : ""}{weightChange} kg this week
-                  </p>
+              <p className="text-2xl font-black text-white">
+                {caloriesEaten.toLocaleString()}
+                {calorieTarget > 0 && (
+                  <span className="text-sm font-semibold text-white/40">
+                    {" "}/ {calorieTarget.toLocaleString()} kcal
+                  </span>
                 )}
-              </>
-            ) : (
-              <p className="text-lg font-bold text-white/30 mt-1">No data yet</p>
-            )}
-          </div>
+              </p>
+              {calorieTarget > 0 && (
+                <div className="mt-3 h-2 bg-[#2A2A2A] rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{
+                      width: `${Math.min(calorieProgress, 100)}%`,
+                      backgroundColor: isOverTarget ? "#FF6B00" : "#E51A1A",
+                    }}
+                  />
+                </div>
+              )}
+              {calorieTarget === 0 && (
+                <p className="text-xs text-white/30 mt-2">
+                  No targets set yet
+                </p>
+              )}
+            </div>
 
-          {/* Streak Card */}
-          <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-5">
-            <p className="text-xs font-semibold text-white/40 uppercase tracking-wide mb-1">
-              Logging Streak
-            </p>
-            <p className="text-2xl font-black text-white">
-              {data.streak}
-              <span className="text-sm font-semibold text-white/40"> days</span>
-            </p>
-            <p className="text-xs text-white/30 mt-1">
-              {data.streak > 0 ? "Keep it going!" : "Log a meal to start"}
-            </p>
-          </div>
+            {/* Weight Card */}
+            <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-5">
+              <p className="text-xs font-semibold text-white/40 uppercase tracking-wide mb-1">
+                Weight Trend
+              </p>
+              {data.weight.latest ? (
+                <>
+                  <p className="text-2xl font-black text-white">
+                    {data.weight.latest}
+                    <span className="text-sm font-semibold text-white/40"> kg</span>
+                  </p>
+                  {weightChange !== null && (
+                    <p className={`text-sm font-semibold mt-1 ${weightChange < 0 ? "text-green-400" : weightChange > 0 ? "text-[#FF6B00]" : "text-white/40"}`}>
+                      {weightChange > 0 ? "+" : ""}{weightChange} kg this week
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className="text-lg font-bold text-white/30 mt-1">No data yet</p>
+              )}
+            </div>
 
-          {/* Unread Messages Card */}
-          <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-5">
-            <p className="text-xs font-semibold text-white/40 uppercase tracking-wide mb-1">
-              Unread Messages
-            </p>
-            <p className="text-2xl font-black text-white">{data.unreadCount}</p>
-            {data.unreadCount > 0 && (
-              <Link
-                href="/hub/messages"
-                className="text-xs text-[#E51A1A] font-semibold mt-1 inline-block hover:underline"
-              >
-                View messages
-              </Link>
-            )}
+            {/* Streak Card */}
+            <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-5">
+              <p className="text-xs font-semibold text-white/40 uppercase tracking-wide mb-1">
+                Logging Streak
+              </p>
+              <p className="text-2xl font-black text-white">
+                {data.streak}
+                <span className="text-sm font-semibold text-white/40"> days</span>
+              </p>
+              <p className="text-xs text-white/30 mt-1">
+                {data.streak > 0 ? "Keep it going!" : "Log a meal to start"}
+              </p>
+            </div>
+
+            {/* Unread Messages Card */}
+            <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-5">
+              <p className="text-xs font-semibold text-white/40 uppercase tracking-wide mb-1">
+                Unread Messages
+              </p>
+              <p className="text-2xl font-black text-white">{data.unreadCount}</p>
+              {data.unreadCount > 0 && (
+                <Link
+                  href="/hub/messages"
+                  className="text-xs text-[#E51A1A] font-semibold mt-1 inline-block hover:underline"
+                >
+                  View messages
+                </Link>
+              )}
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       {loading && (
