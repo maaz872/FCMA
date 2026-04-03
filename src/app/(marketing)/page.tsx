@@ -41,7 +41,7 @@ export default async function HomePage() {
   return (
     <>
       {/* ── Section 1: Hero ── */}
-      <section className="relative min-h-[90vh] flex items-center">
+      <section className="relative min-h-[90vh] flex items-center w-full overflow-hidden">
         <Image
           src="/images/Coach_Hero.svg"
           alt="Coach Raheel in the gym"
