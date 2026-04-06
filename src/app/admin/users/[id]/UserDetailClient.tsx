@@ -79,7 +79,7 @@ type WeeklyTargetData = {
 
 /* ─── Helpers ────────────────────────────────────────────────────────── */
 
-const TABS = ["Overview", "Meals", "Weight", "Steps", "Body", "Photos", "Messages", "Plans", "Targets"] as const;
+const TABS = ["Overview", "Meals", "Weight", "Steps", "Body", "Messages", "Plans", "Targets"] as const;
 type Tab = typeof TABS[number];
 
 function fmtDate(iso: string) {
@@ -125,7 +125,6 @@ const TAB_META: Record<Tab, { icon: string; label: string }> = {
   Weight:   { icon: "⚖️", label: "Weight" },
   Steps:    { icon: "👟", label: "Steps" },
   Body:     { icon: "📏", label: "Body" },
-  Photos:   { icon: "📸", label: "Photos" },
   Messages: { icon: "💬", label: "Messages" },
   Plans:    { icon: "📋", label: "Plans" },
   Targets:  { icon: "🎯", label: "Targets" },
@@ -200,7 +199,6 @@ export default function UserDetailClient({ user, planTemplates, activePlan, week
   };
 
   /* ── Photo modal ── */
-  const [photoModal, setPhotoModal] = useState<string | null>(null);
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-white pb-24 w-full overflow-hidden">
@@ -261,19 +259,12 @@ export default function UserDetailClient({ user, planTemplates, activePlan, week
         {tab === "Weight" && <WeightTab logs={user.weightLogs} userId={user.id} fitnessGoal={user.fitnessGoal} onDelete={(id) => deleteEntry("weight", id)} onRefresh={() => router.refresh()} />}
         {tab === "Steps" && <StepsTab logs={user.stepLogs} userId={user.id} onDelete={(id) => deleteEntry("step", id)} onRefresh={() => router.refresh()} />}
         {tab === "Body" && <BodyTab measurements={user.bodyMeasurements} userId={user.id} onDelete={(id) => deleteEntry("measurement", id)} onRefresh={() => router.refresh()} />}
-        {tab === "Photos" && <PhotosTab photos={user.progressPhotos} onView={setPhotoModal} />}
         {tab === "Messages" && <MessagesTab messages={user.messages} msgText={msgText} setMsgText={setMsgText} sendMessage={sendMessage} sending={sending} />}
         {tab === "Plans" && <PlansTab userId={user.id} activePlan={activePlan} planTemplates={planTemplates} onRefresh={() => router.refresh()} />}
         {tab === "Targets" && <TargetsTab userId={user.id} weeklyTargets={weeklyTargets} onRefresh={() => router.refresh()} />}
       </div>
 
       {/* ── Photo Modal ── */}
-      {photoModal && (
-        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4" onClick={() => setPhotoModal(null)}>
-          <img src={photoModal} alt="Progress" className="max-w-full max-h-[85vh] rounded-lg object-contain" />
-          <button onClick={() => setPhotoModal(null)} className="absolute top-4 right-4 text-white/70 hover:text-white text-3xl cursor-pointer">&times;</button>
-        </div>
-      )}
     </div>
   );
 }
@@ -1535,25 +1526,6 @@ function AddMeasurementForm({ userId, onClose, onRefresh }: { userId: string; on
 }
 
 /* ─── Photos Tab ─────────────────────────────────────────────────────── */
-
-function PhotosTab({ photos, onView }: { photos: ProgressPhoto[]; onView: (url: string) => void }) {
-  if (photos.length === 0) return <EmptyState text="No progress photos" />;
-
-  return (
-    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-      {photos.map(p => (
-        <button key={p.id} onClick={() => onView(p.imageData)}
-          className="aspect-square bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl overflow-hidden cursor-pointer group relative">
-          <img src={p.imageData} alt="Progress" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-2 pb-2 pt-6">
-            <p className="text-[11px] text-white/80 font-medium">{fmtDateShort(p.photoDate)}</p>
-            {p.notes && <p className="text-[10px] text-white/50 truncate">{p.notes}</p>}
-          </div>
-        </button>
-      ))}
-    </div>
-  );
-}
 
 /* ─── Messages Tab ───────────────────────────────────────────────────── */
 

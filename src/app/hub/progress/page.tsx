@@ -234,7 +234,7 @@ function MetricChart({ data, metrics }: { data: Measurement[]; metrics: MetricKe
 // Main Page Component
 // ===========================================================================
 export default function ProgressPage() {
-  const [activeTab, setActiveTab] = useState<"measurements" | "photos">("measurements");
+  const activeTab = "measurements";
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
   const [loading, setLoading] = useState(true);
   const [chartRange, setChartRange] = useState("90d");
@@ -255,17 +255,6 @@ export default function ProgressPage() {
   const [showBelly, setShowBelly] = useState(true);
   const [showWaist, setShowWaist] = useState(false);
 
-  // Photo upload state
-  const [photoDate, setPhotoDate] = useState(todayISO());
-  const [photoNotes, setPhotoNotes] = useState("");
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [photoSaving, setPhotoSaving] = useState(false);
-
-  // Compare mode
-  const [compareMode, setCompareMode] = useState(false);
-  const [compareSelection, setCompareSelection] = useState<number[]>([]);
 
   const fetchMeasurements = useCallback(async () => {
     try {
@@ -333,12 +322,6 @@ export default function ProgressPage() {
   const startBelly = sorted.find((m) => m.bellyInches !== null)?.bellyInches ?? null;
   const currentBelly = [...sorted].reverse().find((m) => m.bellyInches !== null)?.bellyInches ?? null;
 
-  // Photos
-  const photosData = useMemo(
-    () => measurements.filter((m) => m.imageData).sort((a, b) => b.loggedDate.localeCompare(a.loggedDate)),
-    [measurements]
-  );
-
   const activeMetrics: MetricKey[] = [];
   if (showWeight) activeMetrics.push("weightKg");
   if (showBelly) activeMetrics.push("bellyInches");
@@ -386,56 +369,6 @@ export default function ProgressPage() {
     }
   }
 
-  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setPhotoFile(file);
-    setPreviewUrl(URL.createObjectURL(file));
-  }
-
-  async function handleUploadPhoto() {
-    if (!photoFile) return;
-    setPhotoSaving(true);
-    try {
-      // Convert to base64
-      const reader = new FileReader();
-      const base64 = await new Promise<string>((resolve) => {
-        reader.onload = () => resolve(reader.result as string);
-        reader.readAsDataURL(photoFile);
-      });
-
-      await fetch("/api/measurements", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          loggedDate: photoDate,
-          imageData: base64,
-          notes: photoNotes || undefined,
-        }),
-      });
-
-      setPhotoFile(null);
-      setPreviewUrl(null);
-      setPhotoNotes("");
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      await fetchMeasurements();
-    } catch {
-      // ignore
-    } finally {
-      setPhotoSaving(false);
-    }
-  }
-
-  function toggleCompareSelect(id: number) {
-    setCompareSelection((prev) => {
-      if (prev.includes(id)) return prev.filter((p) => p !== id);
-      if (prev.length >= 2) return [prev[1], id];
-      return [...prev, id];
-    });
-  }
-
-  const selectedPhotos = photosData.filter((p) => compareSelection.includes(p.id));
-
   const inputCls =
     "w-full max-w-full box-border border-2 border-[#2A2A2A] rounded-xl py-2.5 px-3 bg-[#1E1E1E] text-white focus:border-[#E51A1A] focus:outline-none text-sm placeholder:text-white/30 min-h-[44px] appearance-none";
 
@@ -450,22 +383,6 @@ export default function ProgressPage() {
         Track your body measurements and transformation over time.
       </p>
 
-      {/* Tab Buttons */}
-      <div className="flex gap-2 mb-8">
-        {(["measurements", "photos"] as const).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-6 py-2.5 rounded-full text-sm font-bold transition-all duration-200 cursor-pointer border-none min-h-[44px] ${
-              activeTab === tab
-                ? "bg-[#E51A1A] text-white shadow-md"
-                : "bg-[#1E1E1E] text-white/60 border border-[#2A2A2A]"
-            }`}
-          >
-            {tab === "measurements" ? "Measurements" : "Photos"}
-          </button>
-        ))}
-      </div>
 
       {/* ================================================================= */}
       {/* TAB 1: MEASUREMENTS                                               */}
@@ -764,191 +681,6 @@ export default function ProgressPage() {
         </div>
       )}
 
-      {/* ================================================================= */}
-      {/* TAB 2: PHOTOS                                                     */}
-      {/* ================================================================= */}
-      {activeTab === "photos" && (
-        <div className="space-y-6">
-          {/* Upload Section */}
-          <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-6">
-            <h2 className="text-lg font-bold mb-4">Upload Progress Photo</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <div>
-                  <label className="text-xs font-semibold text-white/40 uppercase tracking-wide block mb-1.5">
-                    Date
-                  </label>
-                  <input
-                    type="date"
-                    value={photoDate}
-                    onChange={(e) => setPhotoDate(e.target.value)}
-                    className={inputCls}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-white/40 uppercase tracking-wide block mb-1.5">
-                    Notes (optional)
-                  </label>
-                  <textarea
-                    value={photoNotes}
-                    onChange={(e) => setPhotoNotes(e.target.value)}
-                    placeholder="E.g. Front pose, flexed, after workout..."
-                    rows={3}
-                    className={inputCls + " resize-none"}
-                  />
-                </div>
-                <button
-                  onClick={handleUploadPhoto}
-                  disabled={!photoFile || photoSaving}
-                  className={`px-8 py-3 bg-[#E51A1A] text-white rounded-xl font-bold text-sm cursor-pointer border-none hover:bg-[#C41616] transition-colors min-h-[48px] ${!photoFile ? "opacity-50 pointer-events-none" : ""}`}
-                >
-                  {photoSaving ? "Uploading..." : "Upload Photo"}
-                </button>
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-white/40 uppercase tracking-wide block mb-1.5">
-                  Photo
-                </label>
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-[#2A2A2A] rounded-xl h-52 flex flex-col items-center justify-center cursor-pointer hover:border-[#E51A1A]/40 hover:bg-[#E51A1A]/[0.02] transition-all overflow-hidden"
-                >
-                  {previewUrl ? (
-                    <img
-                      src={previewUrl}
-                      alt="Preview"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <>
-                      <svg width="40" height="40" fill="none" viewBox="0 0 24 24" className="mb-2 text-white/20">
-                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                        <circle cx="12" cy="13" r="4" stroke="currentColor" strokeWidth="1.5"/>
-                      </svg>
-                      <p className="text-sm text-white/30 font-medium">Click to select a photo</p>
-                      <p className="text-xs text-white/20 mt-1">JPG, PNG up to 10MB</p>
-                    </>
-                  )}
-                </div>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleFileSelect}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Compare Mode Controls */}
-          {photosData.length >= 2 && (
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => {
-                  setCompareMode((prev) => !prev);
-                  setCompareSelection([]);
-                }}
-                className={`px-5 py-2.5 rounded-full text-sm font-bold transition-all cursor-pointer border-none ${
-                  compareMode
-                    ? "bg-white text-[#0A0A0A]"
-                    : "bg-[#1E1E1E] text-white/60 border border-[#2A2A2A]"
-                }`}
-              >
-                {compareMode ? "Exit Compare" : "Compare Photos"}
-              </button>
-              {compareMode && (
-                <span className="text-sm text-white/40">
-                  Select 2 photos to compare ({compareSelection.length}/2)
-                </span>
-              )}
-            </div>
-          )}
-
-          {/* Compare View */}
-          {compareMode && selectedPhotos.length === 2 && (
-            <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-6">
-              <h2 className="text-lg font-bold mb-4">Side-by-Side Comparison</h2>
-              <div className="grid grid-cols-2 gap-6">
-                {selectedPhotos.map((photo) => {
-                  const m = measurements.find((me) => me.id === photo.id);
-                  return (
-                    <div key={photo.id} className="text-center">
-                      <div className="rounded-xl overflow-hidden bg-[#0A0A0A] mb-3 aspect-[3/4]">
-                        <img
-                          src={photo.imageData!}
-                          alt={`Progress photo ${photo.loggedDate}`}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <p className="text-sm font-bold">{fmtDateFull(photo.loggedDate)}</p>
-                      {m && m.weightKg !== null && (
-                        <p className="text-xs text-white/50 mt-0.5">Weight: {m.weightKg} kg</p>
-                      )}
-                      {m && m.bellyInches !== null && (
-                        <p className="text-xs text-white/50">Belly: {m.bellyInches} in</p>
-                      )}
-                      {photo.notes && (
-                        <p className="text-xs text-white/40 mt-1">{photo.notes}</p>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Photo Gallery */}
-          {photosData.length === 0 ? (
-            <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-12 text-center">
-              <svg width="48" height="48" fill="none" viewBox="0 0 24 24" className="mx-auto mb-4 text-white/20">
-                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                <circle cx="12" cy="13" r="4" stroke="currentColor" strokeWidth="1.5"/>
-              </svg>
-              <p className="text-white/40 max-w-md mx-auto">
-                No progress photos yet. Upload your first one to start tracking your transformation.
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              {photosData.map((photo) => {
-                const isSelected = compareSelection.includes(photo.id);
-                return (
-                  <div
-                    key={photo.id}
-                    onClick={() => compareMode && toggleCompareSelect(photo.id)}
-                    className={`rounded-xl overflow-hidden bg-[#1E1E1E] border border-[#2A2A2A] transition-all ${
-                      compareMode ? "cursor-pointer" : ""
-                    } ${
-                      isSelected
-                        ? "ring-2 ring-[#E51A1A] ring-offset-2 ring-offset-[#0A0A0A]"
-                        : compareMode
-                          ? "hover:ring-1 hover:ring-white/20"
-                          : ""
-                    }`}
-                  >
-                    <div className="aspect-[3/4] bg-[#0A0A0A]">
-                      <img
-                        src={photo.imageData!}
-                        alt={`Progress photo ${photo.loggedDate}`}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <div className="p-3">
-                      <p className="text-xs font-bold">{fmtDateFull(photo.loggedDate)}</p>
-                      {photo.notes && (
-                        <p className="text-xs text-white/40 mt-0.5 line-clamp-2">
-                          {photo.notes}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }

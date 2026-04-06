@@ -138,7 +138,7 @@ export default function HealthProfilePage() {
             </div>
             <div>
               <label className="block text-xs font-semibold text-white/50 mb-1.5">Height (cm)</label>
-              <input type="number" value={heightCm} onChange={(e) => setHeightCm(e.target.value)} placeholder="e.g. 175" className={inputCls} />
+              <input type="number" step="0.1" value={heightCm} onChange={(e) => setHeightCm(e.target.value)} placeholder="e.g. 175.5" className={inputCls} />
             </div>
             <div>
               <label className="block text-xs font-semibold text-white/50 mb-1.5">Current Weight (kg)</label>

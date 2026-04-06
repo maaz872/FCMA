@@ -84,6 +84,24 @@ export default function UsersAdmin({ users: initialUsers }: { users: User[] }) {
     setActionLoading(null);
   }
 
+  async function deleteUser(id: string, name: string) {
+    if (!confirm(`Delete "${name}" and ALL their data? This cannot be undone.`)) return;
+    if (!confirm(`Are you absolutely sure? All meals, weight logs, progress, messages, and plan data will be permanently deleted.`)) return;
+    setActionLoading(id);
+    try {
+      const res = await fetch(`/api/admin/users/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        setUsers((prev) => prev.filter((u) => u.id !== id));
+      } else {
+        const data = await res.json();
+        alert(data.error || "Failed to delete user");
+      }
+    } catch {
+      alert("Failed to delete user");
+    }
+    setActionLoading(null);
+  }
+
   const pendingCount = users.filter((u) => u.planStatus === "PENDING" && u.role !== "ADMIN").length;
   const activeCount = users.filter((u) => u.planStatus === "ACTIVE").length;
   const totalUsers = users.filter((u) => u.role !== "ADMIN").length;
@@ -240,6 +258,18 @@ export default function UsersAdmin({ users: initialUsers }: { users: User[] }) {
                         ? "Suspend"
                         : "Activate"}
                     </button>
+                    {user.role !== "ADMIN" && (
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          deleteUser(user.id, `${user.firstName} ${user.lastName}`);
+                        }}
+                        disabled={actionLoading === user.id}
+                        className="px-3 py-1 rounded-lg text-[10px] font-semibold cursor-pointer border-none bg-red-500/10 text-red-400/60 hover:bg-red-500/20 hover:text-red-400 transition-colors"
+                      >
+                        {actionLoading === user.id ? "..." : "Delete"}
+                      </button>
+                    )}
                   </div>
                 </div>
               )}

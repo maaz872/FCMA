@@ -54,8 +54,58 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { name, description, type, durationWeeks } = body;
+    const { name, description, type, durationWeeks, duplicateId } = body;
 
+    // ── Duplicate existing template ──
+    if (duplicateId) {
+      const source = await prisma.planTemplate.findUnique({
+        where: { id: parseInt(duplicateId) },
+        include: { days: { include: { meals: true } } },
+      });
+      if (!source) {
+        return NextResponse.json({ error: "Source template not found" }, { status: 404 });
+      }
+
+      const newTemplate = await prisma.planTemplate.create({
+        data: {
+          name: name || `${source.name} (Copy)`,
+          description: source.description,
+          type: source.type,
+          durationWeeks: source.durationWeeks,
+        },
+      });
+
+      // Copy all days with meals
+      for (const day of source.days) {
+        await prisma.planTemplateDay.create({
+          data: {
+            templateId: newTemplate.id,
+            dayOfWeek: day.dayOfWeek,
+            weekNumber: day.weekNumber,
+            workoutId: day.workoutId,
+            workoutNotes: day.workoutNotes,
+            mealPlan: day.mealPlan,
+            calorieTarget: day.calorieTarget,
+            proteinTarget: day.proteinTarget,
+            carbsTarget: day.carbsTarget,
+            fatTarget: day.fatTarget,
+            notes: day.notes,
+            meals: day.meals.length > 0 ? {
+              create: day.meals.map((m) => ({
+                mealType: m.mealType,
+                recipeId: m.recipeId,
+                servings: m.servings,
+                sortOrder: m.sortOrder,
+              })),
+            } : undefined,
+          },
+        });
+      }
+
+      return NextResponse.json(newTemplate);
+    }
+
+    // ── Create new empty template ──
     if (!name) {
       return NextResponse.json(
         { error: "Name is required" },

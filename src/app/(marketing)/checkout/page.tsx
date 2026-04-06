@@ -547,11 +547,12 @@ export default function CheckoutPage() {
                       </label>
                       <input
                         type="number"
+                        step="0.1"
                         min={100}
                         max={250}
                         value={heightCm}
                         onChange={(e) => setHeightCm(e.target.value)}
-                        placeholder="e.g. 175"
+                        placeholder="e.g. 175.5"
                         className={inputClass}
                       />
                     </div>

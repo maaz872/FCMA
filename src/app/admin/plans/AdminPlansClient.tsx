@@ -23,6 +23,27 @@ const typeBadge: Record<string, { label: string; color: string }> = {
 export default function AdminPlansClient({ templates }: { templates: Template[] }) {
   const router = useRouter();
   const [deleting, setDeleting] = useState<number | null>(null);
+  const [duplicating, setDuplicating] = useState<number | null>(null);
+
+  async function handleDuplicate(id: number, name: string) {
+    setDuplicating(id);
+    try {
+      const res = await fetch("/api/admin/plans", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ duplicateId: id, name: `${name} (Copy)` }),
+      });
+      if (res.ok) {
+        router.refresh();
+      } else {
+        alert("Failed to duplicate template");
+      }
+    } catch {
+      alert("Failed to duplicate template");
+    } finally {
+      setDuplicating(null);
+    }
+  }
 
   async function handleDelete(id: number) {
     if (!confirm("Delete this plan template? This cannot be undone.")) return;
@@ -104,9 +125,16 @@ export default function AdminPlansClient({ templates }: { templates: Template[] 
                     Edit
                   </Link>
                   <button
+                    onClick={() => handleDuplicate(t.id, t.name)}
+                    disabled={duplicating === t.id}
+                    className="px-3 py-1.5 bg-[#FF6B00]/10 text-[#FF6B00] text-sm rounded-lg hover:bg-[#FF6B00]/20 transition-colors disabled:opacity-50 cursor-pointer border-none"
+                  >
+                    {duplicating === t.id ? "..." : "Duplicate"}
+                  </button>
+                  <button
                     onClick={() => handleDelete(t.id)}
                     disabled={deleting === t.id}
-                    className="px-3 py-1.5 bg-red-500/10 text-red-400 text-sm rounded-lg hover:bg-red-500/20 transition-colors disabled:opacity-50 cursor-pointer"
+                    className="px-3 py-1.5 bg-red-500/10 text-red-400 text-sm rounded-lg hover:bg-red-500/20 transition-colors disabled:opacity-50 cursor-pointer border-none"
                   >
                     {deleting === t.id ? "..." : "Delete"}
                   </button>
