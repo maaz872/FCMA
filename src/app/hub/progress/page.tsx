@@ -404,116 +404,65 @@ export default function ProgressPage() {
       {/* ================================================================= */}
       {activeTab === "measurements" && (
         <div className="space-y-6">
-          {/* Log Form */}
+          {/* Log Form — Compact 2-column layout */}
           <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-4 sm:p-6 overflow-hidden">
-            <h2 className="text-lg font-bold mb-4">Log Measurement</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold">Log Measurement</h2>
+              <input
+                type="date"
+                value={logDate}
+                onChange={(e) => setLogDate(e.target.value)}
+                className="bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg px-3 py-1.5 text-xs text-white focus:border-[#E51A1A] focus:outline-none min-h-[36px]"
+              />
+            </div>
+
+            {/* Weight — full width, prominent */}
+            <div className="mb-3">
+              <label className="text-[10px] font-semibold text-[#E51A1A]/70 uppercase tracking-wide block mb-1">⚖️ Weight (kg)</label>
+              <input
+                type="number"
+                inputMode="decimal"
+                step="0.1"
+                placeholder="80.0"
+                value={logWeight}
+                onChange={(e) => setLogWeight(e.target.value)}
+                className={inputCls}
+              />
+            </div>
+
+            {/* Body measurements — 2-column grid */}
+            <div className="grid grid-cols-2 gap-2 mb-3">
               <div>
-                <label className="text-xs font-semibold text-white/40 uppercase tracking-wide block mb-1.5">
-                  Date
-                </label>
-                <input
-                  type="date"
-                  value={logDate}
-                  onChange={(e) => setLogDate(e.target.value)}
-                  className={inputCls}
-                />
+                <label className="text-[10px] font-semibold text-[#FF6B00]/70 uppercase tracking-wide block mb-1">📏 Belly (in)</label>
+                <input type="number" inputMode="decimal" step="0.1" placeholder="34" value={logBelly} onChange={(e) => setLogBelly(e.target.value)} className={inputCls} />
               </div>
               <div>
-                <label className="text-xs font-semibold text-white/40 uppercase tracking-wide block mb-1.5">
-                  Weight (kg)
-                </label>
-                <input
-                  type="number"
-                  step="0.1"
-                  placeholder="e.g. 80"
-                  value={logWeight}
-                  onChange={(e) => setLogWeight(e.target.value)}
-                  className={inputCls}
-                />
+                <label className="text-[10px] font-semibold text-[#FFB800]/70 uppercase tracking-wide block mb-1">📐 Waist (in)</label>
+                <input type="number" inputMode="decimal" step="0.1" placeholder="32" value={logWaist} onChange={(e) => setLogWaist(e.target.value)} className={inputCls} />
               </div>
               <div>
-                <label className="text-xs font-semibold text-white/40 uppercase tracking-wide block mb-1.5">
-                  Belly (in)
-                </label>
-                <input
-                  type="number"
-                  step="0.1"
-                  placeholder="e.g. 34"
-                  value={logBelly}
-                  onChange={(e) => setLogBelly(e.target.value)}
-                  className={inputCls}
-                />
+                <label className="text-[10px] font-semibold text-[#3B82F6]/70 uppercase tracking-wide block mb-1">💪 Chest (in)</label>
+                <input type="number" inputMode="decimal" step="0.1" placeholder="40" value={logChest} onChange={(e) => setLogChest(e.target.value)} className={inputCls} />
               </div>
               <div>
-                <label className="text-xs font-semibold text-white/40 uppercase tracking-wide block mb-1.5">
-                  Waist (in)
-                </label>
-                <input
-                  type="number"
-                  step="0.1"
-                  placeholder="e.g. 32"
-                  value={logWaist}
-                  onChange={(e) => setLogWaist(e.target.value)}
-                  className={inputCls}
-                />
+                <label className="text-[10px] font-semibold text-[#8B5CF6]/70 uppercase tracking-wide block mb-1">🦵 Hips (in)</label>
+                <input type="number" inputMode="decimal" step="0.1" placeholder="38" value={logHips} onChange={(e) => setLogHips(e.target.value)} className={inputCls} />
               </div>
               <div>
-                <label className="text-xs font-semibold text-white/40 uppercase tracking-wide block mb-1.5">
-                  Chest (in)
-                </label>
-                <input
-                  type="number"
-                  step="0.1"
-                  placeholder="e.g. 40"
-                  value={logChest}
-                  onChange={(e) => setLogChest(e.target.value)}
-                  className={inputCls}
-                />
+                <label className="text-[10px] font-semibold text-[#14B8A6]/70 uppercase tracking-wide block mb-1">💪 Arms (in)</label>
+                <input type="number" inputMode="decimal" step="0.1" placeholder="14" value={logArms} onChange={(e) => setLogArms(e.target.value)} className={inputCls} />
               </div>
               <div>
-                <label className="text-xs font-semibold text-white/40 uppercase tracking-wide block mb-1.5">
-                  Hips (in)
-                </label>
-                <input
-                  type="number"
-                  step="0.1"
-                  placeholder="e.g. 38"
-                  value={logHips}
-                  onChange={(e) => setLogHips(e.target.value)}
-                  className={inputCls}
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-white/40 uppercase tracking-wide block mb-1.5">
-                  Arms (in)
-                </label>
-                <input
-                  type="number"
-                  step="0.1"
-                  placeholder="e.g. 14"
-                  value={logArms}
-                  onChange={(e) => setLogArms(e.target.value)}
-                  className={inputCls}
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-white/40 uppercase tracking-wide block mb-1.5">
-                  Notes
-                </label>
-                <input
-                  type="text"
-                  placeholder="Optional notes"
-                  value={logNotes}
-                  onChange={(e) => setLogNotes(e.target.value)}
-                  className={inputCls}
-                />
+                <label className="text-[10px] font-semibold text-white/30 uppercase tracking-wide block mb-1">📝 Notes</label>
+                <input type="text" placeholder="Optional" value={logNotes} onChange={(e) => setLogNotes(e.target.value)} className={inputCls} />
               </div>
             </div>
+
+            {/* Sticky save button */}
             <button
               onClick={handleLogMeasurement}
               disabled={saving}
-              className="px-8 py-3 bg-[#E51A1A] text-white rounded-xl font-bold text-sm cursor-pointer border-none hover:bg-[#C41616] transition-colors min-h-[48px]"
+              className="w-full py-3.5 bg-[#E51A1A] text-white rounded-xl font-bold text-sm cursor-pointer border-none hover:bg-[#C41616] transition-colors min-h-[48px] sticky bottom-0"
             >
               {saving ? "Saving..." : "Save Measurement"}
             </button>
@@ -522,21 +471,25 @@ export default function ProgressPage() {
           {/* Stats Cards — All 6 Metrics */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {([
-              { key: "weight", label: "Weight", unit: "kg", color: "#E51A1A" },
-              { key: "belly", label: "Belly", unit: "in", color: "#FF6B00" },
-              { key: "waist", label: "Waist", unit: "in", color: "#FFB800" },
-              { key: "chest", label: "Chest", unit: "in", color: "#3B82F6" },
-              { key: "hips", label: "Hips", unit: "in", color: "#8B5CF6" },
-              { key: "arms", label: "Arms", unit: "in", color: "#14B8A6" },
-            ] as const).map(({ key, label, unit, color }) => {
+              { key: "weight", label: "Weight", unit: "kg", color: "#E51A1A", icon: "⚖️", lowerBetter: true },
+              { key: "belly", label: "Belly", unit: "in", color: "#FF6B00", icon: "📏", lowerBetter: true },
+              { key: "waist", label: "Waist", unit: "in", color: "#FFB800", icon: "📐", lowerBetter: true },
+              { key: "chest", label: "Chest", unit: "in", color: "#3B82F6", icon: "💪", lowerBetter: false },
+              { key: "hips", label: "Hips", unit: "in", color: "#8B5CF6", icon: "🦵", lowerBetter: false },
+              { key: "arms", label: "Arms", unit: "in", color: "#14B8A6", icon: "💪", lowerBetter: false },
+            ] as const).map(({ key, label, unit, color, icon, lowerBetter }) => {
               const s = stats[key];
+              // Semantic colors: green = progress toward goal, red = moving away
+              const isGood = s.change !== null && ((lowerBetter && s.change < 0) || (!lowerBetter && s.change > 0));
+              const isBad = s.change !== null && ((lowerBetter && s.change > 0) || (!lowerBetter && s.change < 0));
               return (
-                <div key={key} className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-4">
-                  <p className="text-[10px] font-semibold uppercase tracking-wide mb-1" style={{ color: color + "99" }}>{label}</p>
+                <div key={key} className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-3.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide mb-1" style={{ color: color + "99" }}>{icon} {label}</p>
                   <p className="text-xl font-black text-white">{s.current !== null ? `${s.current} ${unit}` : "--"}</p>
                   {s.change !== null && (
-                    <p className={`text-[10px] font-semibold mt-0.5 ${s.change < 0 ? "text-green-400" : s.change > 0 ? "text-orange-400" : "text-white/30"}`}>
-                      {s.change > 0 ? "+" : ""}{s.change} {unit} since start
+                    <p className={`text-[11px] font-semibold mt-1 ${isGood ? "text-green-400" : isBad ? "text-[#E51A1A]" : "text-white/30"}`}>
+                      {s.change > 0 ? "+" : ""}{s.change} {unit}
+                      <span className="text-white/20 ml-1">since start</span>
                     </p>
                   )}
                 </div>
