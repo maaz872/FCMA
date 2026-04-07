@@ -66,9 +66,9 @@ export async function POST(
       );
     }
 
-    // Validate weekStartDate is a Monday
-    const weekDate = new Date(weekStartDate + "T00:00:00");
-    const dayOfWeek = weekDate.getDay();
+    // Validate weekStartDate is a Monday (use UTC to match DB storage)
+    const weekDate = new Date(weekStartDate + "T00:00:00Z");
+    const dayOfWeek = weekDate.getUTCDay();
     if (dayOfWeek !== 1) {
       return NextResponse.json(
         { error: "weekStartDate must be a Monday" },
