@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
+import { fetchWithRetry } from "@/lib/fetch-retry";
 
 type Workout = {
   id: number;
@@ -108,7 +109,7 @@ export default function MyPlanPage() {
   const fetchPlan = useCallback(async (date?: string) => {
     try {
       const url = date ? `/api/user/plan?date=${date}` : "/api/user/plan";
-      const res = await fetch(url);
+      const res = await fetchWithRetry(url);
       const planData = await res.json();
       if (!planData.error) setData(planData);
     } catch {
@@ -119,8 +120,8 @@ export default function MyPlanPage() {
   const fetchData = useCallback(async () => {
     try {
       const [planRes, targetRes] = await Promise.all([
-        fetch("/api/user/plan"),
-        fetch("/api/user/targets"),
+        fetchWithRetry("/api/user/plan"),
+        fetchWithRetry("/api/user/targets"),
       ]);
       const planData = await planRes.json();
       const targetData = await targetRes.json();

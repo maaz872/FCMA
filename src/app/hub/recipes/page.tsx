@@ -1,8 +1,9 @@
 export const dynamic = "force-dynamic";
 import { prisma } from "@/lib/db";
 import RecipeBrowser from "./RecipeBrowser";
+import RetryError from "@/components/ui/RetryError";
 
-export default async function RecipesPage() {
+async function loadData() {
   const recipes = await prisma.recipe.findMany({
     where: { isPublished: true },
     include: { category: true, dietaryTags: { include: { tag: true } } },
@@ -15,7 +16,25 @@ export default async function RecipesPage() {
 
   const tags = await prisma.dietaryTag.findMany();
 
-  // Serialize for client component
+  return { recipes, categories, tags };
+}
+
+export default async function RecipesPage() {
+  let data;
+  try {
+    data = await loadData();
+  } catch {
+    // Retry once on cold start failure
+    try {
+      await new Promise((r) => setTimeout(r, 1000));
+      data = await loadData();
+    } catch {
+      return <RetryError message="Failed to load recipes. This usually resolves on retry." />;
+    }
+  }
+
+  const { recipes, categories, tags } = data;
+
   const serializedRecipes = recipes.map((r) => ({
     id: r.id,
     title: r.title,

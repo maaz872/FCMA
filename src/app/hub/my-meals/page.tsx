@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { fetchWithRetry } from "@/lib/fetch-retry";
 
 interface MealLog {
   id: number;
@@ -39,7 +40,7 @@ export default function MyMealsPage() {
   const fetchMeals = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/meals?date=${date}`);
+      const res = await fetchWithRetry(`/api/meals?date=${date}`);
       const data = await res.json();
       setMeals(data.meals || []);
     } catch {

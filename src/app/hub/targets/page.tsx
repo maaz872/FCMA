@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { fetchWithRetry } from "@/lib/fetch-retry";
 
 interface Target {
   id: number;
@@ -40,7 +41,7 @@ export default function TargetsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/user/targets")
+    fetchWithRetry("/api/user/targets")
       .then(r => r.json())
       .then(d => setTargets(d.targets || []))
       .catch(() => {})

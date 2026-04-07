@@ -2,8 +2,9 @@ export const dynamic = "force-dynamic";
 
 import { prisma } from "@/lib/db";
 import WorkoutsBrowser from "./WorkoutsBrowser";
+import RetryError from "@/components/ui/RetryError";
 
-export default async function WorkoutsPage() {
+async function loadData() {
   const workouts = await prisma.workout.findMany({
     where: { isPublished: true },
     include: { subcategory: { include: { category: true } } },
@@ -19,6 +20,24 @@ export default async function WorkoutsPage() {
     },
     orderBy: { displayOrder: "asc" },
   });
+
+  return { workouts, categories };
+}
+
+export default async function WorkoutsPage() {
+  let data;
+  try {
+    data = await loadData();
+  } catch {
+    try {
+      await new Promise((r) => setTimeout(r, 1000));
+      data = await loadData();
+    } catch {
+      return <RetryError message="Failed to load workouts. This usually resolves on retry." />;
+    }
+  }
+
+  const { workouts, categories } = data;
 
   const serialized = workouts.map(
     (w: {

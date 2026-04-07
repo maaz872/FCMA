@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import TimeRangeFilter from "@/components/ui/TimeRangeFilter";
+import { fetchWithRetry } from "@/lib/fetch-retry";
 
 const PROGRESS_RANGE_OPTIONS = [
   { label: "Month", value: "30d" },
@@ -258,7 +259,7 @@ export default function ProgressPage() {
 
   const fetchMeasurements = useCallback(async () => {
     try {
-      const res = await fetch("/api/measurements");
+      const res = await fetchWithRetry("/api/measurements");
       const data = await res.json();
       if (data.measurements) {
         setMeasurements(data.measurements);

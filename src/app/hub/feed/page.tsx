@@ -35,6 +35,7 @@ interface Post {
 
 import VideoEmbed from "@/components/ui/VideoEmbed";
 import { parseVideoUrl } from "@/lib/video";
+import { fetchWithRetry } from "@/lib/fetch-retry";
 
 function timeAgo(dateStr: string): string {
   const now = new Date();
@@ -62,7 +63,7 @@ export default function HubFeedPage() {
 
   const fetchPosts = useCallback(async () => {
     try {
-      const res = await fetch("/api/feed");
+      const res = await fetchWithRetry("/api/feed");
       if (res.ok) {
         const data = await res.json();
         setPosts(data.posts || []);

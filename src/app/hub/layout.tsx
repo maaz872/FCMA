@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 import NotificationBell from "@/components/ui/NotificationBell";
 import InstallPrompt from "@/components/InstallPrompt";
 import { useBranding } from "@/lib/branding";
+import { fetchWithRetry } from "@/lib/fetch-retry";
 
 const sidebarGroups = [
   {
@@ -66,7 +67,7 @@ export default function HubLayout({ children }: { children: React.ReactNode }) {
   const { siteName } = useBranding();
 
   useEffect(() => {
-    fetch("/api/auth/me")
+    fetchWithRetry("/api/auth/me")
       .then((r) => r.json())
       .then((data) => {
         if (data.user) {
@@ -78,7 +79,7 @@ export default function HubLayout({ children }: { children: React.ReactNode }) {
       })
       .catch(() => {});
 
-    fetch("/api/user/dashboard")
+    fetchWithRetry("/api/user/dashboard")
       .then((r) => r.json())
       .then((data) => {
         if (data.mealTotals) setCaloriesEaten(data.mealTotals.calories || 0);
@@ -88,7 +89,7 @@ export default function HubLayout({ children }: { children: React.ReactNode }) {
       .catch(() => {});
 
     // Fetch calorie target from assigned plan
-    fetch("/api/user/plan")
+    fetchWithRetry("/api/user/plan")
       .then((r) => r.json())
       .then((data) => {
         if (data.today?.calorieTarget) setCalorieTarget(data.today.calorieTarget);
@@ -96,7 +97,7 @@ export default function HubLayout({ children }: { children: React.ReactNode }) {
       .catch(() => {});
 
     // Fetch step target from admin-set targets
-    fetch("/api/user/targets")
+    fetchWithRetry("/api/user/targets")
       .then((r) => r.json())
       .then((data) => {
         const stepTarget = (data.targets || []).find((t: { metric: string }) => t.metric === "steps");

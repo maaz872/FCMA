@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo, useCallback } from "react";
 import TimeRangeFilter from "@/components/ui/TimeRangeFilter";
+import { fetchWithRetry } from "@/lib/fetch-retry";
 
 type StepLog = {
   id: number;
@@ -191,7 +192,7 @@ export default function StepsPage() {
 
   const fetchLogs = useCallback(async () => {
     try {
-      const res = await fetch(`/api/steps?range=${range}`);
+      const res = await fetchWithRetry(`/api/steps?range=${range}`);
       const data = await res.json();
       if (data.logs) setLogs(data.logs);
     } catch {
@@ -205,7 +206,7 @@ export default function StepsPage() {
     setLoading(true);
     fetchLogs();
     // Fetch admin-set step target
-    fetch("/api/user/targets").then(r => r.json()).then(d => {
+    fetchWithRetry("/api/user/targets").then(r => r.json()).then(d => {
       const stepTarget = (d.targets || []).find((t: { metric: string }) => t.metric === "steps");
       if (stepTarget) setAdminGoal(stepTarget.targetValue);
     }).catch(() => {});

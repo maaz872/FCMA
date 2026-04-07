@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import TimeRangeFilter from "@/components/ui/TimeRangeFilter";
 import { useBranding } from "@/lib/branding";
+import { fetchWithRetry } from "@/lib/fetch-retry";
 
 type DashboardData = {
   user: { firstName: string; lastName: string } | null;
@@ -70,7 +71,7 @@ export default function HubDashboard() {
 
   useEffect(() => {
     setLoading(true);
-    fetch(`/api/user/dashboard?range=${range}`)
+    fetchWithRetry(`/api/user/dashboard?range=${range}`)
       .then((r) => r.json())
       .then((d) => {
         if (!d.error) setData(d);
@@ -80,13 +81,13 @@ export default function HubDashboard() {
   }, [range]);
 
   useEffect(() => {
-    fetch("/api/user/plan")
+    fetchWithRetry("/api/user/plan")
       .then((r) => r.json())
       .then((d) => {
         if (!d.error && d.plan) setPlanData(d);
       })
       .catch(() => {});
-    fetch("/api/user/targets")
+    fetchWithRetry("/api/user/targets")
       .then((r) => r.json())
       .then((d) => setTargets(d.targets || []))
       .catch(() => {});

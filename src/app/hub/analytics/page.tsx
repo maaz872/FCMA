@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import TimeRangeFilter from "@/components/ui/TimeRangeFilter";
+import { fetchWithRetry } from "@/lib/fetch-retry";
 
 type DayData = {
   date: string;
@@ -447,7 +448,7 @@ export default function AnalyticsPage() {
 
   useEffect(() => {
     setLoading(true);
-    fetch(`/api/user/analytics?range=${range}`)
+    fetchWithRetry(`/api/user/analytics?range=${range}`)
       .then((r) => r.json())
       .then((d) => {
         if (!d.error) setData(d);
