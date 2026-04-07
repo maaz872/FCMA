@@ -5,12 +5,12 @@
 export async function fetchWithRetry(
   url: string,
   options?: RequestInit,
-  retries = 2
+  retries = 3
 ): Promise<Response> {
   for (let i = 0; i <= retries; i++) {
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
+      const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout
       const res = await fetch(url, {
         ...options,
         signal: controller.signal,
@@ -22,7 +22,7 @@ export async function fetchWithRetry(
       // timeout or network error, retry
     }
     if (i < retries) {
-      await new Promise((r) => setTimeout(r, 1000 * (i + 1))); // 1s, 2s backoff
+      await new Promise((r) => setTimeout(r, 1500 * (i + 1))); // 1.5s, 3s, 4.5s backoff
     }
   }
   // Final attempt without custom timeout
