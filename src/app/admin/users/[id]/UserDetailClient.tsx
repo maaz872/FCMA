@@ -910,9 +910,15 @@ function TargetsTab({ userId, weeklyTargets, onRefresh }: {
         <Card title="Existing Targets">
           <div className="space-y-2">
             {weeklyTargets.map(t => {
-              const progressPct = t.currentValue !== null && t.targetValue > 0
-                ? Math.round((t.currentValue / t.targetValue) * 100)
-                : null;
+              const isLowerBetter = ["weight", "belly", "waist"].includes(t.metric);
+              let progressPct: number | null = null;
+              if (t.currentValue !== null && t.targetValue > 0) {
+                if (isLowerBetter) {
+                  progressPct = t.currentValue <= t.targetValue ? 100 : Math.min(100, Math.round((t.targetValue / t.currentValue) * 100));
+                } else {
+                  progressPct = Math.min(100, Math.round((t.currentValue / t.targetValue) * 100));
+                }
+              }
               const colorClass = progressPct !== null
                 ? (progressPct >= 90 ? "text-green-400" : progressPct >= 50 ? "text-orange-400" : "text-red-400")
                 : "text-white/30";

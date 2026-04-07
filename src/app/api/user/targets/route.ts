@@ -71,7 +71,8 @@ export async function GET() {
           });
           if (stepLogs.length > 0) {
             const totalSteps = stepLogs.reduce((sum, s) => sum + s.steps, 0);
-            currentValue = Math.round(totalSteps / 7);
+            // Average by days logged (consistent with calories)
+            currentValue = Math.round(totalSteps / stepLogs.length);
           }
         } else if (t.metric === "calories") {
           const mealLogs = await prisma.mealLog.findMany({

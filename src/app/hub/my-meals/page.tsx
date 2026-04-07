@@ -187,7 +187,13 @@ export default function MyMealsPage() {
                 {group.meals.map((meal) => (
                   <div key={meal.id} className="flex items-center gap-3 bg-[#0A0A0A] rounded-xl p-3">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white truncate">{meal.description}</p>
+                      <p className="text-sm font-medium text-white truncate">
+                        {meal.description.startsWith("[Plan] ") ? (
+                          <><span className="inline-block text-[9px] bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded font-bold mr-1.5 align-middle">PLAN</span>{meal.description.slice(7)}</>
+                        ) : (
+                          <><span className="inline-block text-[9px] bg-[#FF6B00]/20 text-[#FF6B00] px-1.5 py-0.5 rounded font-bold mr-1.5 align-middle">OFF</span>{meal.description}</>
+                        )}
+                      </p>
                       <p className="text-[11px] text-white/40">
                         {meal.calories} kcal &middot; {Math.round(meal.protein)}g P &middot; {Math.round(meal.carbs)}g C &middot; {Math.round(meal.fat)}g F
                         <span className="ml-2 text-white/20">{meal.loggedTime}</span>

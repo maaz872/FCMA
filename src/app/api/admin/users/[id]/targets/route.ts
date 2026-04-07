@@ -66,40 +66,74 @@ export async function POST(
       );
     }
 
+    // Validate weekStartDate is a Monday
+    const weekDate = new Date(weekStartDate + "T00:00:00");
+    const dayOfWeek = weekDate.getDay();
+    if (dayOfWeek !== 1) {
+      return NextResponse.json(
+        { error: "weekStartDate must be a Monday" },
+        { status: 400 }
+      );
+    }
+
+    // Validate target values
+    const validMetrics = ["weight", "belly", "waist", "chest", "hips", "arms", "steps", "calories"];
+    for (const t of targets) {
+      if (!validMetrics.includes(t.metric)) {
+        return NextResponse.json({ error: `Invalid metric: ${t.metric}` }, { status: 400 });
+      }
+      const val = parseFloat(String(t.targetValue));
+      if (isNaN(val) || val <= 0) {
+        return NextResponse.json({ error: `Target value for ${t.metric} must be greater than 0` }, { status: 400 });
+      }
+    }
+
     // Verify user exists
     const targetUser = await prisma.user.findUnique({ where: { id: userId } });
     if (!targetUser) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    // Check existing targets to avoid duplicate notifications
+    const existingTargets = await prisma.weeklyTarget.findMany({
+      where: { userId, weekStartDate: weekDate },
+    });
+    const existingMap = new Map(existingTargets.map(t => [t.metric, t.targetValue]));
+
     const created = [];
+    let hasChanges = false;
+
     for (const t of targets) {
+      const newValue = parseFloat(String(t.targetValue));
+      const oldValue = existingMap.get(t.metric);
+      const changed = oldValue === undefined || oldValue !== newValue;
+      if (changed) hasChanges = true;
+
       // Upsert: delete existing for same metric+week, then create
       await prisma.weeklyTarget.deleteMany({
-        where: {
-          userId,
-          weekStartDate: new Date(weekStartDate),
-          metric: t.metric,
-        },
+        where: { userId, weekStartDate: weekDate, metric: t.metric },
       });
 
       const target = await prisma.weeklyTarget.create({
         data: {
           userId,
-          weekStartDate: new Date(weekStartDate),
+          weekStartDate: weekDate,
           metric: t.metric,
-          targetValue: parseFloat(String(t.targetValue)),
+          targetValue: newValue,
           isVisible: t.isVisible !== false,
         },
       });
       created.push(target);
+    }
 
-      // Create notification for each target
+    // Only notify if targets actually changed
+    if (hasChanges) {
+      const metricList = targets.map(t => `${t.metric}: ${t.targetValue}`).join(", ");
       await prisma.notification.create({
         data: {
           userId,
-          title: "New Weekly Target",
-          message: `New weekly target: ${t.metric} \u2192 ${t.targetValue}`,
+          title: "Weekly Targets Updated",
+          message: `Your coach updated your weekly targets: ${metricList}`,
           type: "target",
           actionUrl: "/hub/my-plan",
         },
