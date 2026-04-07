@@ -65,6 +65,7 @@ export default function HubDashboard() {
   const [planSaving, setPlanSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState("today");
+  const [targets, setTargets] = useState<{ metric: string; targetValue: number; currentValue: number | null }[]>([]);
   const { siteName } = useBranding();
 
   useEffect(() => {
@@ -84,6 +85,10 @@ export default function HubDashboard() {
       .then((d) => {
         if (!d.error && d.plan) setPlanData(d);
       })
+      .catch(() => {});
+    fetch("/api/user/targets")
+      .then((r) => r.json())
+      .then((d) => setTargets(d.targets || []))
       .catch(() => {});
   }, []);
 
@@ -210,6 +215,42 @@ export default function HubDashboard() {
                 );
               })()}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Weekly Targets */}
+      {targets.length > 0 && (
+        <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-5 mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-bold text-white">Weekly Targets</h2>
+            <Link href="/hub/targets" className="text-[10px] text-[#E51A1A] hover:underline">View all</Link>
+          </div>
+          <div className="space-y-2.5">
+            {targets.slice(0, 4).map((t) => {
+              const lowerBetter = ["weight", "belly", "waist"].includes(t.metric);
+              let pct = 0;
+              if (t.currentValue && t.targetValue > 0) {
+                pct = lowerBetter
+                  ? (t.currentValue <= t.targetValue ? 100 : Math.min(100, Math.round((t.targetValue / t.currentValue) * 100)))
+                  : Math.min(100, Math.round((t.currentValue / t.targetValue) * 100));
+              }
+              const color = pct >= 90 ? "#22C55E" : pct >= 50 ? "#FF6B00" : "#E51A1A";
+              const unit = t.metric === "weight" ? "kg" : t.metric === "steps" ? "" : t.metric === "calories" ? "kcal" : "in";
+              return (
+                <div key={t.metric}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-medium text-white/60 capitalize">{t.metric}</span>
+                    <span className="text-[10px] text-white/40">
+                      {t.currentValue !== null ? `${t.currentValue}` : "--"} / {t.targetValue} {unit}
+                    </span>
+                  </div>
+                  <div className="h-1.5 bg-[#2A2A2A] rounded-full overflow-hidden">
+                    <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, backgroundColor: color }} />
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

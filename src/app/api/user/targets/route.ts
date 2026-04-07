@@ -9,11 +9,11 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get this week's Monday
+    // Get this week's Monday (UTC-consistent to match DB storage)
     const now = new Date();
-    const jsDay = now.getDay(); // 0=Sun
-    const mondayOffset = jsDay === 0 ? 6 : jsDay - 1;
-    const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - mondayOffset);
+    const utcDay = now.getUTCDay(); // 0=Sun
+    const mondayOffset = utcDay === 0 ? 6 : utcDay - 1;
+    const monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - mondayOffset));
     const sunday = new Date(monday);
     sunday.setDate(sunday.getDate() + 7);
 

@@ -182,9 +182,8 @@ export default function StepsPage() {
   const [logs, setLogs] = useState<StepLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [stepsInput, setStepsInput] = useState("");
-  const [goalInput, setGoalInput] = useState("10000");
+  const [adminGoal, setAdminGoal] = useState<number | null>(null);
   const [showLogForm, setShowLogForm] = useState(false);
-  const [showGoalEdit, setShowGoalEdit] = useState(false);
   const [saving, setSaving] = useState(false);
   const [range, setRange] = useState("7d");
 
@@ -205,6 +204,11 @@ export default function StepsPage() {
   useEffect(() => {
     setLoading(true);
     fetchLogs();
+    // Fetch admin-set step target
+    fetch("/api/user/targets").then(r => r.json()).then(d => {
+      const stepTarget = (d.targets || []).find((t: { metric: string }) => t.metric === "steps");
+      if (stepTarget) setAdminGoal(stepTarget.targetValue);
+    }).catch(() => {});
   }, [fetchLogs]);
 
   const todayLog = useMemo(() => {
@@ -212,7 +216,7 @@ export default function StepsPage() {
     return logs.find((l) => l.loggedDate.slice(0, 10) === today) || null;
   }, [logs]);
 
-  const currentGoal = todayLog?.goal || parseInt(goalInput) || 10000;
+  const currentGoal = adminGoal || todayLog?.goal || 10000;
   const todaySteps = todayLog?.steps || 0;
 
   // Stats for selected range
@@ -261,28 +265,6 @@ export default function StepsPage() {
     }
   }
 
-  async function handleUpdateGoal() {
-    const goal = parseInt(goalInput);
-    if (!goal || goal < 1) return;
-    setSaving(true);
-    try {
-      await fetch("/api/steps", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          steps: todaySteps,
-          goal,
-          loggedDate: todayISO(),
-        }),
-      });
-      setShowGoalEdit(false);
-      await fetchLogs();
-    } catch {
-      // ignore
-    } finally {
-      setSaving(false);
-    }
-  }
 
   async function handleDelete(loggedDate: string) {
     try {
@@ -321,7 +303,7 @@ export default function StepsPage() {
 
           <div className="flex gap-3 mt-6">
             <button
-              onClick={() => { setShowLogForm(!showLogForm); setShowGoalEdit(false); }}
+              onClick={() => setShowLogForm(!showLogForm)}
               className="px-5 py-2.5 bg-[#E51A1A] text-white rounded-xl font-semibold text-sm cursor-pointer border-none hover:bg-[#C41616] transition-colors min-h-[44px]"
             >
               Log Steps
