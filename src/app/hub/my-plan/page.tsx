@@ -564,10 +564,10 @@ export default function MyPlanPage() {
           )}
         </div>
 
-        {/* Nutrition Section */}
+        {/* Today's Meal Plan */}
         <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-6">
           <div className="mb-4">
-            <h2 className="text-lg font-bold text-white">Nutrition</h2>
+            <h2 className="text-lg font-bold text-white">Today&apos;s Meal Plan</h2>
           </div>
 
           {today.calorieTarget && (
@@ -805,34 +805,6 @@ export default function MyPlanPage() {
           </div>
         )}
 
-        {/* Targets */}
-        {targets.length > 0 && (
-          <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-6">
-            <h2 className="text-lg font-bold text-white mb-4">Targets</h2>
-            <div className="space-y-4">
-              {targets.map((t) => {
-                const percent = getTargetPercent(t);
-                const color = getTargetColor(percent);
-                const metricLabel = t.metric.charAt(0).toUpperCase() + t.metric.slice(1);
-                const unit = t.metric === "weight" ? "kg" : t.metric === "steps" ? "steps" : t.metric === "calories" ? "kcal" : "in";
-                return (
-                  <div key={t.id}>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-sm font-semibold text-white">{metricLabel}</span>
-                      <span className="text-xs text-white/50">
-                        {t.currentValue !== null ? `${t.currentValue} / ${t.targetValue} ${unit}` : `Target: ${t.targetValue} ${unit}`}
-                      </span>
-                    </div>
-                    <div className="h-2 bg-[#2A2A2A] rounded-full overflow-hidden">
-                      <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.min(percent, 100)}%`, backgroundColor: color }} />
-                    </div>
-                    <p className="text-[10px] mt-1 text-white/30 text-right">{percent}%</p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

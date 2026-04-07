@@ -316,11 +316,25 @@ export default function ProgressPage() {
     });
   }, [sorted]);
 
-  // Stats
-  const startWeight = sorted.find((m) => m.weightKg !== null)?.weightKg ?? null;
-  const currentWeight = [...sorted].reverse().find((m) => m.weightKg !== null)?.weightKg ?? null;
-  const startBelly = sorted.find((m) => m.bellyInches !== null)?.bellyInches ?? null;
-  const currentBelly = [...sorted].reverse().find((m) => m.bellyInches !== null)?.bellyInches ?? null;
+  // Stats — all 6 metrics
+  const getStartCurrent = (field: keyof Measurement) => {
+    const start = sorted.find((m) => m[field] !== null)?.[field] as number | null;
+    const current = [...sorted].reverse().find((m) => m[field] !== null)?.[field] as number | null;
+    return { start, current, change: start !== null && current !== null ? Math.round((current - start) * 10) / 10 : null };
+  };
+  const stats = {
+    weight: getStartCurrent("weightKg"),
+    belly: getStartCurrent("bellyInches"),
+    waist: getStartCurrent("waistInches"),
+    chest: getStartCurrent("chestInches"),
+    hips: getStartCurrent("hipsInches"),
+    arms: getStartCurrent("armsInches"),
+  };
+  // Backward compat
+  const startWeight = stats.weight.start;
+  const currentWeight = stats.weight.current;
+  const startBelly = stats.belly.start;
+  const currentBelly = stats.belly.current;
 
   const activeMetrics: MetricKey[] = [];
   if (showWeight) activeMetrics.push("weightKg");
@@ -504,24 +518,29 @@ export default function ProgressPage() {
             </button>
           </div>
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-5">
-              <p className="text-xs font-semibold text-white/40 uppercase tracking-wide mb-1">Starting Weight</p>
-              <p className="text-2xl font-black">{startWeight !== null ? `${startWeight} kg` : "--"}</p>
-            </div>
-            <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-5">
-              <p className="text-xs font-semibold text-white/40 uppercase tracking-wide mb-1">Current Weight</p>
-              <p className="text-2xl font-black">{currentWeight !== null ? `${currentWeight} kg` : "--"}</p>
-            </div>
-            <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-5">
-              <p className="text-xs font-semibold text-white/40 uppercase tracking-wide mb-1">Starting Belly</p>
-              <p className="text-2xl font-black">{startBelly !== null ? `${startBelly} in` : "--"}</p>
-            </div>
-            <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-5">
-              <p className="text-xs font-semibold text-white/40 uppercase tracking-wide mb-1">Current Belly</p>
-              <p className="text-2xl font-black">{currentBelly !== null ? `${currentBelly} in` : "--"}</p>
-            </div>
+          {/* Stats Cards — All 6 Metrics */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {([
+              { key: "weight", label: "Weight", unit: "kg", color: "#E51A1A" },
+              { key: "belly", label: "Belly", unit: "in", color: "#FF6B00" },
+              { key: "waist", label: "Waist", unit: "in", color: "#FFB800" },
+              { key: "chest", label: "Chest", unit: "in", color: "#3B82F6" },
+              { key: "hips", label: "Hips", unit: "in", color: "#8B5CF6" },
+              { key: "arms", label: "Arms", unit: "in", color: "#14B8A6" },
+            ] as const).map(({ key, label, unit, color }) => {
+              const s = stats[key];
+              return (
+                <div key={key} className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-4">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide mb-1" style={{ color: color + "99" }}>{label}</p>
+                  <p className="text-xl font-black text-white">{s.current !== null ? `${s.current} ${unit}` : "--"}</p>
+                  {s.change !== null && (
+                    <p className={`text-[10px] font-semibold mt-0.5 ${s.change < 0 ? "text-green-400" : s.change > 0 ? "text-orange-400" : "text-white/30"}`}>
+                      {s.change > 0 ? "+" : ""}{s.change} {unit} since start
+                    </p>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           {/* Multi-Metric Chart */}
@@ -591,7 +610,7 @@ export default function ProgressPage() {
                         Delete
                       </button>
                     </div>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="grid grid-cols-3 gap-2 text-sm">
                       <div>
                         <span className="text-white/40 text-xs">Weight</span>
                         <p className="text-white font-medium">{entry.weightKg !== null ? `${entry.weightKg} kg` : "--"}</p>
@@ -603,6 +622,18 @@ export default function ProgressPage() {
                       <div>
                         <span className="text-white/40 text-xs">Waist</span>
                         <p className="text-white font-medium">{entry.waistInches !== null ? `${entry.waistInches} in` : "--"}</p>
+                      </div>
+                      <div>
+                        <span className="text-white/40 text-xs">Chest</span>
+                        <p className="text-white font-medium">{entry.chestInches !== null ? `${entry.chestInches} in` : "--"}</p>
+                      </div>
+                      <div>
+                        <span className="text-white/40 text-xs">Hips</span>
+                        <p className="text-white font-medium">{entry.hipsInches !== null ? `${entry.hipsInches} in` : "--"}</p>
+                      </div>
+                      <div>
+                        <span className="text-white/40 text-xs">Arms</span>
+                        <p className="text-white font-medium">{entry.armsInches !== null ? `${entry.armsInches} in` : "--"}</p>
                       </div>
                       <div>
                         <span className="text-white/40 text-xs">Change</span>
@@ -627,18 +658,21 @@ export default function ProgressPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-[#2A2A2A] text-left">
-                      <th className="px-6 py-3 font-semibold text-white/40 text-xs uppercase tracking-wide">Date</th>
-                      <th className="px-6 py-3 font-semibold text-white/40 text-xs uppercase tracking-wide">Weight</th>
-                      <th className="px-6 py-3 font-semibold text-white/40 text-xs uppercase tracking-wide">Belly</th>
-                      <th className="px-6 py-3 font-semibold text-white/40 text-xs uppercase tracking-wide">Waist</th>
-                      <th className="px-6 py-3 font-semibold text-white/40 text-xs uppercase tracking-wide">Change</th>
-                      <th className="px-6 py-3" />
+                      <th className="px-4 py-3 font-semibold text-white/40 text-xs uppercase tracking-wide">Date</th>
+                      <th className="px-4 py-3 font-semibold text-white/40 text-xs uppercase tracking-wide">Weight</th>
+                      <th className="px-4 py-3 font-semibold text-white/40 text-xs uppercase tracking-wide">Belly</th>
+                      <th className="px-4 py-3 font-semibold text-white/40 text-xs uppercase tracking-wide">Waist</th>
+                      <th className="px-4 py-3 font-semibold text-white/40 text-xs uppercase tracking-wide">Chest</th>
+                      <th className="px-4 py-3 font-semibold text-white/40 text-xs uppercase tracking-wide">Hips</th>
+                      <th className="px-4 py-3 font-semibold text-white/40 text-xs uppercase tracking-wide">Arms</th>
+                      <th className="px-4 py-3 font-semibold text-white/40 text-xs uppercase tracking-wide">Change</th>
+                      <th className="px-4 py-3" />
                     </tr>
                   </thead>
                   <tbody>
                     {tableEntries.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-6 py-12 text-center text-white/30">
+                        <td colSpan={9} className="px-6 py-12 text-center text-white/30">
                           No measurements yet. Log your first measurement above to start tracking.
                         </td>
                       </tr>
@@ -648,11 +682,14 @@ export default function ProgressPage() {
                           key={entry.id}
                           className="border-b border-[#1A1A1A] hover:bg-white/[0.02] transition-colors"
                         >
-                          <td className="px-6 py-3 font-medium">{fmtDateFull(entry.loggedDate)}</td>
-                          <td className="px-6 py-3">{entry.weightKg !== null ? `${entry.weightKg} kg` : "--"}</td>
-                          <td className="px-6 py-3">{entry.bellyInches !== null ? `${entry.bellyInches} in` : "--"}</td>
-                          <td className="px-6 py-3">{entry.waistInches !== null ? `${entry.waistInches} in` : "--"}</td>
-                          <td className="px-6 py-3">
+                          <td className="px-4 py-3 font-medium">{fmtDateFull(entry.loggedDate)}</td>
+                          <td className="px-4 py-3">{entry.weightKg !== null ? `${entry.weightKg} kg` : "--"}</td>
+                          <td className="px-4 py-3">{entry.bellyInches !== null ? `${entry.bellyInches} in` : "--"}</td>
+                          <td className="px-4 py-3">{entry.waistInches !== null ? `${entry.waistInches} in` : "--"}</td>
+                          <td className="px-4 py-3">{entry.chestInches !== null ? `${entry.chestInches} in` : "--"}</td>
+                          <td className="px-4 py-3">{entry.hipsInches !== null ? `${entry.hipsInches} in` : "--"}</td>
+                          <td className="px-4 py-3">{entry.armsInches !== null ? `${entry.armsInches} in` : "--"}</td>
+                          <td className="px-4 py-3">
                             {entry.weightChange !== null ? (
                               <span className={`font-semibold ${entry.weightChange < 0 ? "text-green-400" : entry.weightChange > 0 ? "text-[#E51A1A]" : "text-white/30"}`}>
                                 {entry.weightChange > 0 ? "+" : ""}{entry.weightChange} kg
