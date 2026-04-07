@@ -14,7 +14,7 @@ export async function GET() {
       select: { recipeId: true },
     });
 
-    return NextResponse.json(favourites.map((f: { recipeId: number }) => f.recipeId));
+    return NextResponse.json(favourites.filter(f => f.recipeId).map(f => f.recipeId));
   } catch (error) {
     console.error("Get favourites error:", error);
     return NextResponse.json(
@@ -42,12 +42,10 @@ export async function POST(request: Request) {
     }
 
     // Check if favourite already exists
-    const existing = await prisma.favourite.findUnique({
+    const existing = await prisma.favourite.findFirst({
       where: {
-        userId_recipeId: {
-          userId: user.userId,
-          recipeId: parseInt(recipeId),
-        },
+        userId: user.userId,
+        recipeId: parseInt(recipeId),
       },
     });
 

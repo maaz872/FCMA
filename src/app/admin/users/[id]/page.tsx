@@ -130,8 +130,8 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
       hipsInches: b.hipsInches, armsInches: b.armsInches,
       imageData: b.imageData, notes: b.notes,
     })),
-    favourites: user.favourites.map(f => ({
-      id: f.id, recipe: { id: f.recipe.id, title: f.recipe.title, slug: f.recipe.slug, calories: f.recipe.calories },
+    favourites: user.favourites.filter(f => f.recipe).map(f => ({
+      id: f.id, recipe: { id: f.recipe!.id, title: f.recipe!.title, slug: f.recipe!.slug, calories: f.recipe!.calories },
     })),
     messages: messages.map(m => ({
       id: m.id, content: m.content, imageData: m.imageData,

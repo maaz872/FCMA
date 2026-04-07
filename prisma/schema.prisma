@@ -181,12 +181,13 @@ model RecipeDietaryTag {
 // ─── Favourites ──────────────────────────────────────────────────────
 
 model Favourite {
-  id       Int    @id @default(autoincrement())
-  userId   String
-  recipeId Int
-  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  recipe   Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
-  @@unique([userId, recipeId])
+  id        Int      @id @default(autoincrement())
+  userId    String
+  recipeId  Int?
+  workoutId Int?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recipe    Recipe?  @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  workout   Workout? @relation(fields: [workoutId], references: [id])
 }
 
 model RestaurantFavourite {
@@ -268,6 +269,7 @@ model Workout {
   subcategory      WorkoutSubcategory @relation(fields: [subcategoryId], references: [id])
   planTemplateDays PlanTemplateDay[]
   clientPlanDays   ClientPlanDay[]
+  favourites       Favourite[]
 
   @@index([subcategoryId, isPublished])
 }

@@ -36,12 +36,10 @@ export default async function RecipeDetailPage({
   let isFavourited = false;
   const user = await getCurrentUser();
   if (user) {
-    const fav = await prisma.favourite.findUnique({
+    const fav = await prisma.favourite.findFirst({
       where: {
-        userId_recipeId: {
-          userId: user.userId,
-          recipeId: recipe.id,
-        },
+        userId: user.userId,
+        recipeId: recipe.id,
       },
     });
     isFavourited = !!fav;

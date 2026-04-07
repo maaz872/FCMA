@@ -53,3 +53,4 @@ dev.db-wal
 
 # claude settings (local only)
 .claude/settings.local.json
+.claude/worktrees/

@@ -10,7 +10,7 @@ export async function GET() {
     }
 
     const favourites = await prisma.favourite.findMany({
-      where: { userId: user.userId },
+      where: { userId: user.userId, recipeId: { not: null } },
       include: {
         recipe: {
           include: {
@@ -20,36 +20,20 @@ export async function GET() {
       },
     });
 
-    const recipes = favourites.map(
-      (f: {
-        recipeId: number;
-        recipe: {
-          id: number;
-          title: string;
-          slug: string;
-          description: string;
-          imageUrl: string | null;
-          calories: number;
-          protein: number;
-          carbs: number;
-          fat: number;
-          prepTimeMins: number;
-          cookTimeMins: number;
-          category: { name: string };
-        };
-      }) => ({
-        id: f.recipe.id,
-        title: f.recipe.title,
-        slug: f.recipe.slug,
-        description: f.recipe.description,
-        imageUrl: f.recipe.imageUrl,
-        calories: f.recipe.calories,
-        protein: f.recipe.protein,
-        carbs: f.recipe.carbs,
-        fat: f.recipe.fat,
-        prepTimeMins: f.recipe.prepTimeMins,
-        cookTimeMins: f.recipe.cookTimeMins,
-        category: f.recipe.category.name,
+    const recipes = favourites.filter(f => f.recipe).map(
+      (f) => ({
+        id: f.recipe!.id,
+        title: f.recipe!.title,
+        slug: f.recipe!.slug,
+        description: f.recipe!.description,
+        imageUrl: f.recipe!.imageUrl,
+        calories: f.recipe!.calories,
+        protein: f.recipe!.protein,
+        carbs: f.recipe!.carbs,
+        fat: f.recipe!.fat,
+        prepTimeMins: f.recipe!.prepTimeMins,
+        cookTimeMins: f.recipe!.cookTimeMins,
+        category: f.recipe!.category.name,
       })
     );
 
