@@ -311,18 +311,6 @@ function ProfileHeader({ user }: { user: UserData }) {
           <p className="text-xs text-white/40">Avg Steps</p>
           <p className="text-sm font-bold">{user.avgDailySteps.toLocaleString()}</p>
         </div>
-        {/* Weight Change */}
-        <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl p-3">
-          <p className="text-xs text-white/40">Wt Change</p>
-          {user.weightChange !== null ? (
-            <p className={`text-sm font-bold ${
-              (isLossGoal && user.weightChange < 0) || (!isLossGoal && user.weightChange > 0)
-                ? "text-green-400" : (user.weightChange === 0 ? "text-white/60" : "text-red-400")
-            }`}>
-              {user.weightChange > 0 ? "+" : ""}{user.weightChange} kg
-            </p>
-          ) : <p className="text-sm text-white/30">--</p>}
-        </div>
       </div>
 
       {/* Alert Badges */}
