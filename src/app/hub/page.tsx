@@ -45,27 +45,28 @@ export default function HubDashboard() {
   const { siteName } = useBranding();
 
   useEffect(() => {
+    let cancelled = false;
     setLoading(true);
-    fetchWithRetry("/api/user/dashboard?range=today")
-      .then((r) => r.json())
-      .then((d) => { if (!d.error) setData(d); })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
 
-  useEffect(() => {
-    fetchWithRetry("/api/user/plan")
-      .then((r) => r.json())
-      .then((d) => { if (!d.error && d.plan) setPlanData(d); })
-      .catch(() => {});
-    fetchWithRetry("/api/user/targets")
-      .then((r) => r.json())
-      .then((d) => {
-        setTargets(d.targets || []);
-        const st = (d.targets || []).find((t: { metric: string }) => t.metric === "steps");
+    // Fetch ALL data in parallel with Promise.all
+    Promise.all([
+      fetchWithRetry("/api/user/dashboard?range=today").then(r => r.json()).catch(() => null),
+      fetchWithRetry("/api/user/plan").then(r => r.json()).catch(() => null),
+      fetchWithRetry("/api/user/targets").then(r => r.json()).catch(() => null),
+    ]).then(([dashData, planData, targetData]) => {
+      if (cancelled) return; // Component unmounted
+      if (dashData && !dashData.error) setData(dashData);
+      if (planData && !planData.error && planData.plan) setPlanData(planData);
+      if (targetData?.targets) {
+        setTargets(targetData.targets);
+        const st = targetData.targets.find((t: { metric: string }) => t.metric === "steps");
         if (st) setStepTarget(st.targetValue);
-      })
-      .catch(() => {});
+      }
+    }).finally(() => {
+      if (!cancelled) setLoading(false);
+    });
+
+    return () => { cancelled = true; }; // Cleanup on unmount
   }, []);
 
   async function togglePlanProgress(field: "workoutCompleted" | "breakfastCompleted" | "lunchCompleted" | "snackCompleted" | "dinnerCompleted") {

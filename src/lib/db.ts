@@ -7,7 +7,7 @@ const globalForPrisma = globalThis as unknown as { _prisma?: InstanceType<typeof
 export function getDb(): InstanceType<typeof PrismaClient> {
   if (!globalForPrisma._prisma) {
     const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL;
-    const pool = new pg.Pool({ connectionString, max: 5 });
+    const pool = new pg.Pool({ connectionString, max: 20, idleTimeoutMillis: 30000 });
     const adapter = new (PrismaPg as any)(pool);
     globalForPrisma._prisma = new (PrismaClient as any)({ adapter });
   }

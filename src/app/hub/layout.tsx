@@ -59,10 +59,6 @@ export default function HubLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userName, setUserName] = useState("");
   const [initials, setInitials] = useState("");
-  const [caloriesEaten, setCaloriesEaten] = useState(0);
-  const [calorieTarget, setCalorieTarget] = useState(2000);
-  const [steps, setSteps] = useState(0);
-  const [stepGoal, setStepGoal] = useState(10000);
   const { siteName } = useBranding();
 
   useEffect(() => {
@@ -75,32 +71,6 @@ export default function HubLayout({ children }: { children: React.ReactNode }) {
           setUserName(`${fn} ${ln}`.trim());
           setInitials(`${fn.charAt(0)}${ln.charAt(0)}`.toUpperCase());
         }
-      })
-      .catch(() => {});
-
-    fetchWithRetry("/api/user/dashboard")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.mealTotals) setCaloriesEaten(data.mealTotals.calories || 0);
-        if (data.stepsToday !== undefined) setSteps(data.stepsToday);
-        if (data.stepGoal) setStepGoal(data.stepGoal);
-      })
-      .catch(() => {});
-
-    // Fetch calorie target from assigned plan
-    fetchWithRetry("/api/user/plan")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.today?.calorieTarget) setCalorieTarget(data.today.calorieTarget);
-      })
-      .catch(() => {});
-
-    // Fetch step target from admin-set targets
-    fetchWithRetry("/api/user/targets")
-      .then((r) => r.json())
-      .then((data) => {
-        const stepTarget = (data.targets || []).find((t: { metric: string }) => t.metric === "steps");
-        if (stepTarget) setStepGoal(stepTarget.targetValue);
       })
       .catch(() => {});
   }, []);
@@ -117,18 +87,6 @@ export default function HubLayout({ children }: { children: React.ReactNode }) {
     router.push("/login");
   }
 
-  const calPercent = calorieTarget > 0 ? Math.round((caloriesEaten / calorieTarget) * 100) : 0;
-  const stepPercent = stepGoal > 0 ? Math.round((steps / stepGoal) * 100) : 0;
-  const stepsExceeded = steps >= stepGoal && stepGoal > 0;
-
-  function calMotivation() {
-    if (calPercent > 100) return { text: "Over target", cls: "text-[#E51A1A]" };
-    if (calPercent >= 90) return { text: "On target!", cls: "text-green-400" };
-    if (calPercent >= 50) return { text: "Almost there!", cls: "text-[#FF6B00]" };
-    return { text: "Keep going!", cls: "text-white/25" };
-  }
-
-  const calMsg = calMotivation();
 
   function linkCls(href: string) {
     const active =
@@ -166,92 +124,7 @@ export default function HubLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  function StatsSection({ onNavigate }: { onNavigate?: () => void }) {
-    return (
-      <div className="px-5 py-4 border-t border-[#1A1A1A] space-y-3">
-        <p className="text-[10px] font-bold text-white/25 uppercase tracking-[2px]">
-          Today
-        </p>
 
-        {/* Calories */}
-        <div>
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] text-white/40">Calories</span>
-            <span className="text-[10px] text-white/60 font-semibold">
-              {caloriesEaten} / {calorieTarget}
-            </span>
-          </div>
-          <div className="w-full h-1.5 bg-[#1A1A1A] rounded-full overflow-hidden">
-            <div
-              className="h-full bg-[#E51A1A] rounded-full transition-all duration-700"
-              style={{ width: `${Math.min(100, calPercent)}%` }}
-            />
-          </div>
-          <p className={`text-[9px] mt-1 ${calMsg.cls}`}>{calMsg.text}</p>
-        </div>
-
-        {/* Steps */}
-        <div>
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] text-white/40">Steps</span>
-            <span
-              className={`text-[10px] font-semibold ${
-                stepsExceeded ? "text-green-400" : "text-white/60"
-              }`}
-            >
-              {steps.toLocaleString()} / {stepGoal.toLocaleString()}
-            </span>
-          </div>
-          <div
-            className={`w-full h-1.5 bg-[#1A1A1A] rounded-full overflow-hidden transition-shadow duration-500 ${
-              stepsExceeded ? "shadow-[0_0_12px_rgba(34,197,94,0.3)]" : ""
-            }`}
-          >
-            <div
-              className={`h-full rounded-full transition-all duration-700 ${
-                stepsExceeded ? "bg-green-500" : "bg-[#FF6B00]"
-              }`}
-              style={{ width: `${Math.min(100, stepPercent)}%` }}
-            />
-          </div>
-          <p
-            className={`text-[9px] mt-1 ${
-              stepsExceeded ? "text-green-400" : "text-white/25"
-            }`}
-          >
-            {stepsExceeded
-              ? "Goal crushed!"
-              : `${(stepGoal - steps).toLocaleString()} more to go`}
-          </p>
-        </div>
-
-        {/* Quick Log Buttons */}
-        <div className="flex gap-2 pt-1">
-          <Link
-            href="/hub/my-meals"
-            onClick={onNavigate}
-            className="flex-1 flex items-center justify-center gap-1 text-[10px] font-semibold py-2 rounded-lg bg-[#E51A1A]/10 text-[#E51A1A] hover:bg-[#E51A1A]/20 hover:-translate-y-0.5 transition-all"
-          >
-            🍽 Meals
-          </Link>
-          <Link
-            href="/hub/progress"
-            onClick={onNavigate}
-            className="flex-1 flex items-center justify-center gap-1 text-[10px] font-semibold py-2 rounded-lg bg-[#FF6B00]/10 text-[#FF6B00] hover:bg-[#FF6B00]/20 hover:-translate-y-0.5 transition-all"
-          >
-            ⚖ Weight
-          </Link>
-          <Link
-            href="/hub/steps"
-            onClick={onNavigate}
-            className="flex-1 flex items-center justify-center gap-1 text-[10px] font-semibold py-2 rounded-lg bg-[#FFB800]/10 text-[#FFB800] hover:bg-[#FFB800]/20 hover:-translate-y-0.5 transition-all"
-          >
-            👣 Steps
-          </Link>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="flex min-h-screen">
