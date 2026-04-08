@@ -30,78 +30,94 @@ export async function GET() {
       return NextResponse.json({ targets: [] });
     }
 
-    // Date range for step/calorie averages (last 7 days)
+    // Date range for step averages (last 7 days)
     const now = new Date();
     const weekAgo = new Date(now);
     weekAgo.setDate(weekAgo.getDate() - 7);
 
-    // Fill current values from user logs
-    const enriched = await Promise.all(
-      unique.map(async (t) => {
-        let currentValue: number | null = t.currentValue;
-        try {
+    // Get latest measurement once (shared across belly/waist/chest/hips/arms)
+    const latestMeasurement = await prisma.bodyMeasurement.findFirst({
+      where: { userId: user.userId },
+      orderBy: { loggedDate: "desc" },
+    });
 
-        if (t.metric === "weight") {
-          // Check weightLog first, then bodyMeasurement as fallback
-          const latest = await prisma.weightLog.findFirst({
-            where: { userId: user.userId },
-            orderBy: { loggedDate: "desc" },
-            select: { weightKg: true },
-          });
-          if (latest) {
-            currentValue = latest.weightKg;
-          } else {
-            const measurement = await prisma.bodyMeasurement.findFirst({
-              where: { userId: user.userId, weightKg: { not: null } },
-              orderBy: { loggedDate: "desc" },
-              select: { weightKg: true },
-            });
-            if (measurement?.weightKg) currentValue = measurement.weightKg;
-          }
-        } else if (
-          ["belly", "waist", "chest", "hips", "arms"].includes(t.metric)
-        ) {
-          const fieldMap: Record<string, string> = {
-            belly: "bellyInches",
-            waist: "waistInches",
-            chest: "chestInches",
-            hips: "hipsInches",
-            arms: "armsInches",
-          };
-          const field = fieldMap[t.metric];
-          if (field) {
-            // Find latest measurement where THIS specific field is not null
-            const latest = await prisma.bodyMeasurement.findFirst({
-              where: { userId: user.userId, [field]: { not: null } },
-              orderBy: { loggedDate: "desc" },
-            });
-            if (latest) {
-              const val = (latest as Record<string, unknown>)[field];
-              if (typeof val === "number") currentValue = val;
+    // Get latest weight from weightLog
+    const latestWeightLog = await prisma.weightLog.findFirst({
+      where: { userId: user.userId },
+      orderBy: { loggedDate: "desc" },
+      select: { weightKg: true },
+    });
+
+    // Get step logs for last 7 days
+    const stepLogs = await prisma.stepLog.findMany({
+      where: {
+        userId: user.userId,
+        loggedDate: { gte: weekAgo },
+      },
+    });
+
+    // Enrich each target with current value — explicit per-metric, no dynamic keys
+    const enriched = unique.map((t) => {
+      let currentValue: number | null = null;
+
+      try {
+        switch (t.metric) {
+          case "weight":
+            if (latestWeightLog) {
+              currentValue = latestWeightLog.weightKg;
+            } else if (latestMeasurement?.weightKg !== null && latestMeasurement?.weightKg !== undefined) {
+              currentValue = latestMeasurement.weightKg;
             }
-          }
-        } else if (t.metric === "steps") {
-          const stepLogs = await prisma.stepLog.findMany({
-            where: {
-              userId: user.userId,
-              loggedDate: { gte: weekAgo },
-            },
-          });
-          if (stepLogs.length > 0) {
-            const totalSteps = stepLogs.reduce((sum, s) => sum + s.steps, 0);
-            currentValue = Math.round(totalSteps / stepLogs.length);
-          }
-        }
+            break;
 
-        } catch { /* ignore enrichment errors */ }
-        return {
-          id: t.id,
-          metric: t.metric,
-          targetValue: t.targetValue,
-          currentValue,
-        };
-      })
-    );
+          case "belly":
+            if (latestMeasurement?.bellyInches !== null && latestMeasurement?.bellyInches !== undefined) {
+              currentValue = latestMeasurement.bellyInches;
+            }
+            break;
+
+          case "waist":
+            if (latestMeasurement?.waistInches !== null && latestMeasurement?.waistInches !== undefined) {
+              currentValue = latestMeasurement.waistInches;
+            }
+            break;
+
+          case "chest":
+            if (latestMeasurement?.chestInches !== null && latestMeasurement?.chestInches !== undefined) {
+              currentValue = latestMeasurement.chestInches;
+            }
+            break;
+
+          case "hips":
+            if (latestMeasurement?.hipsInches !== null && latestMeasurement?.hipsInches !== undefined) {
+              currentValue = latestMeasurement.hipsInches;
+            }
+            break;
+
+          case "arms":
+            if (latestMeasurement?.armsInches !== null && latestMeasurement?.armsInches !== undefined) {
+              currentValue = latestMeasurement.armsInches;
+            }
+            break;
+
+          case "steps":
+            if (stepLogs.length > 0) {
+              const totalSteps = stepLogs.reduce((sum, s) => sum + s.steps, 0);
+              currentValue = Math.round(totalSteps / stepLogs.length);
+            }
+            break;
+        }
+      } catch (error) {
+        console.error(`Target enrichment error for ${t.metric}:`, error);
+      }
+
+      return {
+        id: t.id,
+        metric: t.metric,
+        targetValue: t.targetValue,
+        currentValue,
+      };
+    });
 
     return NextResponse.json({ targets: enriched });
   } catch (error) {
@@ -109,4 +125,3 @@ export async function GET() {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
-// rebuild 1775606282
