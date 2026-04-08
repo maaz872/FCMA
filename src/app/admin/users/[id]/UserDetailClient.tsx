@@ -999,7 +999,7 @@ function AnalyticsTab({ mealLogs, weightLogs, bodyMeasurements, stepLogs, calori
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <div className="bg-[#0A0A0A] border border-[#2A2A2A] rounded-xl p-3 text-center">
           <p className="text-[10px] text-white/40 uppercase font-semibold">Avg Calories</p>
           <p className="text-xl font-black text-white">{avgCal.toLocaleString()}</p>
