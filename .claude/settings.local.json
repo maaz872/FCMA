@@ -99,7 +99,8 @@
       "Bash(do grep:*)",
       "Bash(done)",
       "Bash(rm -rf .next)",
-      "Bash(rmdir /s /q src/app/hub/snap-my-macros)"
+      "Bash(rmdir /s /q src/app/hub/snap-my-macros)",
+      "Bash(ls -la \"D:\\\\Documents\\\\Deep Learn HQ\\\\Clients\\\\raheel\\\\website\\\\src\\\\app\\\\admin\\\\progress\"\" 2>/dev/null || echo \"Directory does not exist \")"
     ]
   }
 }

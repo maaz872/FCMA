@@ -152,26 +152,6 @@ export default function AdminDashboardClient({ stats, recentUsers }: Props) {
         ))}
       </div>
 
-      {/* Quick Actions */}
-      <div>
-        <h2 className="text-lg font-bold text-white mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {quickActions.map((action) => (
-            <Link
-              key={action.href}
-              href={action.href}
-              className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-6 hover:border-[#E51A1A]/30 transition-colors group"
-            >
-              <span className="text-3xl">{action.icon}</span>
-              <p className="font-bold text-white mt-3 group-hover:text-[#E51A1A] transition-colors">
-                {action.label}
-              </p>
-              <p className="text-sm text-white/50 mt-1">{action.description}</p>
-            </Link>
-          ))}
-        </div>
-      </div>
-
       {/* Recent Signups */}
       <div>
         <h2 className="text-lg font-bold text-white mb-4">Recent Signups</h2>

@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { useBranding } from "@/lib/branding";
 import NotificationBell from "@/components/ui/NotificationBell";
+import InstallPrompt from "@/components/InstallPrompt";
 
 const sidebarGroups = [
   {
@@ -32,7 +33,6 @@ const sidebarGroups = [
       { href: "/admin/users", label: "Users" },
       { href: "/admin/signup-requests", label: "Signup Requests" },
       { href: "/admin/messages", label: "Messages" },
-      { href: "/admin/progress", label: "Progress Overview" },
       { href: "/admin/notifications", label: "Notifications" },
     ],
   },
@@ -122,16 +122,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </nav>
 
         {/* Bottom */}
-        <div className="px-5 py-3 border-t border-[#1A1A1A] space-y-1">
+        <div className="px-5 py-3 border-t border-[#1A1A1A] space-y-2">
           <Link
             href="/"
             className="block text-[12px] text-white/30 hover:text-white/50 transition-colors py-1"
           >
             &larr; Back to Site
           </Link>
+          <InstallPrompt />
           <button
             onClick={handleLogout}
-            className="text-[11px] text-white/25 hover:text-white/50 transition-colors cursor-pointer bg-transparent border-none"
+            className="text-[13px] text-white/30 hover:text-white/50 transition-colors cursor-pointer bg-transparent border-none"
           >
             Log out
           </button>
@@ -194,7 +195,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {/* Mobile bottom */}
         <div
-          className="px-5 py-3 border-t border-[#1A1A1A] space-y-1"
+          className="px-5 py-3 border-t border-[#1A1A1A] space-y-2"
           style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}
         >
           <Link
@@ -204,9 +205,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           >
             &larr; Back to Site
           </Link>
+          <InstallPrompt />
           <button
             onClick={handleLogout}
-            className="text-[11px] text-white/25 hover:text-white/50 transition-colors cursor-pointer bg-transparent border-none"
+            className="text-[13px] text-white/30 hover:text-white/50 transition-colors cursor-pointer bg-transparent border-none"
           >
             Log out
           </button>

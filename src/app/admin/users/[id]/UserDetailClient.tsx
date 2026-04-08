@@ -881,45 +881,42 @@ function TargetsTab({ userId, weeklyTargets, onRefresh }: {
         </div>
       </Card>
 
-      {/* Existing Targets Table */}
+      {/* Target-Centric Progress View */}
       {weeklyTargets.length > 0 && (
-        <Card title="Existing Targets">
-          <div className="space-y-2">
+        <Card title="Current Progress">
+          <div className="grid grid-cols-2 gap-3">
             {weeklyTargets.map(t => {
-              const isLowerBetter = ["weight", "belly", "waist"].includes(t.metric);
-              let progressPct: number | null = null;
-              if (t.currentValue !== null && t.targetValue > 0) {
-                if (isLowerBetter) {
-                  progressPct = t.currentValue <= t.targetValue ? 100 : Math.min(100, Math.round((t.targetValue / t.currentValue) * 100));
-                } else {
-                  progressPct = Math.min(100, Math.round((t.currentValue / t.targetValue) * 100));
-                }
-              }
-              const colorClass = progressPct !== null
-                ? (progressPct >= 90 ? "text-green-400" : progressPct >= 50 ? "text-orange-400" : "text-red-400")
-                : "text-white/30";
+              const hasCurrent = t.currentValue !== null;
+              const delta = hasCurrent ? Math.round((t.currentValue! - t.targetValue) * 10) / 10 : 0;
+              const absDelta = Math.abs(delta);
+              const isOnTarget = hasCurrent && delta === 0;
+              const isAbove = hasCurrent && delta > 0;
+              const isSteps = t.metric === "steps";
+              const statusColor = isOnTarget ? "#22C55E" : isAbove ? (isSteps ? "#22C55E" : "#FF6B00") : "#3B82F6";
+              const unit = t.metric === "weight" ? "kg" : t.metric === "steps" ? "" : "in";
+              const icons: Record<string, string> = { weight: "⚖️", belly: "📏", waist: "📐", chest: "🫁", hips: "🦵", arms: "💪", steps: "👟" };
 
               return (
-                <div key={t.id} className="flex items-center justify-between bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg px-3 py-2.5 min-h-[48px]">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium capitalize">{t.metric}</span>
-                      {!t.isVisible && (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/10 text-white/30">Hidden</span>
-                      )}
-                    </div>
-                    <p className="text-xs text-white/40">
-                      Updated {fmtDateShort(t.weekStartDate)}
-                    </p>
+                <div key={t.id} className="bg-[#0A0A0A] border border-[#2A2A2A] rounded-xl p-3">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <span className="text-sm">{icons[t.metric] || "🎯"}</span>
+                    <span className="text-[10px] font-semibold text-white/50 uppercase">{t.metric}</span>
+                    {!t.isVisible && <span className="text-[8px] px-1 py-0.5 rounded bg-white/10 text-white/30">Hidden</span>}
                   </div>
-                  <div className="text-right shrink-0 ml-3">
-                    <p className="text-sm font-semibold">
-                      {t.currentValue !== null ? t.currentValue : "--"} / {t.targetValue}
-                    </p>
-                    {progressPct !== null && (
-                      <p className={`text-xs font-bold ${colorClass}`}>{progressPct}%</p>
-                    )}
-                  </div>
+                  <p className="text-xl font-black text-white">{t.targetValue.toLocaleString()} <span className="text-[10px] text-white/30">{unit}</span></p>
+                  {hasCurrent ? (
+                    <>
+                      <p className="text-xs text-white/40 mt-0.5">Now: <span className="font-semibold" style={{ color: statusColor }}>{t.currentValue!.toLocaleString()}</span></p>
+                      <p className="text-[10px] font-medium mt-1" style={{ color: statusColor }}>
+                        {isOnTarget && "✓ On Target"}
+                        {isAbove && isSteps && `✓ ${absDelta.toLocaleString()} above!`}
+                        {isAbove && !isSteps && `↑ Above by ${absDelta.toLocaleString()} ${unit}`}
+                        {!isOnTarget && !isAbove && hasCurrent && `↓ Below by ${absDelta.toLocaleString()} ${unit}`}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-[10px] text-white/20 mt-0.5">No data yet</p>
+                  )}
                 </div>
               );
             })}
