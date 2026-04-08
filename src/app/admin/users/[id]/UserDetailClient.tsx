@@ -78,7 +78,7 @@ type WeeklyTargetData = {
 
 /* ─── Helpers ────────────────────────────────────────────────────────── */
 
-const TABS = ["Overview", "Meals", "Steps", "Body", "Messages", "Plans", "Targets"] as const;
+const TABS = ["Overview", "Meals", "Steps", "Body", "Messages", "Plans", "Targets", "Analytics"] as const;
 type Tab = typeof TABS[number];
 
 function fmtDate(iso: string) {
@@ -126,6 +126,7 @@ const TAB_META: Record<Tab, { icon: string; label: string }> = {
   Messages: { icon: "💬", label: "Messages" },
   Plans:    { icon: "📋", label: "Plans" },
   Targets:  { icon: "🎯", label: "Targets" },
+  Analytics: { icon: "📊", label: "Analytics" },
 };
 
 function getMonday(d?: Date) {
@@ -259,6 +260,7 @@ export default function UserDetailClient({ user, planTemplates, activePlan, week
         {tab === "Messages" && <MessagesTab messages={user.messages} msgText={msgText} setMsgText={setMsgText} sendMessage={sendMessage} sending={sending} />}
         {tab === "Plans" && <PlansTab userId={user.id} activePlan={activePlan} planTemplates={planTemplates} onRefresh={() => router.refresh()} />}
         {tab === "Targets" && <TargetsTab userId={user.id} weeklyTargets={weeklyTargets} onRefresh={() => router.refresh()} />}
+        {tab === "Analytics" && <AnalyticsTab mealLogs={user.mealLogs} weightLogs={user.weightLogs} stepLogs={user.stepLogs} />}
       </div>
 
       {/* ── Photo Modal ── */}
@@ -926,6 +928,147 @@ function TargetsTab({ userId, weeklyTargets, onRefresh }: {
 
       {weeklyTargets.length === 0 && (
         <EmptyState text="No targets set yet" />
+      )}
+    </div>
+  );
+}
+
+/* ─── Analytics Tab ─────────────────────────────────────────────────── */
+
+function AnalyticsTab({ mealLogs, weightLogs, stepLogs }: {
+  mealLogs: MealLog[]; weightLogs: WeightLog[]; stepLogs: StepLog[];
+}) {
+  const [range, setRange] = useState("30d");
+
+  const days = range === "1d" ? 1 : range === "7d" ? 7 : range === "30d" ? 30 : range === "180d" ? 180 : 365;
+  const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+  const filteredMeals = mealLogs.filter(m => new Date(m.loggedDate) >= cutoff);
+  const filteredWeights = weightLogs.filter(w => new Date(w.loggedDate) >= cutoff);
+  const filteredSteps = stepLogs.filter(s => new Date(s.loggedDate) >= cutoff);
+
+  // Daily calorie totals
+  const calorieByDay: Record<string, number> = {};
+  for (const m of filteredMeals) {
+    const d = m.loggedDate.slice(0, 10);
+    calorieByDay[d] = (calorieByDay[d] || 0) + m.calories;
+  }
+  const calDays = Object.entries(calorieByDay).sort(([a], [b]) => a.localeCompare(b));
+  const avgCal = calDays.length > 0 ? Math.round(calDays.reduce((s, [, v]) => s + v, 0) / calDays.length) : 0;
+
+  // Weight trend
+  const sortedWeights = [...filteredWeights].sort((a, b) => a.loggedDate.localeCompare(b.loggedDate));
+  const firstWeight = sortedWeights[0]?.weightKg;
+  const lastWeight = sortedWeights[sortedWeights.length - 1]?.weightKg;
+  const weightChange = firstWeight && lastWeight ? Math.round((lastWeight - firstWeight) * 10) / 10 : null;
+
+  // Step stats
+  const avgSteps = filteredSteps.length > 0 ? Math.round(filteredSteps.reduce((s, l) => s + l.steps, 0) / filteredSteps.length) : 0;
+
+  // Consistency
+  const mealDays = new Set(filteredMeals.map(m => m.loggedDate.slice(0, 10))).size;
+
+  const rangeLabel = range === "7d" ? "7 days" : range === "30d" ? "30 days" : range === "180d" ? "6 months" : range === "1y" ? "year" : "today";
+
+  return (
+    <div className="space-y-4">
+      {/* Range filter */}
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-bold text-white">Trends & Insights</h3>
+        <TimeRangeFilter value={range} onChange={setRange} />
+      </div>
+
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="bg-[#0A0A0A] border border-[#2A2A2A] rounded-xl p-3 text-center">
+          <p className="text-[10px] text-white/40 uppercase font-semibold">Avg Calories</p>
+          <p className="text-xl font-black text-white">{avgCal.toLocaleString()}</p>
+          <p className="text-[9px] text-white/25">per day ({rangeLabel})</p>
+        </div>
+        <div className="bg-[#0A0A0A] border border-[#2A2A2A] rounded-xl p-3 text-center">
+          <p className="text-[10px] text-white/40 uppercase font-semibold">Weight Change</p>
+          <p className={`text-xl font-black ${weightChange !== null ? (weightChange < 0 ? "text-green-400" : weightChange > 0 ? "text-[#E51A1A]" : "text-white") : "text-white/30"}`}>
+            {weightChange !== null ? `${weightChange > 0 ? "+" : ""}${weightChange} kg` : "--"}
+          </p>
+          <p className="text-[9px] text-white/25">{rangeLabel}</p>
+        </div>
+        <div className="bg-[#0A0A0A] border border-[#2A2A2A] rounded-xl p-3 text-center">
+          <p className="text-[10px] text-white/40 uppercase font-semibold">Avg Steps</p>
+          <p className="text-xl font-black text-white">{avgSteps.toLocaleString()}</p>
+          <p className="text-[9px] text-white/25">per day ({rangeLabel})</p>
+        </div>
+        <div className="bg-[#0A0A0A] border border-[#2A2A2A] rounded-xl p-3 text-center">
+          <p className="text-[10px] text-white/40 uppercase font-semibold">Days Logged</p>
+          <p className="text-xl font-black text-white">{mealDays}</p>
+          <p className="text-[9px] text-white/25">out of {days}</p>
+        </div>
+      </div>
+
+      {/* Calorie trend */}
+      {calDays.length > 0 && (
+        <Card title={`Daily Calories (${rangeLabel})`}>
+          <div className="flex items-end gap-0.5 h-32">
+            {calDays.slice(-30).map(([date, cal]) => {
+              const maxCal = Math.max(...calDays.slice(-30).map(([, v]) => v), 1);
+              const h = (cal / maxCal) * 100;
+              return (
+                <div key={date} className="flex-1 flex flex-col items-center justify-end h-full" title={`${date}: ${cal} kcal`}>
+                  <div className="w-full bg-[#E51A1A]/80 rounded-t-sm transition-all" style={{ height: `${h}%`, minHeight: 2 }} />
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex justify-between mt-1">
+            <span className="text-[9px] text-white/20">{calDays[Math.max(0, calDays.length - 30)]?.[0]?.slice(5)}</span>
+            <span className="text-[9px] text-white/20">{calDays[calDays.length - 1]?.[0]?.slice(5)}</span>
+          </div>
+        </Card>
+      )}
+
+      {/* Weight trend */}
+      {sortedWeights.length > 1 && (
+        <Card title={`Weight Trend (${rangeLabel})`}>
+          <div className="flex items-end gap-0.5 h-24">
+            {sortedWeights.slice(-30).map((w, i) => {
+              const minW = Math.min(...sortedWeights.slice(-30).map(x => x.weightKg));
+              const maxW = Math.max(...sortedWeights.slice(-30).map(x => x.weightKg));
+              const range = maxW - minW || 1;
+              const h = ((w.weightKg - minW) / range) * 80 + 20;
+              return (
+                <div key={i} className="flex-1 flex flex-col items-center justify-end h-full" title={`${w.loggedDate.slice(0, 10)}: ${w.weightKg} kg`}>
+                  <div className="w-full bg-[#FF6B00]/80 rounded-t-sm" style={{ height: `${h}%`, minHeight: 2 }} />
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-[10px] text-white/30 mt-2 text-center">
+            {firstWeight} kg → {lastWeight} kg
+            <span className={`ml-2 font-semibold ${weightChange !== null && weightChange < 0 ? "text-green-400" : "text-[#E51A1A]"}`}>
+              ({weightChange !== null ? `${weightChange > 0 ? "+" : ""}${weightChange} kg` : "--"})
+            </span>
+          </p>
+        </Card>
+      )}
+
+      {/* Step trend */}
+      {filteredSteps.length > 0 && (
+        <Card title={`Steps Trend (${rangeLabel})`}>
+          <div className="flex items-end gap-0.5 h-24">
+            {[...filteredSteps].sort((a, b) => a.loggedDate.localeCompare(b.loggedDate)).slice(-30).map((s, i) => {
+              const maxS = Math.max(...filteredSteps.map(x => x.steps), 1);
+              const h = (s.steps / maxS) * 100;
+              return (
+                <div key={i} className="flex-1 flex flex-col items-center justify-end h-full" title={`${s.loggedDate.slice(0, 10)}: ${s.steps.toLocaleString()}`}>
+                  <div className="w-full bg-[#FFB800]/80 rounded-t-sm" style={{ height: `${h}%`, minHeight: 2 }} />
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
+
+      {filteredMeals.length === 0 && filteredWeights.length === 0 && filteredSteps.length === 0 && (
+        <EmptyState text={`No data in the last ${rangeLabel}`} />
       )}
     </div>
   );
