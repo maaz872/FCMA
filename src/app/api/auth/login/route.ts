@@ -36,7 +36,7 @@ export async function POST(request: Request) {
     const coachEntry = await prisma.siteContent.findUnique({
       where: { contentKey: "coach_name" },
     });
-    const coachName = coachEntry?.contentValue || "Coach Raheel";
+    const coachName = coachEntry?.contentValue || "Your Coach";
 
     // Check planStatus for the unified user model
     const status = user.planStatus;

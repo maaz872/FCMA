@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useBranding } from "@/lib/branding";
 
 interface Message {
   id: string;
@@ -27,8 +28,9 @@ interface Conversation {
 }
 
 export default function UserMessagesPage() {
+  const { coachName } = useBranding();
   const [adminId, setAdminId] = useState<string | null>(null);
-  const [adminName, setAdminName] = useState("Coach Raheel");
+  const [adminName, setAdminName] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
@@ -185,10 +187,10 @@ export default function UserMessagesPage() {
         {/* Chat header */}
         <div className="px-6 py-4 border-b border-[#2A2A2A] flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-[#E51A1A]/20 flex items-center justify-center text-[#E51A1A] font-bold text-sm">
-            CR
+            {(adminName || coachName).split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()}
           </div>
           <div>
-            <p className="font-semibold text-white text-sm">{adminName}</p>
+            <p className="font-semibold text-white text-sm">{adminName || coachName}</p>
             <p className="text-xs text-white/40">Your Coach</p>
           </div>
         </div>
@@ -206,7 +208,7 @@ export default function UserMessagesPage() {
                   No messages yet
                 </p>
                 <p className="text-white/30 text-sm max-w-sm">
-                  Start a conversation with Coach Raheel. Ask anything about
+                  Start a conversation with {adminName || coachName}. Ask anything about
                   your nutrition, training, or progress.
                 </p>
               </div>

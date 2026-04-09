@@ -11,16 +11,16 @@ interface BrandingContextType {
 }
 
 const BrandingContext = createContext<BrandingContextType>({
-  siteName: "Level Up",
-  coachName: "Coach Raheel",
+  siteName: "Fitness Coach",
+  coachName: "Your Coach",
   logoUrl: "/images/logo.svg",
   faviconUrl: "/images/logo.svg",
   loading: true,
 });
 
 export function BrandingProvider({ children }: { children: ReactNode }) {
-  const [siteName, setSiteName] = useState("Level Up");
-  const [coachName, setCoachName] = useState("Coach Raheel");
+  const [siteName, setSiteName] = useState("Fitness Coach");
+  const [coachName, setCoachName] = useState("Your Coach");
   const [logoUrl, setLogoUrl] = useState("/images/logo.svg");
   const [faviconUrl, setFaviconUrl] = useState("/images/logo.svg");
   const [loading, setLoading] = useState(true);

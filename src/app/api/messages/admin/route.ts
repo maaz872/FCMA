@@ -19,9 +19,15 @@ export async function GET() {
       return NextResponse.json({ error: "Admin not found" }, { status: 404 });
     }
 
+    // Prefer branding coach_name over admin DB name
+    const coachEntry = await prisma.siteContent.findFirst({
+      where: { contentKey: "coach_name" },
+    });
+    const adminName = coachEntry?.contentValue || `${admin.firstName} ${admin.lastName}`;
+
     return NextResponse.json({
       adminId: admin.id,
-      adminName: `${admin.firstName} ${admin.lastName}`,
+      adminName,
     });
   } catch (error) {
     console.error("Admin lookup error:", error);

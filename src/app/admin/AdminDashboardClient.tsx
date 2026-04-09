@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useBranding } from "@/lib/branding";
 
 interface Stats {
   totalUsers: number;
@@ -68,6 +69,7 @@ function formatDate(iso: string) {
 }
 
 export default function AdminDashboardClient({ stats, recentUsers }: Props) {
+  const { siteName } = useBranding();
   const statCards = [
     {
       label: "Total Users",
@@ -127,7 +129,7 @@ export default function AdminDashboardClient({ stats, recentUsers }: Props) {
       <div>
         <h1 className="text-2xl font-bold text-white">Admin Dashboard</h1>
         <p className="text-white/50 mt-1">
-          Welcome back. Here&apos;s an overview of Level Up.
+          Welcome back. Here&apos;s an overview of {siteName}.
         </p>
       </div>
 

@@ -60,7 +60,7 @@ export async function POST(request: Request) {
     const coachEntry = await prisma.siteContent.findUnique({
       where: { contentKey: "coach_name" },
     });
-    const coachName = coachEntry?.contentValue || "Coach Raheel";
+    const coachName = coachEntry?.contentValue || "Your Coach";
 
     // Create user in DB with unified plan model + health profile
     await prisma.user.create({

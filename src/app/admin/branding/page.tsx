@@ -18,8 +18,8 @@ export default function AdminBrandingPage() {
     fetch("/api/site-settings")
       .then((r) => r.json())
       .then((data) => {
-        setSiteName(data.site_name || "Level Up");
-        setCoachName(data.coach_name || "Coach Raheel");
+        setSiteName(data.site_name || "Fitness Coach");
+        setCoachName(data.coach_name || "Your Coach");
         if (data.site_logo) setSiteLogo(data.site_logo);
         if (data.site_favicon) setSiteFavicon(data.site_favicon);
         if (data.pwa_icon_192) setPwaIcon192(data.pwa_icon_192);

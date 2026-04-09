@@ -45,11 +45,14 @@ export async function GET(request: NextRequest) {
 
     const maxWeek = plan.days.reduce((max, d) => Math.max(max, d.weekNumber), 1);
 
+    // Clamp week number so days past the plan end still show the last week's schedule
+    const clampedWeek = Math.min(Math.max(targetWeekNumber, 1), maxWeek);
+
     // Fetch ONLY the target day (not all 56 days)
     const targetPlanDay = await prisma.clientPlanDay.findFirst({
       where: {
         clientPlanId: plan.id,
-        weekNumber: targetWeekNumber,
+        weekNumber: clampedWeek,
         dayOfWeek: targetDayOfWeek,
       },
       include: {

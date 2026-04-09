@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 
 export default async function Footer() {
   let socials: { name: string; url: string; visible: boolean }[] = [];
-  let siteName = "Level Up";
+  let siteName = "Fitness Coach";
   let logoUrl = "/images/logo.svg";
 
   try {

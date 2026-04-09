@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useBranding } from "@/lib/branding";
 
 interface PostAuthor {
   id: string;
@@ -52,6 +53,7 @@ function timeAgo(dateStr: string): string {
 }
 
 export default function HubFeedPage() {
+  const { coachName } = useBranding();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedComments, setExpandedComments] = useState<Set<number>>(new Set());
@@ -226,7 +228,7 @@ export default function HubFeedPage() {
                     <div className="flex items-center gap-2">
                       <span className="text-white font-semibold text-sm">
                         {post.author.role === "ADMIN"
-                          ? "Coach Raheel"
+                          ? coachName
                           : `${post.author.firstName} ${post.author.lastName}`}
                       </span>
                       {post.author.role === "ADMIN" && (
@@ -320,7 +322,7 @@ export default function HubFeedPage() {
                               <div className="flex items-center gap-2">
                                 <span className="text-white/80 text-xs font-semibold">
                                   {c.user.role === "ADMIN"
-                                    ? "Coach Raheel"
+                                    ? coachName
                                     : `${c.user.firstName} ${c.user.lastName}`}
                                 </span>
                                 <span className="text-white/20 text-[10px]">

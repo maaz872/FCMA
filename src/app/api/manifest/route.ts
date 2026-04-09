@@ -18,7 +18,7 @@ export async function GET() {
       map[s.contentKey] = s.contentValue;
     }
 
-    const appName = map.site_name || "Level Up";
+    const appName = map.site_name || "Fitness Coach";
 
     const icons = [];
 
@@ -77,8 +77,8 @@ export async function GET() {
     // Fallback to static manifest
     return NextResponse.json(
       {
-        name: "Level Up",
-        short_name: "Level Up",
+        name: "Fitness Coach",
+        short_name: "Fitness Coach",
         start_url: "/hub",
         scope: "/",
         display: "standalone",

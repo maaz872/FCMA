@@ -1,10 +1,19 @@
 import { Metadata } from "next";
+import { prisma } from "@/lib/db";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy | Level Up",
+  title: "Privacy Policy",
 };
 
-export default function PrivacyPolicyPage() {
+async function getSiteName() {
+  try {
+    const entry = await prisma.siteContent.findFirst({ where: { contentKey: "site_name" } });
+    return entry?.contentValue || "this platform";
+  } catch { return "this platform"; }
+}
+
+export default async function PrivacyPolicyPage() {
+  const name = await getSiteName();
   return (
     <div className="max-w-[800px] mx-auto py-15 px-6">
       <h1 className="text-4xl font-bold mb-2">Privacy Policy</h1>
@@ -13,7 +22,7 @@ export default function PrivacyPolicyPage() {
       <section className="mb-8">
         <h2 className="text-2xl font-semibold mb-3">1. Introduction</h2>
         <p className="text-gray-700 leading-relaxed">
-          Welcome to Level Up. We are committed to protecting your personal
+          Welcome to {name}. We are committed to protecting your personal
           information and your right to privacy. This Privacy Policy explains
           how we collect, use, disclose, and safeguard your information when
           you visit our website and use our services. By accessing or using
@@ -136,15 +145,9 @@ export default function PrivacyPolicyPage() {
         <h2 className="text-2xl font-semibold mb-3">10. Contact Us</h2>
         <p className="text-gray-700 leading-relaxed">
           If you have any questions or concerns about this Privacy Policy or
-          our data practices, please contact us at{" "}
-          <a
-            href="mailto:info@levelupfitness.com"
-            className="text-primary underline"
-          >
-            info@levelupfitness.com
-          </a>
-          . We will make every effort to respond to your enquiry in a timely
-          manner.
+          our data practices, please contact us through the messaging feature
+          in The Hub. We will make every effort to respond to your enquiry in
+          a timely manner.
         </p>
       </section>
     </div>
