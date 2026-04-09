@@ -47,26 +47,36 @@ export default function AdminBrandingPage() {
     setSuccess(false);
 
     try {
-      const res = await fetch("/api/admin/content", {
+      // Save text fields first
+      const textRes = await fetch("/api/admin/content", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           entries: {
             site_name: siteName.trim(),
             coach_name: coachName.trim(),
-            // Always send these keys — empty string clears, value sets
-            site_logo: siteLogo || "",
-            site_favicon: siteFavicon || "",
-            pwa_icon_192: pwaIcon192 || "",
-            pwa_icon_512: pwaIcon512 || "",
           },
         }),
       });
+      if (!textRes.ok) { setError("Failed to save text settings"); return; }
 
-      if (!res.ok) {
-        const data = await res.json();
-        setError(data.error || "Failed to save");
-        return;
+      // Save images one at a time (base64 can be large)
+      const imageEntries: [string, string][] = [
+        ["site_logo", siteLogo || ""],
+        ["site_favicon", siteFavicon || ""],
+        ["pwa_icon_192", pwaIcon192 || ""],
+        ["pwa_icon_512", pwaIcon512 || ""],
+      ];
+
+      for (const [key, value] of imageEntries) {
+        if (value || value === "") {
+          const imgRes = await fetch("/api/admin/content", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ entries: { [key]: value } }),
+          });
+          if (!imgRes.ok) { setError(`Failed to save ${key}`); return; }
+        }
       }
 
       setSuccess(true);

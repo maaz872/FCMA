@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 
+// Increase limits for image uploads (base64 can be large)
+export const maxDuration = 30;
+export const dynamic = "force-dynamic";
+
 // GET — return all SiteContent as { [contentKey]: contentValue }
 export async function GET() {
   const user = await getCurrentUser();
