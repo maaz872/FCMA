@@ -290,7 +290,7 @@ export default function AdminNotificationsPage() {
       {/* ── Section 2: Sent History ──────────────────────── */}
       <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl overflow-hidden">
         <div className="px-6 py-4 border-b border-[#2A2A2A]">
-          <h2 className="text-lg font-semibold text-white">Sent History</h2>
+          <h2 className="text-lg font-semibold text-white">History</h2>
         </div>
 
         {loadingHistory ? (
