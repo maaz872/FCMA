@@ -31,13 +31,33 @@ export default function AdminBrandingPage() {
 
   function handleFileUpload(
     e: React.ChangeEvent<HTMLInputElement>,
-    setter: (v: string | null) => void
+    setter: (v: string | null) => void,
+    maxSize = 512
   ) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setter(reader.result as string);
-    reader.readAsDataURL(file);
+
+    // Compress image using canvas before storing as base64
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      // Resize to maxSize while maintaining aspect ratio
+      let w = img.width;
+      let h = img.height;
+      if (w > maxSize || h > maxSize) {
+        if (w > h) { h = Math.round((h / w) * maxSize); w = maxSize; }
+        else { w = Math.round((w / h) * maxSize); h = maxSize; }
+      }
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      ctx.drawImage(img, 0, 0, w, h);
+      // Compress as JPEG at 80% quality (much smaller than PNG)
+      const compressed = canvas.toDataURL("image/jpeg", 0.8);
+      setter(compressed);
+    };
+    img.src = URL.createObjectURL(file);
   }
 
   async function handleSave(e: React.FormEvent) {
@@ -171,14 +191,14 @@ export default function AdminBrandingPage() {
                   label="Site Logo"
                   hint="Shown in header & footer. Square, any format."
                   value={siteLogo}
-                  onChange={(e) => handleFileUpload(e, setSiteLogo)}
+                  onChange={(e) => handleFileUpload(e, setSiteLogo, 256)}
                   onRemove={() => setSiteLogo(null)}
                 />
                 <ImageUploadField
                   label="Favicon"
                   hint="Browser tab icon. Square, ideally 32x32 or SVG."
                   value={siteFavicon}
-                  onChange={(e) => handleFileUpload(e, setSiteFavicon)}
+                  onChange={(e) => handleFileUpload(e, setSiteFavicon, 64)}
                   onRemove={() => setSiteFavicon(null)}
                   accept="image/png,image/svg+xml,image/x-icon"
                 />
@@ -196,7 +216,7 @@ export default function AdminBrandingPage() {
                   label="192 x 192 px"
                   hint="Required for Android install prompt."
                   value={pwaIcon192}
-                  onChange={(e) => handleFileUpload(e, setPwaIcon192)}
+                  onChange={(e) => handleFileUpload(e, setPwaIcon192, 192)}
                   onRemove={() => setPwaIcon192(null)}
                   accept="image/png"
                 />
@@ -204,7 +224,7 @@ export default function AdminBrandingPage() {
                   label="512 x 512 px"
                   hint="Used for splash screens."
                   value={pwaIcon512}
-                  onChange={(e) => handleFileUpload(e, setPwaIcon512)}
+                  onChange={(e) => handleFileUpload(e, setPwaIcon512, 512)}
                   onRemove={() => setPwaIcon512(null)}
                   accept="image/png"
                 />
