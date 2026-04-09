@@ -124,7 +124,7 @@ export default function HubNotificationsPage() {
     <div className="space-y-6 max-w-3xl w-full overflow-hidden">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold text-white">Notifications</h1>
+        <h1 className="text-2xl font-black text-white">Notifications</h1>
         {unreadCount > 0 && (
           <button
             onClick={markAllRead}
@@ -170,7 +170,7 @@ export default function HubNotificationsPage() {
             <div
               key={n.id}
               onClick={() => handleNotificationClick(n)}
-              className={`bg-[#1E1E1E] border rounded-xl px-4 py-3 transition-colors cursor-pointer ${
+              className={`bg-[#1E1E1E] border rounded-2xl px-4 py-3 transition-colors cursor-pointer ${
                 n.isRead
                   ? "border-[#2A2A2A] hover:bg-[#252525]"
                   : "border-[#E51A1A]/30 hover:bg-[#1E1E1E]/80"

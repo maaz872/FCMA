@@ -128,11 +128,11 @@ export default function MyMealsPage() {
 
   return (
     <div>
-      <h1 className="text-3xl font-black text-white mb-2">My Meals</h1>
-      <p className="text-white/50 text-sm mb-6">Your off-plan meal log history</p>
+      <h1 className="text-2xl font-black text-white mb-2">My Meals</h1>
+      <p className="text-white/40 text-sm mb-6">Your off-plan meal log history</p>
 
       {/* Date navigation */}
-      <div className="flex items-center justify-between bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl px-4 py-3 mb-6">
+      <div className="flex items-center justify-between bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl px-4 py-3 mb-6">
         <button onClick={() => changeDate(-1)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#2A2A2A] text-white/50 hover:text-white transition-colors cursor-pointer border-none">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
         </button>
@@ -175,14 +175,14 @@ export default function MyMealsPage() {
       {loading ? (
         <div className="text-center py-12 text-white/30">Loading...</div>
       ) : grouped.length === 0 ? (
-        <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl p-10 text-center">
+        <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-10 text-center">
           <p className="text-white/40 text-lg mb-1">No meals logged</p>
           <p className="text-white/25 text-sm">Off-plan meals logged from My Plan will appear here</p>
         </div>
       ) : (
         <div className="space-y-4">
           {grouped.map((group) => (
-            <div key={group.type} className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl p-4">
+            <div key={group.type} className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-4">
               <p className="text-xs font-semibold text-white/50 uppercase tracking-wide mb-3">{group.icon} {group.type}</p>
               <div className="space-y-2">
                 {group.meals.map((meal) => (
@@ -221,7 +221,7 @@ export default function MyMealsPage() {
       {/* Edit Modal */}
       {editMeal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl w-full max-w-sm">
+          <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl w-full max-w-sm">
             <div className="p-5 border-b border-[#2A2A2A] flex items-center justify-between">
               <h3 className="text-white font-semibold">Edit Meal</h3>
               <button onClick={() => setEditMeal(null)} className="text-white/40 hover:text-white text-xl bg-transparent border-none cursor-pointer">&times;</button>

@@ -177,7 +177,7 @@ export default function HubFeedPage() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      <h1 className="text-2xl font-bold text-white mb-6">Feed</h1>
+      <h1 className="text-2xl font-black text-white mb-6">Feed</h1>
 
       {/* Create Post */}
       <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-4 mb-6">

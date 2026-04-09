@@ -288,8 +288,8 @@ export default function StepsPage() {
 
   return (
     <div className="w-full overflow-hidden">
-      <h1 className="text-3xl font-black mb-2">Step Tracker</h1>
-      <p className="text-white/50 mb-6">Track your daily steps and hit your goals.</p>
+      <h1 className="text-2xl font-black text-white mb-2">Step Tracker</h1>
+      <p className="text-white/40 text-sm mb-6">Track your daily steps and hit your goals.</p>
 
       {/* Time Range Filter */}
       <div className="mb-8">

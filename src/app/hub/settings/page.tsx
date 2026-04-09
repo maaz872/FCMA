@@ -226,7 +226,8 @@ export default function SettingsPage() {
 
   return (
     <div className="max-w-[600px]">
-      <h1 className="text-3xl font-black mb-8">Settings</h1>
+      <h1 className="text-2xl font-black text-white mb-2">Settings</h1>
+      <p className="text-white/40 text-sm mb-8">Manage your account preferences</p>
 
       {/* Profile */}
       <div className="bg-[#1E1E1E] rounded-2xl shadow-card p-8 mb-6">

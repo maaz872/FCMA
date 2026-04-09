@@ -33,7 +33,7 @@ export default function HealthProfilePage() {
   return (
     <div className="max-w-[600px] w-full">
       <div className="mb-6">
-        <h1 className="text-3xl font-black text-white">Health Profile</h1>
+        <h1 className="text-2xl font-black text-white">Health Profile</h1>
         <p className="text-white/40 text-sm mt-1">Your profile is managed by your coach.</p>
       </div>
 

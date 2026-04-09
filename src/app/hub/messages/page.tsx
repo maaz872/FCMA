@@ -179,7 +179,7 @@ export default function UserMessagesPage() {
 
   return (
     <div className="max-w-3xl mx-auto">
-      <h1 className="text-2xl font-bold text-white mb-6">Messages</h1>
+      <h1 className="text-2xl font-black text-white mb-6">Messages</h1>
 
       <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl overflow-hidden flex flex-col h-[calc(100vh-240px)] min-h-[500px]">
         {/* Chat header */}

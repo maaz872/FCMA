@@ -58,8 +58,8 @@ export default function FavouritesPage() {
 
   return (
     <div>
-      <h1 className="text-3xl font-black text-white mb-2">My Favourites</h1>
-      <p className="text-white/60 mb-8">
+      <h1 className="text-2xl font-black text-white mb-2">My Favourites</h1>
+      <p className="text-white/40 text-sm mb-8">
         Your saved recipes, all in one place.
       </p>
 

@@ -69,7 +69,7 @@ export default function TargetsPage() {
   if (loading) {
     return (
       <div>
-        <h1 className="text-3xl font-black text-white mb-6">My Targets</h1>
+        <h1 className="text-2xl font-black text-white mb-6">My Targets</h1>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {[...Array(4)].map((_, i) => (
             <div key={i} className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-4 animate-pulse">
@@ -99,8 +99,8 @@ export default function TargetsPage() {
 
   return (
     <div>
-      <h1 className="text-3xl font-black text-white mb-2">My Targets</h1>
-      <p className="text-white/50 text-sm mb-6">Hit the target — aim for the exact number</p>
+      <h1 className="text-2xl font-black text-white mb-2">My Targets</h1>
+      <p className="text-white/40 text-sm mb-6">Hit the target — aim for the exact number</p>
 
       {activeTargets.length === 0 ? (
         <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-10 text-center">

@@ -66,7 +66,7 @@ export default function FoodChartPage() {
     <div className="max-w-5xl mx-auto space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-white">Food Calorie Chart</h1>
+        <h1 className="text-2xl font-black text-white">Food Calorie Chart</h1>
         <p className="text-sm text-white/50 mt-1">
           Browse calories and macros for {items.length} foods
         </p>
@@ -136,7 +136,7 @@ function FoodCard({ food }: { food: FoodItem }) {
   );
 
   return (
-    <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl p-4 hover:border-[#E51A1A]/30 transition">
+    <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-4 hover:border-[#E51A1A]/30 transition">
       <div className="flex items-start justify-between gap-2 mb-3">
         <h3 className="text-sm font-bold text-white leading-tight">
           {food.name}
