@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 
+type SubscriptionStatus = "ACTIVE" | "GRACE" | "EXPIRED" | "CANCELLED";
+
 interface BillingRow {
   coachId: string;
   coachName: string;
@@ -15,6 +17,21 @@ interface BillingRow {
   extraClientPrice: number;
   monthlyBill: number;
   billingStatus: string;
+  currentPeriodEnd: string;
+  subscriptionStatus: SubscriptionStatus;
+  daysLeft: number;
+}
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+}
+
+function daysLeftBadge(status: SubscriptionStatus, daysLeft: number) {
+  if (status === "CANCELLED") return { label: "—", cls: "text-gray-400" };
+  if (status === "EXPIRED") return { label: `Expired ${Math.abs(daysLeft)}d`, cls: "text-red-400" };
+  if (status === "GRACE") return { label: `Grace ${7 + daysLeft}d`, cls: "text-amber-400" };
+  if (daysLeft <= 7) return { label: `${daysLeft}d`, cls: "text-amber-400" };
+  return { label: `${daysLeft}d`, cls: "text-emerald-400" };
 }
 
 export default function BillingPage() {
@@ -65,12 +82,15 @@ export default function BillingPage() {
                 <th className="text-center px-3 py-3 text-white/40 font-semibold text-xs uppercase">Status</th>
                 <th className="text-center px-3 py-3 text-white/40 font-semibold text-xs uppercase">Clients</th>
                 <th className="text-center px-3 py-3 text-white/40 font-semibold text-xs uppercase">Plan</th>
+                <th className="text-center px-3 py-3 text-white/40 font-semibold text-xs uppercase">Period Ends</th>
+                <th className="text-center px-3 py-3 text-white/40 font-semibold text-xs uppercase">Days Left</th>
                 <th className="text-right px-5 py-3 text-white/40 font-semibold text-xs uppercase">Monthly Bill</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((row) => {
                 const extraClients = Math.max(0, row.activeClients - row.includedClients);
+                const dlb = daysLeftBadge(row.subscriptionStatus, row.daysLeft);
                 return (
                   <tr key={row.coachId} className="border-b border-[#2A2A2A] last:border-none hover:bg-white/[0.02]">
                     <td className="px-5 py-4">
@@ -81,11 +101,15 @@ export default function BillingPage() {
                     </td>
                     <td className="text-center px-3 py-4">
                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
-                        row.isActive
+                        row.subscriptionStatus === "ACTIVE"
                           ? "bg-emerald-500/20 text-emerald-400"
-                          : "bg-red-500/20 text-red-400"
+                          : row.subscriptionStatus === "GRACE"
+                          ? "bg-amber-500/20 text-amber-400"
+                          : row.subscriptionStatus === "EXPIRED"
+                          ? "bg-red-500/20 text-red-400"
+                          : "bg-gray-500/20 text-gray-400"
                       }`}>
-                        {row.isActive ? "Active" : "Inactive"}
+                        {row.subscriptionStatus}
                       </span>
                     </td>
                     <td className="text-center px-3 py-4">
@@ -99,6 +123,12 @@ export default function BillingPage() {
                       <p className="text-white/30 text-[10px]">
                         {row.includedClients} incl + {extraClients > 0 ? `${extraClients} extra` : "0 extra"}
                       </p>
+                    </td>
+                    <td className="text-center px-3 py-4">
+                      <p className="text-white/70 text-xs">{formatDate(row.currentPeriodEnd)}</p>
+                    </td>
+                    <td className="text-center px-3 py-4">
+                      <span className={`text-xs font-semibold ${dlb.cls}`}>{dlb.label}</span>
                     </td>
                     <td className="text-right px-5 py-4">
                       <p className="text-white font-bold">PKR {row.monthlyBill.toLocaleString()}</p>

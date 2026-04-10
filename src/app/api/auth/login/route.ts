@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { verifyPassword, createToken, setSessionCookie } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { resolveSubscriptionStatus } from "@/lib/billing";
 
 export async function POST(request: Request) {
   try {
@@ -38,6 +39,27 @@ export async function POST(request: Request) {
         { error: "Your coaching account has been suspended. Please contact the administrator." },
         { status: 403 }
       );
+    }
+
+    // For coaches: check subscription state (7-day grace period then block)
+    if (user.role === "COACH") {
+      const billing = await prisma.coachBilling.findUnique({ where: { coachId: user.id } });
+      if (billing) {
+        const subStatus = resolveSubscriptionStatus(billing.currentPeriodEnd, billing.billingStatus);
+        if (subStatus === "EXPIRED") {
+          return NextResponse.json(
+            { error: "Your subscription has expired. Please contact the administrator to renew." },
+            { status: 403 }
+          );
+        }
+        if (subStatus === "CANCELLED") {
+          return NextResponse.json(
+            { error: "Your subscription has been cancelled. Please contact the administrator to reactivate." },
+            { status: 403 }
+          );
+        }
+        // ACTIVE or GRACE → allow login; grace banner will surface via /api/auth/me
+      }
     }
 
     // Read coach name from DB for error messages (for USER role)

@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireSuperAdmin } from "@/lib/coach-scope";
-import { calculateMonthlyBill } from "@/lib/billing";
+import {
+  calculateMonthlyBill,
+  addDays,
+  daysUntilExpiry,
+  resolveSubscriptionStatus,
+} from "@/lib/billing";
 
 export const dynamic = "force-dynamic";
 
@@ -76,6 +81,9 @@ export async function GET(
             extraClientPrice: billing.extraClientPrice,
             includedClients: billing.includedClients,
             billingStatus: billing.billingStatus,
+            currentPeriodEnd: billing.currentPeriodEnd.toISOString(),
+            subscriptionStatus: resolveSubscriptionStatus(billing.currentPeriodEnd, billing.billingStatus),
+            daysLeft: daysUntilExpiry(billing.currentPeriodEnd),
           }
         : null,
       monthlyBill,
@@ -92,7 +100,7 @@ export async function GET(
   }
 }
 
-// PUT — update coach (toggle active, update billing)
+// PUT — update coach (toggle active, update billing, subscription actions)
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -109,7 +117,64 @@ export async function PUT(
       return NextResponse.json({ error: "Coach not found" }, { status: 404 });
     }
 
-    // Update coach active status
+    // ─── Subscription actions ────────────────────────────────
+    if (body.action === "extend") {
+      const days = Number(body.days);
+      if (!Number.isFinite(days) || days <= 0 || days > 365) {
+        return NextResponse.json(
+          { error: "Extension must be between 1 and 365 days" },
+          { status: 400 }
+        );
+      }
+      const current = await prisma.coachBilling.findUnique({ where: { coachId: id } });
+      if (!current) {
+        return NextResponse.json({ error: "Coach has no billing record" }, { status: 400 });
+      }
+      const base = current.currentPeriodEnd > new Date() ? current.currentPeriodEnd : new Date();
+      await prisma.coachBilling.update({
+        where: { coachId: id },
+        data: { currentPeriodEnd: addDays(base, days) },
+      });
+      return NextResponse.json({ success: true });
+    }
+
+    if (body.action === "renew") {
+      const current = await prisma.coachBilling.findUnique({ where: { coachId: id } });
+      if (!current) {
+        return NextResponse.json({ error: "Coach has no billing record" }, { status: 400 });
+      }
+      const now = new Date();
+      const base = current.currentPeriodEnd > now ? current.currentPeriodEnd : now;
+      await prisma.coachBilling.update({
+        where: { coachId: id },
+        data: { currentPeriodEnd: addDays(base, 30), billingStatus: "ACTIVE" },
+      });
+      return NextResponse.json({ success: true });
+    }
+
+    if (body.action === "cancelSubscription") {
+      await prisma.coachBilling.update({
+        where: { coachId: id },
+        data: { billingStatus: "CANCELLED" },
+      });
+      return NextResponse.json({ success: true });
+    }
+
+    if (body.action === "reactivateSubscription") {
+      const current = await prisma.coachBilling.findUnique({ where: { coachId: id } });
+      const now = new Date();
+      const needsNewPeriod = !current || current.currentPeriodEnd < now;
+      await prisma.coachBilling.update({
+        where: { coachId: id },
+        data: {
+          billingStatus: "ACTIVE",
+          ...(needsNewPeriod && { currentPeriodEnd: addDays(now, 30) }),
+        },
+      });
+      return NextResponse.json({ success: true });
+    }
+
+    // ─── Coach active toggle ─────────────────────────────────
     if (body.isCoachActive !== undefined) {
       await prisma.user.update({
         where: { id },
@@ -125,20 +190,21 @@ export async function PUT(
       }
     }
 
-    // Update billing terms
+    // ─── Billing terms update (basePriceMonthly / includedClients / extraClientPrice) ─
     if (body.basePriceMonthly !== undefined || body.extraClientPrice !== undefined || body.includedClients !== undefined) {
       await prisma.coachBilling.upsert({
         where: { coachId: id },
         update: {
-          ...(body.basePriceMonthly !== undefined && { basePriceMonthly: body.basePriceMonthly }),
-          ...(body.extraClientPrice !== undefined && { extraClientPrice: body.extraClientPrice }),
-          ...(body.includedClients !== undefined && { includedClients: body.includedClients }),
+          ...(body.basePriceMonthly !== undefined && { basePriceMonthly: Number(body.basePriceMonthly) }),
+          ...(body.extraClientPrice !== undefined && { extraClientPrice: Number(body.extraClientPrice) }),
+          ...(body.includedClients !== undefined && { includedClients: Number(body.includedClients) }),
         },
         create: {
           coachId: id,
           basePriceMonthly: body.basePriceMonthly || 15000,
           extraClientPrice: body.extraClientPrice || 3500,
           includedClients: body.includedClients || 5,
+          currentPeriodEnd: addDays(new Date(), 30),
         },
       });
     }

@@ -45,11 +45,27 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   );
 }
 
+interface SubscriptionInfo {
+  status: "ACTIVE" | "GRACE" | "EXPIRED" | "CANCELLED";
+  daysLeft: number;
+  currentPeriodEnd: string;
+}
+
 function AdminLayoutInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
   const { coachName } = useBranding();
+
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.user?.subscription) setSubscription(data.user.subscription);
+      })
+      .catch(() => {});
+  }, []);
 
   const coachInitials = coachName
     .split(" ")
@@ -224,6 +240,19 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
 
       {/* ── Main Content ── */}
       <main className="flex-1 bg-[#111111] min-h-screen">
+        {/* Subscription warning banners */}
+        {subscription?.status === "GRACE" && (
+          <div className="bg-amber-500/10 border-b border-amber-500/30 px-6 py-3 text-amber-300 text-sm lg:sticky lg:top-0 z-10">
+            ⚠️ Your subscription expired {Math.abs(subscription.daysLeft)} day{Math.abs(subscription.daysLeft) === 1 ? "" : "s"} ago.
+            You&apos;re in a 7-day grace period — {7 + subscription.daysLeft} day{7 + subscription.daysLeft === 1 ? "" : "s"} left before your account is locked.
+            Please contact the administrator to renew.
+          </div>
+        )}
+        {subscription?.status === "ACTIVE" && subscription.daysLeft <= 3 && subscription.daysLeft >= 0 && (
+          <div className="bg-blue-500/10 border-b border-blue-500/30 px-6 py-3 text-blue-300 text-sm lg:sticky lg:top-0 z-10">
+            Your subscription renews in {subscription.daysLeft} day{subscription.daysLeft === 1 ? "" : "s"}.
+          </div>
+        )}
         <div className="p-6 lg:p-8 pt-20 lg:pt-8">{children}</div>
       </main>
     </div>

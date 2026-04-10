@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 
+type SubscriptionStatus = "ACTIVE" | "GRACE" | "EXPIRED" | "CANCELLED";
+
 interface Coach {
   id: string;
   firstName: string;
@@ -18,7 +20,26 @@ interface Coach {
     extraClientPrice: number;
     includedClients: number;
     billingStatus: string;
+    currentPeriodEnd: string;
+    subscriptionStatus: SubscriptionStatus;
+    daysLeft: number;
   } | null;
+}
+
+function subStatusBadge(status: SubscriptionStatus, daysLeft: number) {
+  if (status === "CANCELLED") {
+    return { label: "Cancelled", cls: "bg-gray-500/20 text-gray-400" };
+  }
+  if (status === "EXPIRED") {
+    return { label: `Expired ${Math.abs(daysLeft)}d ago`, cls: "bg-red-500/20 text-red-400" };
+  }
+  if (status === "GRACE") {
+    return { label: `Grace: ${7 + daysLeft}d left`, cls: "bg-amber-500/20 text-amber-400" };
+  }
+  if (daysLeft <= 7) {
+    return { label: `${daysLeft}d left`, cls: "bg-amber-500/20 text-amber-400" };
+  }
+  return { label: `${daysLeft}d left`, cls: "bg-emerald-500/20 text-emerald-400" };
 }
 
 export default function CoachesListPage() {
@@ -118,10 +139,17 @@ export default function CoachesListPage() {
                   </p>
                   <p className="text-white/30 text-[10px]">Base/mo</p>
                 </div>
-                {coach.inviteCode && (
+                {coach.billing && (
                   <div className="text-center">
-                    <p className="text-blue-400 font-mono text-xs">{coach.inviteCode}</p>
-                    <p className="text-white/30 text-[10px]">Invite</p>
+                    {(() => {
+                      const b = subStatusBadge(coach.billing.subscriptionStatus, coach.billing.daysLeft);
+                      return (
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${b.cls}`}>
+                          {b.label}
+                        </span>
+                      );
+                    })()}
+                    <p className="text-white/30 text-[10px] mt-1">Subscription</p>
                   </div>
                 )}
               </div>

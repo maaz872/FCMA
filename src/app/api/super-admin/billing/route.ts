@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireSuperAdmin } from "@/lib/coach-scope";
-import { calculateMonthlyBill } from "@/lib/billing";
+import {
+  calculateMonthlyBill,
+  daysUntilExpiry,
+  resolveSubscriptionStatus,
+} from "@/lib/billing";
 
 export const dynamic = "force-dynamic";
 
@@ -35,10 +39,17 @@ export async function GET() {
     const activeMap = new Map(activeClients.map((a) => [a.coachId!, a._count]));
 
     let totalRevenue = 0;
+    let expiringCoaches = 0;
     const rows = billings.map((b) => {
       const active = activeMap.get(b.coachId) || 0;
       const bill = calculateMonthlyBill(active, b.basePriceMonthly, b.includedClients, b.extraClientPrice);
       totalRevenue += bill;
+
+      const subscriptionStatus = resolveSubscriptionStatus(b.currentPeriodEnd, b.billingStatus);
+      const daysLeft = daysUntilExpiry(b.currentPeriodEnd);
+      if (subscriptionStatus === "GRACE" || (subscriptionStatus === "ACTIVE" && daysLeft <= 7)) {
+        expiringCoaches++;
+      }
 
       return {
         coachId: b.coachId,
@@ -52,10 +63,13 @@ export async function GET() {
         extraClientPrice: b.extraClientPrice,
         monthlyBill: bill,
         billingStatus: b.billingStatus,
+        currentPeriodEnd: b.currentPeriodEnd.toISOString(),
+        subscriptionStatus,
+        daysLeft,
       };
     });
 
-    return NextResponse.json({ billings: rows, totalRevenue });
+    return NextResponse.json({ billings: rows, totalRevenue, expiringCoaches });
   } catch (error) {
     console.error("Billing error:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });

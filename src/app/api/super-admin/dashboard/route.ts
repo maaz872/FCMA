@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireSuperAdmin } from "@/lib/coach-scope";
-import { calculateMonthlyBill } from "@/lib/billing";
+import {
+  calculateMonthlyBill,
+  daysUntilExpiry,
+  resolveSubscriptionStatus,
+} from "@/lib/billing";
 
 export const dynamic = "force-dynamic";
 
@@ -25,9 +29,20 @@ export async function GET() {
       ]);
 
     let monthlyRevenue = 0;
+    let expiringCoaches = 0;
+    let expiredCoaches = 0;
     for (const b of billings) {
       const activeClients = b.coach._count.clients;
       monthlyRevenue += calculateMonthlyBill(activeClients, b.basePriceMonthly, b.includedClients, b.extraClientPrice);
+
+      const status = resolveSubscriptionStatus(b.currentPeriodEnd, b.billingStatus);
+      const daysLeft = daysUntilExpiry(b.currentPeriodEnd);
+      if (status === "GRACE" || (status === "ACTIVE" && daysLeft <= 7)) {
+        expiringCoaches++;
+      }
+      if (status === "EXPIRED" || status === "CANCELLED") {
+        expiredCoaches++;
+      }
     }
 
     return NextResponse.json({
@@ -36,6 +51,8 @@ export async function GET() {
       totalClients,
       newClientsMonth,
       monthlyRevenue,
+      expiringCoaches,
+      expiredCoaches,
     });
   } catch (error) {
     console.error("Super admin dashboard error:", error);

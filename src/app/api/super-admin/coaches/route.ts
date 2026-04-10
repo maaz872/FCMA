@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireSuperAdmin } from "@/lib/coach-scope";
 import { hashPassword } from "@/lib/auth";
+import { addDays, daysUntilExpiry, resolveSubscriptionStatus } from "@/lib/billing";
 import crypto from "crypto";
 
 export const dynamic = "force-dynamic";
@@ -49,6 +50,9 @@ export async function GET() {
               extraClientPrice: b.extraClientPrice,
               includedClients: b.includedClients,
               billingStatus: b.billingStatus,
+              currentPeriodEnd: b.currentPeriodEnd.toISOString(),
+              subscriptionStatus: resolveSubscriptionStatus(b.currentPeriodEnd, b.billingStatus),
+              daysLeft: daysUntilExpiry(b.currentPeriodEnd),
             }
           : null,
       };
@@ -105,7 +109,7 @@ export async function POST(request: Request) {
       },
     });
 
-    // Create billing record
+    // Create billing record — first 30-day period starts now
     await prisma.coachBilling.create({
       data: {
         coachId,
@@ -113,6 +117,7 @@ export async function POST(request: Request) {
         extraClientPrice: extraClientPrice || 3500,
         includedClients: includedClients || 5,
         billingStatus: "ACTIVE",
+        currentPeriodEnd: addDays(new Date(), 30),
       },
     });
 

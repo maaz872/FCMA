@@ -93,14 +93,15 @@ model User {
 // ─── Coach Billing ──────────────────────────────────────────────────
 
 model CoachBilling {
-  id               Int      @id @default(autoincrement())
-  coachId          String   @unique
-  basePriceMonthly Int      @default(15000)
-  extraClientPrice Int      @default(3500)
-  includedClients  Int      @default(5)
-  billingStatus    String   @default("ACTIVE")
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id               Int       @id @default(autoincrement())
+  coachId          String    @unique
+  basePriceMonthly Int       @default(15000)
+  extraClientPrice Int       @default(3500)
+  includedClients  Int       @default(5)
+  billingStatus    String    @default("ACTIVE")
+  currentPeriodEnd DateTime
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   coach User @relation("CoachBilling", fields: [coachId], references: [id])
 }

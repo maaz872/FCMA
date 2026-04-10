@@ -9,6 +9,8 @@ interface Stats {
   totalClients: number;
   newClientsMonth: number;
   monthlyRevenue: number;
+  expiringCoaches: number;
+  expiredCoaches: number;
 }
 
 export default function SuperAdminDashboard() {
@@ -36,6 +38,8 @@ export default function SuperAdminDashboard() {
     { label: "Active Coaches", value: stats?.activeCoaches ?? 0, color: "green" },
     { label: "Total Clients", value: stats?.totalClients ?? 0, color: "purple" },
     { label: "New This Month", value: stats?.newClientsMonth ?? 0, color: "yellow" },
+    { label: "Expiring Soon", value: stats?.expiringCoaches ?? 0, color: "amber" },
+    { label: "Expired / Cancelled", value: stats?.expiredCoaches ?? 0, color: "red" },
   ];
 
   const colorMap: Record<string, string> = {
@@ -43,6 +47,8 @@ export default function SuperAdminDashboard() {
     green: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
     purple: "bg-purple-500/10 text-purple-400 border-purple-500/20",
     yellow: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+    amber: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+    red: "bg-red-500/10 text-red-400 border-red-500/20",
   };
 
   return (
@@ -53,7 +59,7 @@ export default function SuperAdminDashboard() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         {cards.map((card) => (
           <div
             key={card.label}
