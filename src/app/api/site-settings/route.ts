@@ -28,9 +28,13 @@ export async function GET(request: NextRequest) {
       } catch {}
     }
 
-    // Fetch coach-specific or all settings
-    const where = coachId ? { coachId } : {};
-    const settings = await prisma.siteContent.findMany({ where });
+    // If no coachId could be resolved, return empty defaults (client will use fallbacks)
+    if (!coachId) {
+      return NextResponse.json({});
+    }
+
+    // Fetch coach-specific settings only
+    const settings = await prisma.siteContent.findMany({ where: { coachId } });
     const result: Record<string, string> = {};
     for (const s of settings) {
       result[s.contentKey] = s.contentValue;

@@ -118,9 +118,8 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("Login error:", error);
-    const msg = error instanceof Error ? error.message : String(error);
     return NextResponse.json(
-      { error: "Something went wrong. Please try again.", debug: msg },
+      { error: "Something went wrong. Please try again." },
       { status: 500 }
     );
   }
