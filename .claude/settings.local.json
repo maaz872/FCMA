@@ -145,7 +145,9 @@
       "Bash(mkdir -p /tmp/fcma-test)",
       "Bash(curl -s -c /tmp/fcma-test/danzel.txt -X POST https://fcma.vercel.app/api/auth/login -H \"Content-Type: application/json\" --data-binary \"@C:/Users/Lenovo/AppData/Local/Temp/danzel-login.json\")",
       "Bash(curl -s -b /tmp/fcma-test/danzel.txt https://fcma.vercel.app/api/site-settings)",
-      "Bash(curl -s https://fcma.vercel.app/api/site-settings -w \"\\\\nHTTP %{http_code}\\\\n\")"
+      "Bash(curl -s https://fcma.vercel.app/api/site-settings -w \"\\\\nHTTP %{http_code}\\\\n\")",
+      "Bash(curl -s \"https://fcma.vercel.app/api/site-settings?coach=fake-xyz\" -w \"\\\\nHTTP %{http_code}\\\\n\")",
+      "Bash(curl -s https://fcma.vercel.app/api/manifest)"
     ]
   }
 }

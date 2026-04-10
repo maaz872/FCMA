@@ -15,11 +15,16 @@ export async function GET() {
       }
     } catch {}
 
-    const where = coachId
-      ? { contentKey: { in: ["site_name", "pwa_icon_192", "pwa_icon_512"] }, coachId }
-      : { contentKey: { in: ["site_name", "pwa_icon_192", "pwa_icon_512"] } };
-
-    const settings = await prisma.siteContent.findMany({ where });
+    // Only fetch coach-specific settings if we have a coachId; otherwise
+    // skip DB entirely to avoid leaking another coach's branding to anonymous users.
+    const settings = coachId
+      ? await prisma.siteContent.findMany({
+          where: {
+            contentKey: { in: ["site_name", "pwa_icon_192", "pwa_icon_512"] },
+            coachId,
+          },
+        })
+      : [];
 
     const map: Record<string, string> = {};
     for (const s of settings) {

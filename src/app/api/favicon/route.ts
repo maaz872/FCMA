@@ -15,11 +15,13 @@ export async function GET(request: NextRequest) {
       }
     } catch {}
 
-    const where = coachId
-      ? { contentKey: "site_favicon", coachId }
-      : { contentKey: "site_favicon" };
-
-    const setting = await prisma.siteContent.findFirst({ where });
+    // Only query DB if coachId is known — otherwise anonymous users would
+    // see whichever coach's favicon happened to be first in the table.
+    const setting = coachId
+      ? await prisma.siteContent.findFirst({
+          where: { contentKey: "site_favicon", coachId },
+        })
+      : null;
 
     if (setting?.contentValue && setting.contentValue.startsWith("data:")) {
       // Parse base64 data URI: data:image/png;base64,xxxxx
