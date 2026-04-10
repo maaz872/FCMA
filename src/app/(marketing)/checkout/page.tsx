@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useRef, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Button from "@/components/ui/Button";
 import PasswordInput from "@/components/ui/PasswordInput";
-import { useBranding } from "@/lib/branding";
+import { useBranding, BrandingProvider } from "@/lib/branding";
 
 type Step = "account" | "health" | "payment" | "success";
 
@@ -37,36 +37,111 @@ const DIETARY_OPTIONS = [
 export default function CheckoutPage() {
   return (
     <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="w-8 h-8 border-2 border-[#E51A1A] border-t-transparent rounded-full animate-spin" /></div>}>
-      <CheckoutContent />
+      <CheckoutRouter />
     </Suspense>
   );
 }
 
-function CheckoutContent() {
+function CheckoutRouter() {
   const searchParams = useSearchParams();
   const coachCode = searchParams.get("coach") || "";
-  const [step, setStep] = useState<Step>("account");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const { siteName, coachName } = useBranding();
 
-  // Require coach invite code
   if (!coachCode) {
-    return (
-      <div className="max-w-md mx-auto py-24 px-6 text-center">
-        <div className="bg-[#1E1E1E] rounded-2xl border border-[#2A2A2A] p-8">
-          <h1 className="text-2xl font-bold text-white mb-3">Invite Required</h1>
-          <p className="text-white/50 mb-6 leading-relaxed">
-            You need an invite link from your coach to register.
-            Please ask your coach for their signup link.
+    return <InviteGate />;
+  }
+  // Wrap in a nested BrandingProvider so the checkout shows the coach's branding
+  return (
+    <BrandingProvider coachCode={coachCode}>
+      <CheckoutContent coachCode={coachCode} />
+    </BrandingProvider>
+  );
+}
+
+function InviteGate() {
+  const router = useRouter();
+  const [code, setCode] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmed = code.trim();
+    if (!trimmed) {
+      setError("Please enter an invite code");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch(
+        `/api/auth/validate-invite?code=${encodeURIComponent(trimmed)}`
+      );
+      const data = await res.json();
+      if (!res.ok || !data.valid) {
+        setError(data.error || "Invalid invite code. Please check and try again.");
+        setLoading(false);
+        return;
+      }
+      // Valid — redirect to the branded registration flow
+      router.replace(`/checkout?coach=${encodeURIComponent(trimmed)}`);
+    } catch {
+      setError("Something went wrong. Please try again.");
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="max-w-md mx-auto py-24 px-6">
+      <div className="bg-[#1E1E1E] rounded-2xl border border-[#2A2A2A] p-8">
+        <h1 className="text-2xl font-bold text-white mb-3 text-center">Enter Invite Code</h1>
+        <p className="text-white/50 mb-6 leading-relaxed text-center text-sm">
+          Enter the invite code provided by your coach to begin registration.
+        </p>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input
+            type="text"
+            value={code}
+            onChange={(e) => { setCode(e.target.value); setError(""); }}
+            placeholder="e.g. coach-raheel"
+            autoFocus
+            disabled={loading}
+            className="w-full py-3 px-4 border-2 border-[#2A2A2A] rounded-xl text-base bg-[#0A0A0A] text-white placeholder:text-white/30 focus:border-[#E51A1A] focus:outline-none transition-colors disabled:opacity-50"
+          />
+
+          {error && (
+            <div className="bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-red-400 text-sm">
+              {error}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading || !code.trim()}
+            className="w-full py-3 bg-[#E51A1A] text-white rounded-xl font-bold text-sm hover:opacity-90 transition-opacity disabled:opacity-50 cursor-pointer border-none"
+          >
+            {loading ? "Validating..." : "Continue"}
+          </button>
+        </form>
+
+        <div className="mt-6 pt-6 border-t border-[#2A2A2A] text-center">
+          <p className="text-white/30 text-xs mb-2">
+            Don&apos;t have an invite code? Contact your coach for one.
           </p>
           <Link href="/login" className="text-[#E51A1A] font-semibold text-sm hover:underline">
             Already have an account? Log in
           </Link>
         </div>
       </div>
-    );
-  }
+    </div>
+  );
+}
+
+function CheckoutContent({ coachCode }: { coachCode: string }) {
+  const [step, setStep] = useState<Step>("account");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { siteName, coachName } = useBranding();
 
   // Account form state
   const [firstName, setFirstName] = useState("");
