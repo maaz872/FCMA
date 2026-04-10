@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Button from "@/components/ui/Button";
 import PasswordInput from "@/components/ui/PasswordInput";
@@ -34,10 +35,38 @@ const DIETARY_OPTIONS = [
 ];
 
 export default function CheckoutPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="w-8 h-8 border-2 border-[#E51A1A] border-t-transparent rounded-full animate-spin" /></div>}>
+      <CheckoutContent />
+    </Suspense>
+  );
+}
+
+function CheckoutContent() {
+  const searchParams = useSearchParams();
+  const coachCode = searchParams.get("coach") || "";
   const [step, setStep] = useState<Step>("account");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { siteName, coachName } = useBranding();
+
+  // Require coach invite code
+  if (!coachCode) {
+    return (
+      <div className="max-w-md mx-auto py-24 px-6 text-center">
+        <div className="bg-[#1E1E1E] rounded-2xl border border-[#2A2A2A] p-8">
+          <h1 className="text-2xl font-bold text-white mb-3">Invite Required</h1>
+          <p className="text-white/50 mb-6 leading-relaxed">
+            You need an invite link from your coach to register.
+            Please ask your coach for their signup link.
+          </p>
+          <Link href="/login" className="text-[#E51A1A] font-semibold text-sm hover:underline">
+            Already have an account? Log in
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   // Account form state
   const [firstName, setFirstName] = useState("");
@@ -191,6 +220,7 @@ export default function CheckoutPage() {
           country,
           plan: "HUB",
           planStatus: "PENDING",
+          coachCode,
           age,
           gender,
           heightCm,

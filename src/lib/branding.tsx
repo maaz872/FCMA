@@ -18,7 +18,13 @@ const BrandingContext = createContext<BrandingContextType>({
   loading: true,
 });
 
-export function BrandingProvider({ children }: { children: ReactNode }) {
+export function BrandingProvider({
+  children,
+  coachCode,
+}: {
+  children: ReactNode;
+  coachCode?: string;
+}) {
   const [siteName, setSiteName] = useState("Fitness Coach");
   const [coachName, setCoachName] = useState("Your Coach");
   const [logoUrl, setLogoUrl] = useState("/images/logo.svg");
@@ -26,7 +32,11 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/site-settings")
+    const url = coachCode
+      ? `/api/site-settings?coach=${encodeURIComponent(coachCode)}`
+      : "/api/site-settings";
+
+    fetch(url)
       .then((r) => r.json())
       .then((data) => {
         if (data.site_name) setSiteName(data.site_name);
@@ -36,13 +46,12 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  }, [coachCode]);
 
   // Dynamically update favicon — use API route instead of base64 for efficiency
   useEffect(() => {
     if (loading) return;
     const link = document.querySelector("link[rel='icon']") as HTMLLinkElement | null;
-    // Always point to /api/favicon which serves the DB image or falls back to static
     const href = faviconUrl !== "/images/logo.svg" ? "/api/favicon" : "/images/logo.svg";
     if (link) {
       link.href = href;

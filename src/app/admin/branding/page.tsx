@@ -5,6 +5,8 @@ import { useState, useEffect } from "react";
 export default function AdminBrandingPage() {
   const [siteName, setSiteName] = useState("");
   const [coachName, setCoachName] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
+  const [inviteCopied, setInviteCopied] = useState(false);
   const [siteLogo, setSiteLogo] = useState<string | null>(null);
   const [siteFavicon, setSiteFavicon] = useState<string | null>(null);
   const [pwaIcon192, setPwaIcon192] = useState<string | null>(null);
@@ -24,6 +26,14 @@ export default function AdminBrandingPage() {
         if (data.site_favicon) setSiteFavicon(data.site_favicon);
         if (data.pwa_icon_192) setPwaIcon192(data.pwa_icon_192);
         if (data.pwa_icon_512) setPwaIcon512(data.pwa_icon_512);
+      })
+      .catch(() => {});
+
+    // Fetch invite code from auth/me
+    fetch("/api/auth/me")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.user?.inviteCode) setInviteCode(data.user.inviteCode);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -177,6 +187,38 @@ export default function AdminBrandingPage() {
                 placeholder="e.g. Coach Raheel" required className={inputClass} />
               <p className="text-white/30 text-xs mt-1.5">
                 Appears in the admin sidebar, approval messages, and about page.
+              </p>
+            </div>
+
+            {/* Invite Link */}
+            <div className="pt-4 border-t border-[#2A2A2A]">
+              <label className="block font-semibold text-sm text-white mb-1.5">Client Invite Link</label>
+              {inviteCode ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={`${typeof window !== "undefined" ? window.location.origin : ""}/checkout?coach=${inviteCode}`}
+                    className={`${inputClass} text-blue-400 !bg-[#0A0A0A] flex-1`}
+                    onClick={(e) => (e.target as HTMLInputElement).select()}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${window.location.origin}/checkout?coach=${inviteCode}`);
+                      setInviteCopied(true);
+                      setTimeout(() => setInviteCopied(false), 2000);
+                    }}
+                    className="px-4 py-3 bg-[#E51A1A] text-white rounded-xl font-semibold text-sm hover:opacity-90 transition-opacity cursor-pointer border-none whitespace-nowrap"
+                  >
+                    {inviteCopied ? "Copied!" : "Copy Link"}
+                  </button>
+                </div>
+              ) : (
+                <p className="text-white/30 text-sm">No invite code set. Contact the Super Admin.</p>
+              )}
+              <p className="text-white/30 text-xs mt-1.5">
+                Share this link with clients so they can register under your coaching.
               </p>
             </div>
 

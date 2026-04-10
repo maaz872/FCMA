@@ -13,6 +13,7 @@ export async function POST(request: Request) {
       country,
       plan,
       planStatus,
+      coachCode,
       age,
       gender,
       heightCm,
@@ -26,6 +27,26 @@ export async function POST(request: Request) {
     if (!firstName || !lastName || !email || !password) {
       return NextResponse.json(
         { error: "All fields are required" },
+        { status: 400 }
+      );
+    }
+
+    if (!coachCode) {
+      return NextResponse.json(
+        { error: "An invite code is required to register. Please use the link provided by your coach." },
+        { status: 400 }
+      );
+    }
+
+    // Look up coach by invite code
+    const coach = await prisma.user.findFirst({
+      where: { inviteCode: coachCode, role: "COACH", isCoachActive: true },
+      select: { id: true, firstName: true },
+    });
+
+    if (!coach) {
+      return NextResponse.json(
+        { error: "Invalid or expired invite code. Please contact your coach for a valid link." },
         { status: 400 }
       );
     }
@@ -58,11 +79,11 @@ export async function POST(request: Request) {
 
     // Read coach name from DB
     const coachEntry = await prisma.siteContent.findFirst({
-      where: { contentKey: "coach_name" },
+      where: { contentKey: "coach_name", coachId: coach.id },
     });
-    const coachName = coachEntry?.contentValue || "Your Coach";
+    const coachName = coachEntry?.contentValue || `Coach ${coach.firstName}`;
 
-    // Create user in DB with unified plan model + health profile
+    // Create user with coachId assignment
     await prisma.user.create({
       data: {
         email: email.toLowerCase(),
@@ -71,6 +92,7 @@ export async function POST(request: Request) {
         lastName,
         country: country || "OTHER",
         role: "USER",
+        coachId: coach.id,
         unitPreference: "METRIC",
         isActive: true,
         plan: plan || "HUB",
@@ -91,7 +113,7 @@ export async function POST(request: Request) {
       },
     });
 
-    // Do NOT create session / set cookie — account needs admin approval first
+    // Do NOT create session / set cookie — account needs coach approval first
     return NextResponse.json({
       success: true,
       message:

@@ -25,6 +25,7 @@ export async function GET() {
       country: user.country,
       role: user.role === "ADMIN" ? "COACH" : user.role,
       coachId: user.coachId,
+      inviteCode: user.inviteCode,
       plan: user.plan,
       planStatus: user.planStatus,
       unitPreference: user.unitPreference,
