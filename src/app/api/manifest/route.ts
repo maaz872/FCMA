@@ -26,7 +26,7 @@ export async function GET() {
       map[s.contentKey] = s.contentValue;
     }
 
-    const appName = map.site_name || "Fitness Coach";
+    const appName = map.site_name || "FCMA";
 
     const icons = [];
 
@@ -85,8 +85,8 @@ export async function GET() {
     // Fallback to static manifest
     return NextResponse.json(
       {
-        name: "Fitness Coach",
-        short_name: "Fitness Coach",
+        name: "FCMA",
+        short_name: "FCMA",
         start_url: "/hub",
         scope: "/",
         display: "standalone",

@@ -1,9 +1,18 @@
 export const dynamic = "force-dynamic";
 import { prisma } from "@/lib/db";
+import { getCurrentUser } from "@/lib/auth";
+import { redirect } from "next/navigation";
 import UsersAdmin from "./UsersAdmin";
 
 export default async function AdminUsersPage() {
+  const admin = await getCurrentUser();
+  if (!admin || admin.role !== "COACH") redirect("/login");
+
   const users = await prisma.user.findMany({
+    where: {
+      role: "USER",
+      coachId: admin.userId,
+    },
     orderBy: { createdAt: "desc" },
     select: {
       id: true,

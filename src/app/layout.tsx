@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { BrandingProvider } from "@/lib/branding";
 
 export const metadata: Metadata = {
-  title: "Online Personal Training & Fitness Coaching",
+  title: "FCMA — Fitness Coach Management App",
   description:
-    "Transform your body with personalized nutrition tools, meal tracking, and expert fitness coaching.",
-  icons: { icon: "/api/favicon" },
+    "Multi-tenant platform for fitness coaches. Manage clients, recipes, workouts, and plans in your own branded portal.",
+  icons: { icon: "/images/logo.svg" },
 };
 
 export default function RootLayout({
@@ -21,11 +20,11 @@ export default function RootLayout({
         <meta name="theme-color" content="#0A0A0A" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="Fitness Coach" />
+        <meta name="apple-mobile-web-app-title" content="FCMA" />
         <link rel="apple-touch-icon" href="/api/apple-icon" />
       </head>
       <body className="min-h-screen flex flex-col">
-        <BrandingProvider>{children}</BrandingProvider>
+        {children}
         <script
           dangerouslySetInnerHTML={{
             __html: `if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('/sw.js')})}`,

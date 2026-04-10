@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import NotificationBell from "@/components/ui/NotificationBell";
 import InstallPrompt from "@/components/InstallPrompt";
-import { useBranding } from "@/lib/branding";
+import { useBranding, BrandingProvider } from "@/lib/branding";
 import { fetchWithRetry } from "@/lib/fetch-retry";
 
 const sidebarGroups = [
@@ -54,6 +54,14 @@ const sidebarGroups = [
 ];
 
 export default function HubLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <BrandingProvider>
+      <HubLayoutInner>{children}</HubLayoutInner>
+    </BrandingProvider>
+  );
+}
+
+function HubLayoutInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);

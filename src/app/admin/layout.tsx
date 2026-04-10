@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { useBranding } from "@/lib/branding";
+import { useBranding, BrandingProvider } from "@/lib/branding";
 import NotificationBell from "@/components/ui/NotificationBell";
 import InstallPrompt from "@/components/InstallPrompt";
 
@@ -38,6 +38,14 @@ const sidebarGroups = [
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <BrandingProvider>
+      <AdminLayoutInner>{children}</AdminLayoutInner>
+    </BrandingProvider>
+  );
+}
+
+function AdminLayoutInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);

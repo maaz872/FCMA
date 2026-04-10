@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     // Read coach name from DB for error messages (for USER role)
     if (user.role === "USER") {
       // Get the coach name from the user's assigned coach
-      let coachName = "Your Coach";
+      let coachName = "your coach";
       if (user.coachId) {
         const coachEntry = await prisma.siteContent.findFirst({
           where: { contentKey: "coach_name", coachId: user.coachId },

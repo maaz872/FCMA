@@ -11,8 +11,8 @@ interface BrandingContextType {
 }
 
 const BrandingContext = createContext<BrandingContextType>({
-  siteName: "Fitness Coach",
-  coachName: "Your Coach",
+  siteName: "FCMA",
+  coachName: "FCMA",
   logoUrl: "/images/logo.svg",
   faviconUrl: "/images/logo.svg",
   loading: true,
@@ -25,8 +25,8 @@ export function BrandingProvider({
   children: ReactNode;
   coachCode?: string;
 }) {
-  const [siteName, setSiteName] = useState("Fitness Coach");
-  const [coachName, setCoachName] = useState("Your Coach");
+  const [siteName, setSiteName] = useState("FCMA");
+  const [coachName, setCoachName] = useState("FCMA");
   const [logoUrl, setLogoUrl] = useState("/images/logo.svg");
   const [faviconUrl, setFaviconUrl] = useState("/images/logo.svg");
   const [loading, setLoading] = useState(true);
