@@ -76,12 +76,31 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
     },
   }) : null;
 
-  // Fetch weekly targets for this user
+  // Fetch weekly targets for this user + enrich with current values
   const weeklyTargets = await prisma.weeklyTarget.findMany({
     where: { userId: id },
     orderBy: { weekStartDate: "desc" },
     take: 20,
   });
+
+  // Fetch latest measurement data for target enrichment
+  const weekAgo = new Date();
+  weekAgo.setDate(weekAgo.getDate() - 7);
+
+  const [latestMeasurement, latestWeightLog, stepLogs] = await Promise.all([
+    prisma.bodyMeasurement.findFirst({
+      where: { userId: id },
+      orderBy: { loggedDate: "desc" },
+    }),
+    prisma.weightLog.findFirst({
+      where: { userId: id },
+      orderBy: { loggedDate: "desc" },
+      select: { weightKg: true },
+    }),
+    prisma.stepLog.findMany({
+      where: { userId: id, loggedDate: { gte: weekAgo } },
+    }),
+  ]);
 
   // Serialize all data
   const serialized = {
@@ -174,12 +193,46 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
     })),
   } : null;
 
-  // Serialize weekly targets
-  const serializedTargets = weeklyTargets.map(t => ({
-    id: t.id, weekStartDate: t.weekStartDate.toISOString(),
-    metric: t.metric, targetValue: t.targetValue,
-    currentValue: t.currentValue, isVisible: t.isVisible,
-  }));
+  // Serialize weekly targets with enriched current values
+  const serializedTargets = weeklyTargets.map(t => {
+    let currentValue: number | null = t.currentValue;
+
+    // Enrich with actual measurement data if DB currentValue is null
+    if (currentValue === null) {
+      switch (t.metric) {
+        case "weight":
+          if (latestWeightLog) currentValue = latestWeightLog.weightKg;
+          else if (latestMeasurement?.weightKg != null) currentValue = latestMeasurement.weightKg;
+          break;
+        case "belly":
+          if (latestMeasurement?.bellyInches != null) currentValue = latestMeasurement.bellyInches;
+          break;
+        case "waist":
+          if (latestMeasurement?.waistInches != null) currentValue = latestMeasurement.waistInches;
+          break;
+        case "chest":
+          if (latestMeasurement?.chestInches != null) currentValue = latestMeasurement.chestInches;
+          break;
+        case "hips":
+          if (latestMeasurement?.hipsInches != null) currentValue = latestMeasurement.hipsInches;
+          break;
+        case "arms":
+          if (latestMeasurement?.armsInches != null) currentValue = latestMeasurement.armsInches;
+          break;
+        case "steps":
+          if (stepLogs.length > 0) {
+            currentValue = Math.round(stepLogs.reduce((sum, s) => sum + s.steps, 0) / stepLogs.length);
+          }
+          break;
+      }
+    }
+
+    return {
+      id: t.id, weekStartDate: t.weekStartDate.toISOString(),
+      metric: t.metric, targetValue: t.targetValue,
+      currentValue, isVisible: t.isVisible,
+    };
+  });
 
   return (
     <UserDetailClient
