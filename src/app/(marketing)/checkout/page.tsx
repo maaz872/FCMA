@@ -993,7 +993,7 @@ function CheckoutContent({ coachCode }: { coachCode: string }) {
                 <p className="text-xs text-white/40 leading-relaxed">
                   One-time payment. No recurring fees. Lifetime access to all Hub
                   features including 400+ recipes, macro calculator, meal tracker,
-                  progress tracking, and restaurant guides.
+                  and progress tracking.
                 </p>
               </div>
             </div>

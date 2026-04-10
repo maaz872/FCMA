@@ -20,7 +20,6 @@ const sidebarGroups = [
     links: [
       { href: "/admin/recipes", label: "Recipes" },
       { href: "/admin/workouts", label: "Workouts" },
-      { href: "/admin/restaurants", label: "Restaurants" },
       { href: "/admin/food-database", label: "Food Database" },
       { href: "/admin/plans", label: "Plans" },
       { href: "/admin/feed", label: "Feed" },

@@ -1,6 +1,5 @@
 /**
  * Demo data seeder — adds realistic demo content:
- * - 10 Karachi restaurants with full menus
  * - 3 plan templates (Fat Loss, Muscle Gain, Maintenance)
  * - 2 feed posts (TikTok + Instagram)
  * - 2 demo users with 2 months of contrasting data
@@ -31,110 +30,6 @@ async function seed() {
   const adminRes = await q(`SELECT id FROM "User" WHERE role='ADMIN' LIMIT 1`);
   const adminId = adminRes.rows[0]?.id;
   if (!adminId) { console.error("No admin user found. Run seed-database.ts first."); process.exit(1); }
-
-  // ─── 10 Karachi Restaurants ────────────────────────────
-  console.log("🍽️  Restaurants...");
-  const restaurants = [
-    { name: "Kolachi", slug: "kolachi", intro: "Iconic seafood restaurant at Do Darya with stunning sea views. Known for grilled fish and traditional Karachi flavors.",
-      tips: "Try the grilled lobster. Book ahead for weekends. Outdoor seating recommended at sunset.",
-      menu: [
-        { name: "Grilled Pomfret", cal: 320, pro: 38, carbs: 2, fat: 18, price: "Rs. 1800" },
-        { name: "Prawn Karahi", cal: 450, pro: 30, carbs: 12, fat: 28, price: "Rs. 2200" },
-        { name: "Chicken Malai Boti", cal: 380, pro: 35, carbs: 8, fat: 22, price: "Rs. 950" },
-        { name: "Mutton Biryani", cal: 550, pro: 28, carbs: 65, fat: 20, price: "Rs. 800" },
-        { name: "Fish Tikka", cal: 280, pro: 32, carbs: 5, fat: 14, price: "Rs. 1200" },
-      ]},
-    { name: "BBQ Tonight", slug: "bbq-tonight", intro: "Famous for their BBQ platters and tikka. Multiple branches across Karachi, closest to Tipu Sultan on Shaheed-e-Millat.",
-      tips: "Their chicken tikka is the best seller. Ask for extra green chutney. Family platters offer best value.",
-      menu: [
-        { name: "Chicken Tikka (8 pcs)", cal: 420, pro: 45, carbs: 5, fat: 24, price: "Rs. 750" },
-        { name: "Seekh Kebab (4 pcs)", cal: 380, pro: 28, carbs: 8, fat: 26, price: "Rs. 650" },
-        { name: "Mutton Chop (4 pcs)", cal: 520, pro: 35, carbs: 3, fat: 40, price: "Rs. 1100" },
-        { name: "Chicken Boti", cal: 350, pro: 38, carbs: 6, fat: 18, price: "Rs. 850" },
-        { name: "Mix Grill Platter", cal: 680, pro: 55, carbs: 10, fat: 45, price: "Rs. 2500" },
-      ]},
-    { name: "Xander's", slug: "xanders", intro: "Modern cafe near Zamzama with Western-fusion menu. Great for healthy bowls and coffee.",
-      tips: "Protein bowl is macro-friendly. Avoid the desserts if cutting. Good WiFi for working.",
-      menu: [
-        { name: "Grilled Chicken Bowl", cal: 450, pro: 40, carbs: 35, fat: 15, price: "Rs. 1200" },
-        { name: "Salmon Poke Bowl", cal: 380, pro: 32, carbs: 40, fat: 12, price: "Rs. 1500" },
-        { name: "Caesar Salad", cal: 320, pro: 22, carbs: 18, fat: 20, price: "Rs. 900" },
-        { name: "Steak Sandwich", cal: 550, pro: 35, carbs: 42, fat: 25, price: "Rs. 1400" },
-        { name: "Acai Bowl", cal: 280, pro: 8, carbs: 48, fat: 8, price: "Rs. 950" },
-      ]},
-    { name: "Kababjees", slug: "kababjees", intro: "Popular for BBQ and traditional Pakistani cuisine. Multiple locations, known for generous portions.",
-      tips: "Reshmi kebab is their specialty. Rice portions are huge — share if cutting. Raita is free.",
-      menu: [
-        { name: "Reshmi Kebab", cal: 340, pro: 30, carbs: 8, fat: 20, price: "Rs. 600" },
-        { name: "Chicken Biryani", cal: 480, pro: 25, carbs: 60, fat: 16, price: "Rs. 450" },
-        { name: "Chapli Kebab (2 pcs)", cal: 420, pro: 22, carbs: 12, fat: 32, price: "Rs. 500" },
-        { name: "Nihari (bowl)", cal: 380, pro: 28, carbs: 15, fat: 24, price: "Rs. 550" },
-        { name: "Daal Chawal", cal: 350, pro: 15, carbs: 55, fat: 8, price: "Rs. 300" },
-      ]},
-    { name: "Cafe Flo", slug: "cafe-flo", intro: "French-inspired bistro in PIDC. Elegant setting with continental options.",
-      tips: "Their grilled chicken is surprisingly macro-friendly. Skip the bread basket. Salads are large.",
-      menu: [
-        { name: "Grilled Chicken Breast", cal: 380, pro: 42, carbs: 8, fat: 18, price: "Rs. 1300" },
-        { name: "Pan-Seared Salmon", cal: 420, pro: 35, carbs: 12, fat: 24, price: "Rs. 1800" },
-        { name: "Garden Salad + Chicken", cal: 300, pro: 30, carbs: 15, fat: 14, price: "Rs. 1100" },
-        { name: "Mushroom Soup", cal: 180, pro: 6, carbs: 18, fat: 10, price: "Rs. 650" },
-        { name: "Beef Steak (200g)", cal: 520, pro: 45, carbs: 5, fat: 35, price: "Rs. 2200" },
-      ]},
-    { name: "Lal Qila", slug: "lal-qila", intro: "Traditional Mughlai restaurant known for rich curries and naan. Near Bahadurabad.",
-      tips: "Stick to tandoori items for lower calories. Avoid creamy curries if cutting. Naan portions are big.",
-      menu: [
-        { name: "Tandoori Chicken (half)", cal: 350, pro: 38, carbs: 5, fat: 18, price: "Rs. 700" },
-        { name: "Butter Chicken", cal: 480, pro: 30, carbs: 15, fat: 32, price: "Rs. 850" },
-        { name: "Chicken Karahi", cal: 420, pro: 32, carbs: 10, fat: 28, price: "Rs. 900" },
-        { name: "Mutton Pulao", cal: 520, pro: 25, carbs: 58, fat: 22, price: "Rs. 650" },
-        { name: "Seekh Kebab Platter", cal: 380, pro: 28, carbs: 8, fat: 26, price: "Rs. 550" },
-      ]},
-    { name: "Okra", slug: "okra", intro: "Upscale Mediterranean-Asian fusion in Clifton. Beautiful ambiance with healthy options.",
-      tips: "Their salads are generous. Grilled options are excellent. Ask for dressing on the side.",
-      menu: [
-        { name: "Thai Chicken Salad", cal: 350, pro: 30, carbs: 20, fat: 16, price: "Rs. 1200" },
-        { name: "Grilled Sea Bass", cal: 380, pro: 38, carbs: 8, fat: 20, price: "Rs. 1800" },
-        { name: "Chicken Satay (6 pcs)", cal: 320, pro: 28, carbs: 12, fat: 18, price: "Rs. 1000" },
-        { name: "Quinoa Bowl", cal: 400, pro: 18, carbs: 52, fat: 14, price: "Rs. 1100" },
-        { name: "Edamame", cal: 120, pro: 12, carbs: 8, fat: 5, price: "Rs. 600" },
-      ]},
-    { name: "Student Biryani", slug: "student-biryani", intro: "Karachi's most famous biryani chain. Massive portions at budget prices. Near Bahadurabad.",
-      tips: "Single portion feeds 2 people. Skip the raita to save calories. Chicken biryani is leaner than beef.",
-      menu: [
-        { name: "Chicken Biryani (single)", cal: 650, pro: 30, carbs: 80, fat: 22, price: "Rs. 350" },
-        { name: "Beef Biryani (single)", cal: 720, pro: 32, carbs: 78, fat: 28, price: "Rs. 400" },
-        { name: "Chicken Karahi (half)", cal: 450, pro: 32, carbs: 10, fat: 30, price: "Rs. 600" },
-        { name: "Seekh Kebab Roll", cal: 380, pro: 18, carbs: 35, fat: 20, price: "Rs. 250" },
-        { name: "Chicken Tikka Roll", cal: 350, pro: 22, carbs: 32, fat: 16, price: "Rs. 280" },
-      ]},
-    { name: "Zameer Ansari", slug: "zameer-ansari", intro: "Famous nihari and paya house in Bahadurabad. Traditional Pakistani breakfast spot.",
-      tips: "Nihari is protein-rich but high in fat. Ask for lean cuts. Pair with 1 naan instead of 2.",
-      menu: [
-        { name: "Special Nihari (bowl)", cal: 450, pro: 32, carbs: 12, fat: 30, price: "Rs. 500" },
-        { name: "Paya (bowl)", cal: 380, pro: 25, carbs: 8, fat: 28, price: "Rs. 450" },
-        { name: "Haleem (plate)", cal: 420, pro: 22, carbs: 45, fat: 18, price: "Rs. 350" },
-        { name: "Chicken Nihari", cal: 380, pro: 28, carbs: 10, fat: 24, price: "Rs. 450" },
-        { name: "Naan (1 pc)", cal: 260, pro: 8, carbs: 45, fat: 5, price: "Rs. 30" },
-      ]},
-    { name: "Howdy", slug: "howdy", intro: "American-style burger and steak house near Shaheed-e-Millat. Good protein options.",
-      tips: "Grilled chicken burger is the best macro option. Skip the fries for salad. Steaks are quality.",
-      menu: [
-        { name: "Grilled Chicken Burger", cal: 450, pro: 35, carbs: 38, fat: 18, price: "Rs. 850" },
-        { name: "Classic Beef Burger", cal: 580, pro: 30, carbs: 42, fat: 32, price: "Rs. 950" },
-        { name: "Ribeye Steak (250g)", cal: 550, pro: 48, carbs: 5, fat: 38, price: "Rs. 2500" },
-        { name: "Chicken Wings (8 pcs)", cal: 420, pro: 30, carbs: 12, fat: 28, price: "Rs. 750" },
-        { name: "Garden Salad", cal: 150, pro: 5, carbs: 18, fat: 8, price: "Rs. 450" },
-      ]},
-  ];
-
-  for (const r of restaurants) {
-    await q(
-      `INSERT INTO "RestaurantGuide" (name, slug, introduction, tips, "menuItems", "isPublished", "createdAt", "updatedAt")
-       VALUES ($1, $2, $3, $4, $5, true, NOW(), NOW()) ON CONFLICT (slug) DO NOTHING`,
-      [r.name, r.slug, r.intro, r.tips, JSON.stringify(r.menu)]
-    );
-  }
-  console.log(`  ✓ ${restaurants.length} restaurants`);
 
   // ─── 3 Plan Templates ─────────────────────────────────
   console.log("📋 Plan Templates...");
@@ -333,7 +228,6 @@ async function seed() {
 
   // ─── Done ─────────────────────────────────────────────
   console.log("\n✅ Demo data seeded!");
-  console.log("   🍽️  10 restaurants");
   console.log("   📋 3 plan templates");
   console.log("   📱 2 feed posts");
   console.log("   👤 Jake Mitchell: jake@demo.com / demo1234 (underperformer)");

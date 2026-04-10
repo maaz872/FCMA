@@ -48,7 +48,7 @@ async function main() {
   const contentTables = [
     "Recipe", "RecipeCategory", "DietaryTag",
     "Workout", "WorkoutCategory", "WorkoutSubcategory",
-    "RestaurantGuide", "FoodItem", "PlanTemplate",
+    "FoodItem", "PlanTemplate",
     "Post", "Asset", "SiteContent",
   ];
 

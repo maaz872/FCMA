@@ -56,7 +56,6 @@ model User {
   macroTarget          UserMacroTarget?
   assets               Asset[]
   favourites           Favourite[]
-  restaurantFavourites RestaurantFavourite[]
   sentMessages         Message[]          @relation("SentMessages")
   receivedMessages     Message[]          @relation("ReceivedMessages")
   posts                Post[]
@@ -78,7 +77,6 @@ model User {
   coachWorkouts         Workout[]           @relation("CoachWorkouts")
   coachWorkoutCats      WorkoutCategory[]   @relation("CoachWorkoutCats")
   coachWorkoutSubs      WorkoutSubcategory[] @relation("CoachWorkoutSubs")
-  coachRestaurants      RestaurantGuide[]   @relation("CoachRestaurants")
   coachFoodItems        FoodItem[]          @relation("CoachFoodItems")
   coachPlanTemplates    PlanTemplate[]      @relation("CoachPlanTemplates")
   coachPosts            Post[]              @relation("CoachPosts")
@@ -249,37 +247,6 @@ model Favourite {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   recipe    Recipe?  @relation(fields: [recipeId], references: [id], onDelete: Cascade)
   workout   Workout? @relation(fields: [workoutId], references: [id])
-}
-
-model RestaurantFavourite {
-  id           Int             @id @default(autoincrement())
-  userId       String
-  restaurantId Int
-  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  restaurant   RestaurantGuide @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  @@unique([userId, restaurantId])
-}
-
-// ─── Restaurant Guide ────────────────────────────────────────────────
-
-model RestaurantGuide {
-  id           Int                   @id @default(autoincrement())
-  name         String
-  slug         String
-  coachId      String?
-  logoUrl      String?
-  introduction String
-  tips         String?
-  menuItems    String
-  isPublished  Boolean               @default(false)
-  createdAt    DateTime              @default(now())
-  updatedAt    DateTime              @updatedAt
-
-  coach      User?                 @relation("CoachRestaurants", fields: [coachId], references: [id])
-  favourites RestaurantFavourite[]
-
-  @@unique([slug, coachId])
-  @@index([coachId])
 }
 
 // ─── Workout Videos ──────────────────────────────────────────────────

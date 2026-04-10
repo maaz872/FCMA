@@ -3,14 +3,13 @@
 import { useState } from "react";
 
 interface FavouriteButtonProps {
-  type: "recipe" | "restaurant";
+  type: "recipe";
   itemId: number;
   initialFavourited?: boolean;
   className?: string;
 }
 
 export default function FavouriteButton({
-  type,
   itemId,
   initialFavourited = false,
   className = "",
@@ -29,17 +28,10 @@ export default function FavouriteButton({
     setLoading(true);
 
     try {
-      const url =
-        type === "recipe" ? "/api/favourites" : "/api/favourites/restaurants";
-      const body =
-        type === "recipe"
-          ? { recipeId: itemId }
-          : { restaurantId: itemId };
-
-      const res = await fetch(url, {
+      const res = await fetch("/api/favourites", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ recipeId: itemId }),
       });
 
       if (!res.ok) {

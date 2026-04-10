@@ -38,7 +38,6 @@ const sidebarGroups = [
     label: "TOOLS",
     links: [
       { href: "/hub/calculator", label: "Calculator" },
-      { href: "/hub/restaurants", label: "Restaurants" },
       { href: "/hub/favourites", label: "Favourites" },
     ],
   },
