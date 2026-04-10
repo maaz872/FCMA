@@ -108,7 +108,7 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -125,13 +125,20 @@ export async function DELETE(
       return NextResponse.json({ error: "Recipe not found" }, { status: 404 });
     }
 
+    const force = request.nextUrl.searchParams.get("force") === "true";
+
     // Check if recipe is linked to any plan days
     const linkedCount = await prisma.planDayMeal.count({ where: { recipeId } });
-    if (linkedCount > 0) {
+    if (linkedCount > 0 && !force) {
       return NextResponse.json(
-        { error: `Cannot delete: recipe is linked to ${linkedCount} plan day(s). Remove it from plans first.` },
+        { error: `Cannot delete: recipe is linked to ${linkedCount} plan day(s). Remove it from plans first.`, linkedCount },
         { status: 409 }
       );
+    }
+
+    // Remove from all plans if force delete
+    if (linkedCount > 0) {
+      await prisma.planDayMeal.deleteMany({ where: { recipeId } });
     }
 
     // Cascade: delete dietary tags and favourites first, then recipe

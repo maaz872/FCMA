@@ -92,10 +92,30 @@ export default function AdminRecipeList({
   async function deleteRecipe(id: number, title: string) {
     if (!confirm(`Delete "${title}"? This cannot be undone.`)) return;
     try {
-      await fetch(`/api/admin/recipes/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/admin/recipes/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json();
+        if (res.status === 409 && data.linkedCount) {
+          // Recipe is linked to plans — offer force delete
+          if (confirm(`${data.error}\n\nDo you want to remove it from all plans and delete anyway?`)) {
+            const forceRes = await fetch(`/api/admin/recipes/${id}?force=true`, { method: "DELETE" });
+            if (!forceRes.ok) {
+              const forceData = await forceRes.json();
+              alert(forceData.error || "Failed to delete recipe.");
+              return;
+            }
+          } else {
+            return;
+          }
+        } else {
+          alert(data.error || "Failed to delete recipe.");
+          return;
+        }
+      }
       router.refresh();
     } catch (err) {
       console.error("Failed to delete recipe:", err);
+      alert("Failed to delete recipe. Please try again.");
     }
   }
 
