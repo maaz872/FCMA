@@ -355,14 +355,14 @@ function CheckoutContent({ coachCode }: { coachCode: string }) {
     <section className="bg-[#0A0A0A] py-15 min-h-screen">
       <div className="max-w-[1200px] mx-auto px-6">
         {/* Progress Steps */}
-        <div className="flex items-center justify-center gap-4 mb-12">
+        <div className="flex items-center justify-center flex-nowrap gap-1 sm:gap-4 mb-12 px-2">
           {stepLabels.map((label, i) => {
             const isActive = stepKeys.indexOf(step) >= i;
             return (
-              <div key={label} className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
+              <div key={label} className="flex items-center gap-1 sm:gap-4 flex-shrink-0">
+                <div className="flex items-center gap-1 sm:gap-2">
                   <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                    className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold flex-shrink-0 ${
                       isActive
                         ? "bg-[#E51A1A] text-white"
                         : "bg-[#1E1E1E] text-white/30 border border-[#2A2A2A]"
@@ -371,7 +371,7 @@ function CheckoutContent({ coachCode }: { coachCode: string }) {
                     {i + 1}
                   </div>
                   <span
-                    className={`text-sm font-semibold ${
+                    className={`hidden sm:inline text-sm font-semibold ${
                       isActive ? "text-white" : "text-white/30"
                     }`}
                   >
@@ -380,7 +380,7 @@ function CheckoutContent({ coachCode }: { coachCode: string }) {
                 </div>
                 {i < stepLabels.length - 1 && (
                   <div
-                    className={`w-12 h-0.5 ${
+                    className={`w-4 sm:w-12 h-0.5 flex-shrink-0 ${
                       isActive ? "bg-[#E51A1A]" : "bg-[#2A2A2A]"
                     }`}
                   />
@@ -389,6 +389,11 @@ function CheckoutContent({ coachCode }: { coachCode: string }) {
             );
           })}
         </div>
+
+        {/* Mobile-only active step label under the tracker */}
+        <p className="sm:hidden text-center text-white/70 text-sm font-semibold -mt-8 mb-10">
+          Step {stepKeys.indexOf(step) + 1} of {stepLabels.length}: {stepLabels[stepKeys.indexOf(step)]}
+        </p>
 
         {step === "success" ? (
           <div className="max-w-[500px] mx-auto text-center">
