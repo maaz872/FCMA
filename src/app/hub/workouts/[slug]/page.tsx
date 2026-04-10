@@ -25,7 +25,7 @@ export default async function WorkoutDetailPage({
 }) {
   const { slug } = await params;
 
-  const workout = await prisma.workout.findUnique({
+  const workout = await prisma.workout.findFirst({
     where: { slug },
     include: { subcategory: { include: { category: true } } },
   });

@@ -16,7 +16,7 @@ model User {
   firstName             String
   lastName              String
   country               String?
-  role                  String    @default("USER")
+  role                  String    @default("USER") // USER | COACH | SUPER_ADMIN
   plan                  String    @default("FREE")
   planStatus            String    @default("PENDING")
   unitPreference        String    @default("METRIC")
@@ -28,19 +28,28 @@ model User {
   updatedAt             DateTime  @updatedAt
   lastLoginAt           DateTime?
 
+  // Multi-tenant fields
+  coachId       String?
+  isCoachActive Boolean  @default(true)
+  inviteCode    String?  @unique
+
   // Health profile fields
   age              Int?
-  gender           String?   // male | female
+  gender           String?
   heightCm         Float?
   currentWeightKg  Float?
   bodyFatPercent    Float?
-  fitnessGoal      String?   // fat_loss | muscle_gain | maintenance | recomposition
-  activityLevel    String?   // sedentary | light | moderate | active | very_active
-  dietaryPrefs     String?   // JSON array
-  healthConditions String?   // JSON array
+  fitnessGoal      String?
+  activityLevel    String?
+  dietaryPrefs     String?
+  healthConditions String?
   targetWeightKg   Float?
 
-  // Relations
+  // Self-referencing coach ↔ client relation
+  coach   User?  @relation("CoachClients", fields: [coachId], references: [id])
+  clients User[] @relation("CoachClients")
+
+  // User tracking relations
   weightLogs           WeightLog[]
   progressPhotos       ProgressPhoto[]
   mealLogs             MealLog[]
@@ -61,6 +70,39 @@ model User {
   dailyProgress        DailyProgress[]
   weeklyTargets        WeeklyTarget[]
   activePlanId         Int?
+
+  // Coach-owned content relations (reverse side)
+  coachRecipes          Recipe[]            @relation("CoachRecipes")
+  coachRecipeCategories RecipeCategory[]    @relation("CoachRecipeCategories")
+  coachDietaryTags      DietaryTag[]        @relation("CoachDietaryTags")
+  coachWorkouts         Workout[]           @relation("CoachWorkouts")
+  coachWorkoutCats      WorkoutCategory[]   @relation("CoachWorkoutCats")
+  coachWorkoutSubs      WorkoutSubcategory[] @relation("CoachWorkoutSubs")
+  coachRestaurants      RestaurantGuide[]   @relation("CoachRestaurants")
+  coachFoodItems        FoodItem[]          @relation("CoachFoodItems")
+  coachPlanTemplates    PlanTemplate[]      @relation("CoachPlanTemplates")
+  coachPosts            Post[]              @relation("CoachPosts")
+  coachAssets           Asset[]             @relation("CoachAssets")
+  coachSiteContent      SiteContent[]       @relation("CoachSiteContent")
+  coachPaymentSettings  PaymentSettings?    @relation("CoachPaymentSettings")
+  coachBilling          CoachBilling?       @relation("CoachBilling")
+
+  @@index([coachId])
+}
+
+// ─── Coach Billing ──────────────────────────────────────────────────
+
+model CoachBilling {
+  id               Int      @id @default(autoincrement())
+  coachId          String   @unique
+  basePriceMonthly Int      @default(15000)
+  extraClientPrice Int      @default(3500)
+  includedClients  Int      @default(5)
+  billingStatus    String   @default("ACTIVE")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  coach User @relation("CoachBilling", fields: [coachId], references: [id])
 }
 
 // ─── Message ─────────────────────────────────────────────────────────
@@ -86,6 +128,7 @@ model Message {
 model Post {
   id        Int       @id @default(autoincrement())
   authorId  String
+  coachId   String?
   content   String
   mediaType String?
   mediaUrl  String?
@@ -93,10 +136,11 @@ model Post {
   updatedAt DateTime  @updatedAt
 
   author    User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  coach     User?       @relation("CoachPosts", fields: [coachId], references: [id])
   likes     PostLike[]
   comments  PostComment[]
 
-  @@index([createdAt])
+  @@index([coachId, createdAt])
 }
 
 model PostLike {
@@ -128,23 +172,36 @@ model PostComment {
 model RecipeCategory {
   id           Int      @id @default(autoincrement())
   name         String
-  slug         String   @unique
+  slug         String
+  coachId      String?
   displayOrder Int      @default(0)
   createdAt    DateTime @default(now())
-  recipes      Recipe[]
+
+  coach   User?    @relation("CoachRecipeCategories", fields: [coachId], references: [id])
+  recipes Recipe[]
+
+  @@unique([slug, coachId])
+  @@index([coachId])
 }
 
 model DietaryTag {
   id      Int                @id @default(autoincrement())
   name    String
-  slug    String             @unique
+  slug    String
+  coachId String?
+
+  coach   User?              @relation("CoachDietaryTags", fields: [coachId], references: [id])
   recipes RecipeDietaryTag[]
+
+  @@unique([slug, coachId])
+  @@index([coachId])
 }
 
 model Recipe {
   id           Int      @id @default(autoincrement())
   title        String
-  slug         String   @unique
+  slug         String
+  coachId      String?
   description  String
   categoryId   Int
   ingredients  String
@@ -162,11 +219,14 @@ model Recipe {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  coach        User?              @relation("CoachRecipes", fields: [coachId], references: [id])
   category     RecipeCategory     @relation(fields: [categoryId], references: [id])
   dietaryTags  RecipeDietaryTag[]
   favourites   Favourite[]
   planDayMeals PlanDayMeal[]
 
+  @@unique([slug, coachId])
+  @@index([coachId])
   @@index([categoryId, isPublished])
 }
 
@@ -199,14 +259,13 @@ model RestaurantFavourite {
   @@unique([userId, restaurantId])
 }
 
-// ─── Testimonial ─────────────────────────────────────────────────────
-
 // ─── Restaurant Guide ────────────────────────────────────────────────
 
 model RestaurantGuide {
   id           Int                   @id @default(autoincrement())
   name         String
-  slug         String                @unique
+  slug         String
+  coachId      String?
   logoUrl      String?
   introduction String
   tips         String?
@@ -214,7 +273,12 @@ model RestaurantGuide {
   isPublished  Boolean               @default(false)
   createdAt    DateTime              @default(now())
   updatedAt    DateTime              @updatedAt
-  favourites   RestaurantFavourite[]
+
+  coach      User?                 @relation("CoachRestaurants", fields: [coachId], references: [id])
+  favourites RestaurantFavourite[]
+
+  @@unique([slug, coachId])
+  @@index([coachId])
 }
 
 // ─── Workout Videos ──────────────────────────────────────────────────
@@ -222,24 +286,37 @@ model RestaurantGuide {
 model WorkoutCategory {
   id            Int                  @id @default(autoincrement())
   name          String
-  slug          String               @unique
+  slug          String
+  coachId       String?
   displayOrder  Int                  @default(0)
+
+  coach         User?                @relation("CoachWorkoutCats", fields: [coachId], references: [id])
   subcategories WorkoutSubcategory[]
+
+  @@unique([slug, coachId])
+  @@index([coachId])
 }
 
 model WorkoutSubcategory {
   id         Int             @id @default(autoincrement())
   name       String
-  slug       String          @unique
+  slug       String
+  coachId    String?
   categoryId Int
-  category   WorkoutCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  workouts   Workout[]
+
+  coach    User?           @relation("CoachWorkoutSubs", fields: [coachId], references: [id])
+  category WorkoutCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  workouts Workout[]
+
+  @@unique([slug, coachId])
+  @@index([coachId])
 }
 
 model Workout {
   id            Int                @id @default(autoincrement())
   title         String
-  slug          String             @unique
+  slug          String
+  coachId       String?
   description   String
   videoUrl      String
   instructions  String
@@ -250,11 +327,15 @@ model Workout {
   isPublished   Boolean            @default(false)
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
+
+  coach            User?              @relation("CoachWorkouts", fields: [coachId], references: [id])
   subcategory      WorkoutSubcategory @relation(fields: [subcategoryId], references: [id])
   planTemplateDays PlanTemplateDay[]
   clientPlanDays   ClientPlanDay[]
   favourites       Favourite[]
 
+  @@unique([slug, coachId])
+  @@index([coachId])
   @@index([subcategoryId, isPublished])
 }
 
@@ -263,18 +344,22 @@ model Workout {
 model FoodItem {
   id              Int      @id @default(autoincrement())
   name            String
-  category        String   // Proteins, Carbs, Dairy, Vegetables, Fruits, Fats, Grains, Beverages, Snacks, Condiments
+  coachId         String?
+  category        String
   subcategory     String?
   caloriesPer100g Int
   proteinPer100g  Float
   carbsPer100g    Float
   fatPer100g      Float
   fiberPer100g    Float?
-  servingSize     Int?     // default serving in grams
-  servingUnit     String?  // cup, piece, tbsp, etc.
+  servingSize     Int?
+  servingUnit     String?
   isVerified      Boolean  @default(true)
   createdAt       DateTime @default(now())
 
+  coach User? @relation("CoachFoodItems", fields: [coachId], references: [id])
+
+  @@index([coachId])
   @@index([category])
   @@index([name])
 }
@@ -305,7 +390,7 @@ model BodyMeasurement {
   waistInches Float?
   hipsInches  Float?
   armsInches  Float?
-  imageData   String?  // progress photo
+  imageData   String?
   notes       String?
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -321,7 +406,7 @@ model Notification {
   title     String
   message   String
   type      String   @default("system")
-  actionUrl String?  // redirect path when clicked, e.g. "/hub/my-plan"
+  actionUrl String?
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -332,8 +417,8 @@ model Notification {
 model UserReminder {
   id      Int     @id @default(autoincrement())
   userId  String
-  type    String  // breakfast | lunch | dinner | snack | sleep | wakeup
-  time    String  // HH:MM format
+  type    String
+  time    String
   enabled Boolean @default(true)
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -372,8 +457,8 @@ model MealLog {
   protein     Float
   carbs       Float
   fat         Float
-  imageData   String?  // meal photo (base64)
-  ingredients String?  // JSON: [{foodItemId, name, weightGrams, calories, protein, carbs, fat}]
+  imageData   String?
+  ingredients String?
   loggedDate  DateTime
   loggedTime  String
   createdAt   DateTime @default(now())
@@ -386,10 +471,15 @@ model MealLog {
 
 model SiteContent {
   id           Int      @id @default(autoincrement())
-  contentKey   String   @unique
+  contentKey   String
+  coachId      String?
   contentValue String
   contentType  String   @default("TEXT")
   updatedAt    DateTime @updatedAt
+
+  coach User? @relation("CoachSiteContent", fields: [coachId], references: [id])
+
+  @@unique([contentKey, coachId])
 }
 
 // ─── Asset ───────────────────────────────────────────────────────────
@@ -401,9 +491,14 @@ model Asset {
   fileSize     Int
   mimeType     String
   altText      String?
+  coachId      String?
   uploadedById String?
   createdAt    DateTime @default(now())
-  uploadedBy   User?    @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  coach      User? @relation("CoachAssets", fields: [coachId], references: [id])
+  uploadedBy User? @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([coachId])
 }
 
 // ─── User Macro Target ──────────────────────────────────────────────
@@ -425,12 +520,15 @@ model UserMacroTarget {
 
 model PaymentSettings {
   id            Int     @id @default(autoincrement())
+  coachId       String? @unique
   accountNumber String
   accountName   String
   qrCodeData    String?
   instructions  String?
   price         Int     @default(79)
   currency      String  @default("PKR")
+
+  coach User? @relation("CoachPaymentSettings", fields: [coachId], references: [id])
 }
 
 // ─── Plan Templates ──────────────────────────────────────────────────
@@ -438,24 +536,28 @@ model PaymentSettings {
 model PlanTemplate {
   id            Int      @id @default(autoincrement())
   name          String
+  coachId       String?
   description   String?
-  type          String   @default("combined") // workout | diet | combined
+  type          String   @default("combined")
   durationWeeks Int      @default(4)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  coach       User?             @relation("CoachPlanTemplates", fields: [coachId], references: [id])
   days        PlanTemplateDay[]
   clientPlans ClientPlan[]
+
+  @@index([coachId])
 }
 
 model PlanTemplateDay {
   id            Int     @id @default(autoincrement())
   templateId    Int
-  dayOfWeek     Int     // 1=Mon, 7=Sun
+  dayOfWeek     Int
   weekNumber    Int     @default(1)
   workoutId     Int?
   workoutNotes  String?
-  mealPlan      String? // JSON
+  mealPlan      String?
   calorieTarget Int?
   proteinTarget Float?
   carbsTarget   Float?
@@ -480,7 +582,7 @@ model ClientPlan {
   type        String    @default("combined")
   startDate   DateTime
   endDate     DateTime?
-  status      String    @default("active") // active | paused | completed
+  status      String    @default("active")
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -499,7 +601,7 @@ model ClientPlanDay {
   weekNumber    Int     @default(1)
   workoutId     Int?
   workoutNotes  String?
-  mealPlan      String? // JSON
+  mealPlan      String?
   calorieTarget Int?
   proteinTarget Float?
   carbsTarget   Float?
@@ -519,7 +621,7 @@ model PlanDayMeal {
   id            Int    @id @default(autoincrement())
   templateDayId Int?
   clientDayId   Int?
-  mealType      String // "breakfast" | "lunch" | "snack" | "dinner"
+  mealType      String
   recipeId      Int
   servings      Float  @default(1)
   sortOrder     Int    @default(0)
@@ -561,7 +663,7 @@ model WeeklyTarget {
   id            Int      @id @default(autoincrement())
   userId        String
   weekStartDate DateTime
-  metric        String   // weight | belly | waist | chest | hips | arms | steps | calories
+  metric        String
   targetValue   Float
   currentValue  Float?
   isVisible     Boolean  @default(true)
@@ -572,4 +674,3 @@ model WeeklyTarget {
 
   @@index([userId, weekStartDate])
 }
-// force rebuild 1775594876

@@ -51,7 +51,7 @@ export default function UserMessagesPage() {
       if (res.ok) {
         const data = await res.json();
         const adminConv = data.conversations?.find(
-          (c: Conversation) => c.role === "ADMIN"
+          (c: Conversation) => c.role === "COACH"
         );
         if (adminConv) {
           setAdminId(adminConv.userId);
@@ -87,11 +87,11 @@ export default function UserMessagesPage() {
         setMessages(data.messages || []);
         if (data.messages?.length > 0) {
           const msg = data.messages[0];
-          if (msg.sender.role !== "ADMIN") {
+          if (msg.sender.role !== "COACH") {
             setCurrentUserId(msg.sender.id);
           } else {
             const userMsg = data.messages.find(
-              (m: Message) => m.sender.role !== "ADMIN"
+              (m: Message) => m.sender.role !== "COACH"
             );
             if (userMsg) setCurrentUserId(userMsg.sender.id);
           }
@@ -215,7 +215,7 @@ export default function UserMessagesPage() {
             </div>
           ) : (
             messages.map((msg) => {
-              const isMe = msg.sender.role !== "ADMIN";
+              const isMe = msg.sender.role !== "COACH";
               return (
                 <div
                   key={msg.id}

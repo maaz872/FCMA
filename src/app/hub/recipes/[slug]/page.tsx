@@ -23,7 +23,7 @@ export default async function RecipeDetailPage({
 }) {
   const { slug } = await params;
 
-  const recipe = await prisma.recipe.findUnique({
+  const recipe = await prisma.recipe.findFirst({
     where: { slug },
     include: { category: true, dietaryTags: { include: { tag: true } } },
   });

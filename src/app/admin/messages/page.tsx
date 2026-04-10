@@ -181,7 +181,7 @@ export default function AdminMessagesPage() {
         if (res.ok) {
           const data = await res.json();
           const users = (data.users || []).filter((u: { firstName: string; lastName: string; email: string; role: string }) =>
-            u.role !== "ADMIN" &&
+            u.role !== "COACH" &&
             (`${u.firstName} ${u.lastName}`.toLowerCase().includes(userSearch.toLowerCase()) ||
               u.email.toLowerCase().includes(userSearch.toLowerCase()))
           );
@@ -366,7 +366,7 @@ export default function AdminMessagesPage() {
               {/* Messages */}
               <div className="flex-1 overflow-y-auto p-6 space-y-4">
                 {messages.map((msg) => {
-                  const isAdmin = msg.sender.role === "ADMIN";
+                  const isAdmin = msg.sender.role === "COACH";
                   return (
                     <div
                       key={msg.id}

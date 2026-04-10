@@ -415,7 +415,7 @@ export default function AdminFeedPage() {
                               <span className="text-xs font-semibold text-white">
                                 {comment.user.firstName} {comment.user.lastName}
                               </span>
-                              {comment.user.role === "ADMIN" && (
+                              {comment.user.role === "COACH" && (
                                 <span className="text-[9px] bg-[#E51A1A]/20 text-[#E51A1A] px-1.5 py-0.5 rounded font-bold">
                                   ADMIN
                                 </span>

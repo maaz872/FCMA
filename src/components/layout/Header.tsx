@@ -11,7 +11,7 @@ interface AuthUser {
   email: string;
   firstName: string;
   lastName: string;
-  role: "USER" | "ADMIN";
+  role: "USER" | "COACH";
 }
 
 export default function Header() {
@@ -61,7 +61,7 @@ export default function Header() {
         { href: "/login", label: "Login" },
       ];
     }
-    if (user.role === "ADMIN") {
+    if (user.role === "COACH") {
       return [
         { href: "/admin", label: "Admin Panel" },
       ];
@@ -71,7 +71,7 @@ export default function Header() {
     ];
   })();
 
-  const displayName = user?.role === "ADMIN" ? coachName : user?.firstName ?? "";
+  const displayName = user?.role === "COACH" ? coachName : user?.firstName ?? "";
 
   return (
     <>
@@ -135,7 +135,7 @@ export default function Header() {
 
                   {dropdownOpen && (
                     <div className="absolute right-0 top-full mt-2 w-48 bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl overflow-hidden shadow-xl z-50">
-                      {user.role === "ADMIN" ? (
+                      {user.role === "COACH" ? (
                         <Link
                           href="/admin"
                           onClick={() => setDropdownOpen(false)}
@@ -222,7 +222,7 @@ export default function Header() {
                   <NotificationBell />
                   <span className="text-white/60 text-[1rem] font-semibold">Notifications</span>
                 </div>
-                {user.role === "ADMIN" ? (
+                {user.role === "COACH" ? (
                   <Link
                     href="/admin"
                     onClick={() => setMenuOpen(false)}

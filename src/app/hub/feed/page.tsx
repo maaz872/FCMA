@@ -227,11 +227,11 @@ export default function HubFeedPage() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <span className="text-white font-semibold text-sm">
-                        {post.author.role === "ADMIN"
+                        {post.author.role === "COACH"
                           ? coachName
                           : `${post.author.firstName} ${post.author.lastName}`}
                       </span>
-                      {post.author.role === "ADMIN" && (
+                      {post.author.role === "COACH" && (
                         <span className="text-[10px] bg-[#E51A1A]/20 text-[#E51A1A] px-2 py-0.5 rounded-full font-semibold">
                           Coach
                         </span>
@@ -321,7 +321,7 @@ export default function HubFeedPage() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
                                 <span className="text-white/80 text-xs font-semibold">
-                                  {c.user.role === "ADMIN"
+                                  {c.user.role === "COACH"
                                     ? coachName
                                     : `${c.user.firstName} ${c.user.lastName}`}
                                 </span>

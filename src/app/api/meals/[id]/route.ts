@@ -16,7 +16,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: "Meal not found" }, { status: 404 });
     }
 
-    if (meal.userId !== user.userId && user.role !== "ADMIN") {
+    if (meal.userId !== user.userId && user.role !== "COACH") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 

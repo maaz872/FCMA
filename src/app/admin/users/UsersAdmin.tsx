@@ -102,9 +102,9 @@ export default function UsersAdmin({ users: initialUsers }: { users: User[] }) {
     setActionLoading(null);
   }
 
-  const pendingCount = users.filter((u) => u.planStatus === "PENDING" && u.role !== "ADMIN").length;
+  const pendingCount = users.filter((u) => u.planStatus === "PENDING" && u.role !== "COACH").length;
   const activeCount = users.filter((u) => u.planStatus === "ACTIVE").length;
-  const totalUsers = users.filter((u) => u.role !== "ADMIN").length;
+  const totalUsers = users.filter((u) => u.role !== "COACH").length;
 
   return (
     <div>
@@ -208,7 +208,7 @@ export default function UsersAdmin({ users: initialUsers }: { users: User[] }) {
                   >
                     {user.planStatus}
                   </span>
-                  {user.role === "ADMIN" && (
+                  {user.role === "COACH" && (
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#E51A1A]/20 text-[#E51A1A]">
                       ADMIN
                     </span>
@@ -231,7 +231,7 @@ export default function UsersAdmin({ users: initialUsers }: { users: User[] }) {
               </Link>
 
               {/* Card Footer — actions */}
-              {user.role !== "ADMIN" && (
+              {user.role !== "COACH" && (
                 <div className="border-t border-[#2A2A2A] px-5 py-3 flex items-center justify-between">
                   <Link
                     href={`/admin/users/${user.id}`}
@@ -258,7 +258,7 @@ export default function UsersAdmin({ users: initialUsers }: { users: User[] }) {
                         ? "Suspend"
                         : "Activate"}
                     </button>
-                    {user.role !== "ADMIN" && (
+                    {user.role !== "COACH" && (
                       <button
                         onClick={(e) => {
                           e.preventDefault();

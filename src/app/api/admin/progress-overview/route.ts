@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db";
 export async function GET() {
   try {
     const user = await getCurrentUser();
-    if (!user || user.role !== "ADMIN") {
+    if (!user || user.role !== "COACH") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

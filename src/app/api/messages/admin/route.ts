@@ -11,7 +11,7 @@ export async function GET() {
     }
 
     const admin = await prisma.user.findFirst({
-      where: { role: "ADMIN" },
+      where: { role: "COACH" },
       select: { id: true, firstName: true, lastName: true },
     });
 

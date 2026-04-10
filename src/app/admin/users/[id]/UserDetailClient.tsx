@@ -1668,8 +1668,8 @@ function MessagesTab({ messages, msgText, setMsgText, sendMessage, sending }: {
             }`}>
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-[10px] font-semibold text-white/50">{m.senderName}</span>
-                <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold ${m.senderRole === "ADMIN" ? "bg-[#E51A1A]/20 text-[#E51A1A]" : "bg-white/10 text-white/40"}`}>
-                  {m.senderRole === "ADMIN" ? "Admin" : "User"}
+                <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold ${m.senderRole === "COACH" ? "bg-[#E51A1A]/20 text-[#E51A1A]" : "bg-white/10 text-white/40"}`}>
+                  {m.senderRole === "COACH" ? "Admin" : "User"}
                 </span>
               </div>
               <p className="text-sm text-white/80">{m.content}</p>

@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check for slug uniqueness
-    const existing = await prisma.recipe.findUnique({ where: { slug } });
+    const existing = await prisma.recipe.findFirst({ where: { slug } });
     if (existing) {
       return NextResponse.json(
         { error: "A recipe with this slug already exists" },

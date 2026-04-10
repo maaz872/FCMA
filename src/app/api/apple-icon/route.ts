@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
-    const setting = await prisma.siteContent.findUnique({
+    const setting = await prisma.siteContent.findFirst({
       where: { contentKey: "pwa_icon_192" },
     });
 

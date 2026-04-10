@@ -15,7 +15,7 @@ export async function createNotification(
 // Find admin user ID (for sending admin notifications)
 export async function getAdminUserId(): Promise<string | null> {
   const admin = await prisma.user.findFirst({
-    where: { role: "ADMIN" },
+    where: { role: "COACH" },
     select: { id: true },
   });
   return admin?.id || null;

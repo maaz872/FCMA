@@ -8,7 +8,7 @@ export async function PUT(
 ) {
   try {
     const admin = await getCurrentUser();
-    if (!admin || admin.role !== "ADMIN") {
+    if (!admin || admin.role !== "COACH") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

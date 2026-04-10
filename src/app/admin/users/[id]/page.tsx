@@ -7,7 +7,7 @@ import UserDetailClient from "./UserDetailClient";
 export default async function AdminUserDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const admin = await getCurrentUser();
-  if (!admin || admin.role !== "ADMIN") redirect("/login");
+  if (!admin || admin.role !== "COACH") redirect("/login");
 
   const user = await prisma.user.findUnique({
     where: { id },

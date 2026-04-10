@@ -7,7 +7,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getCurrentUser();
-  if (!session || session.role !== "ADMIN") {
+  if (!session || session.role !== "COACH") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

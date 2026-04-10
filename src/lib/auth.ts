@@ -11,7 +11,8 @@ const COOKIE_NAME = "levelup_session";
 export type JWTPayload = {
   userId: string;
   email: string;
-  role: "USER" | "ADMIN";
+  role: "USER" | "COACH" | "SUPER_ADMIN";
+  coachId: string | null;
 };
 
 // ── Password Hashing ──────────────────────────────────────
@@ -41,7 +42,18 @@ export async function verifyToken(
 ): Promise<JWTPayload | null> {
   try {
     const { payload } = await jwtVerify(token, JWT_SECRET);
-    return payload as unknown as JWTPayload;
+    const raw = payload as Record<string, unknown>;
+
+    // Backward compat: old tokens have role="ADMIN" and no coachId
+    let role = raw.role as string;
+    if (role === "ADMIN") role = "COACH";
+
+    return {
+      userId: raw.userId as string,
+      email: raw.email as string,
+      role: role as JWTPayload["role"],
+      coachId: (raw.coachId as string) ?? null,
+    };
   } catch {
     return null;
   }

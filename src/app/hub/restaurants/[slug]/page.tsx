@@ -19,7 +19,7 @@ export default async function RestaurantDetailPage({
 }) {
   const { slug } = await params;
 
-  const restaurant = await prisma.restaurantGuide.findUnique({
+  const restaurant = await prisma.restaurantGuide.findFirst({
     where: { slug },
   });
 

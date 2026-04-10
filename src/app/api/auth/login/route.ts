@@ -32,48 +32,69 @@ export async function POST(request: Request) {
       );
     }
 
-    // Read coach name from DB for error messages
-    const coachEntry = await prisma.siteContent.findUnique({
-      where: { contentKey: "coach_name" },
-    });
-    const coachName = coachEntry?.contentValue || "Your Coach";
-
-    // Check planStatus for the unified user model
-    const status = user.planStatus;
-
-    if (status === "PENDING") {
+    // For coaches: check if coach account is active
+    if (user.role === "COACH" && !user.isCoachActive) {
       return NextResponse.json(
-        {
-          error:
-            `Your account is pending approval. ${coachName} will review and activate your account within 24 hours of payment confirmation.`,
-        },
+        { error: "Your coaching account has been suspended. Please contact the administrator." },
         { status: 403 }
       );
     }
 
-    if (status === "CANCELLED" || status === "EXPIRED") {
-      return NextResponse.json(
-        {
-          error:
-            `Your plan has expired or been cancelled. Please contact ${coachName} to renew your access.`,
-        },
-        { status: 403 }
-      );
+    // Read coach name from DB for error messages (for USER role)
+    if (user.role === "USER") {
+      // Get the coach name from the user's assigned coach
+      let coachName = "Your Coach";
+      if (user.coachId) {
+        const coachEntry = await prisma.siteContent.findFirst({
+          where: { contentKey: "coach_name", coachId: user.coachId },
+        });
+        if (coachEntry) coachName = coachEntry.contentValue;
+      }
+
+      const status = user.planStatus;
+
+      if (status === "PENDING") {
+        return NextResponse.json(
+          {
+            error:
+              `Your account is pending approval. ${coachName} will review and activate your account within 24 hours of payment confirmation.`,
+          },
+          { status: 403 }
+        );
+      }
+
+      if (status === "CANCELLED" || status === "EXPIRED") {
+        return NextResponse.json(
+          {
+            error:
+              `Your plan has expired or been cancelled. Please contact ${coachName} to renew your access.`,
+          },
+          { status: 403 }
+        );
+      }
+
+      if (status !== "ACTIVE") {
+        return NextResponse.json(
+          {
+            error:
+              `Your account is not active. Please contact ${coachName} for assistance.`,
+          },
+          { status: 403 }
+        );
+      }
     }
 
-    // Only ACTIVE planStatus (or ADMIN users) can log in
-    if (user.role !== "ADMIN" && status !== "ACTIVE") {
-      return NextResponse.json(
-        {
-          error:
-            `Your account is not active. Please contact ${coachName} for assistance.`,
-        },
-        { status: 403 }
-      );
-    }
+    // Map legacy "ADMIN" role to "COACH" for backward compat
+    let role = user.role;
+    if (role === "ADMIN") role = "COACH";
 
     const token = await createToken(
-      { userId: user.id, email: user.email, role: user.role as "USER" | "ADMIN" },
+      {
+        userId: user.id,
+        email: user.email,
+        role: role as "USER" | "COACH" | "SUPER_ADMIN",
+        coachId: user.coachId || null,
+      },
       rememberMe
     );
 
@@ -92,7 +113,7 @@ export async function POST(request: Request) {
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
-        role: user.role,
+        role,
       },
     });
   } catch (error) {

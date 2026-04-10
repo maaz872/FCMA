@@ -45,7 +45,7 @@ export async function GET() {
         msg.senderId === user.userId ? msg.receiver : msg.sender;
 
       // Non-admin users should only see conversations with admin
-      if (user.role !== "ADMIN" && otherUser.role !== "ADMIN") {
+      if (user.role !== "COACH" && otherUser.role !== "COACH") {
         continue;
       }
 
@@ -131,7 +131,7 @@ export async function POST(request: Request) {
 
     // Send notifications based on sender role
     try {
-      if (user.role !== "ADMIN") {
+      if (user.role !== "COACH") {
         // User sent a message -> notify admin
         const senderName = message.sender.firstName;
         const preview = (content?.trim() || "[Image]").slice(0, 60);

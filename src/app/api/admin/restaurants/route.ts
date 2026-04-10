@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/(^-|-$)/g, "");
 
-    const existing = await prisma.restaurantGuide.findUnique({
+    const existing = await prisma.restaurantGuide.findFirst({
       where: { slug: generatedSlug },
     });
     if (existing) {

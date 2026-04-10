@@ -57,7 +57,7 @@ export async function POST(request: Request) {
     }
 
     // Read coach name from DB
-    const coachEntry = await prisma.siteContent.findUnique({
+    const coachEntry = await prisma.siteContent.findFirst({
       where: { contentKey: "coach_name" },
     });
     const coachName = coachEntry?.contentValue || "Your Coach";
