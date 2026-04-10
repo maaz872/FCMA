@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { notifyAdmin } from "@/lib/notifications";
+import { validateBase64Upload } from "@/lib/upload-validation";
 
 export async function GET(request: Request) {
   const session = await getCurrentUser();
@@ -46,6 +47,14 @@ export async function POST(request: Request) {
     imageData,
     notes,
   } = body;
+
+  // If a progress photo is attached, validate it
+  if (imageData) {
+    const validation = validateBase64Upload(imageData);
+    if (!validation.ok) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
+    }
+  }
 
   const date = loggedDate
     ? new Date(loggedDate + "T00:00:00.000Z")

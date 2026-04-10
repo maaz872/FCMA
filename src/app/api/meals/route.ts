@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { notifyAdmin } from "@/lib/notifications";
+import { validateBase64Upload } from "@/lib/upload-validation";
 
 export async function GET(req: NextRequest) {
   try {
@@ -58,6 +59,14 @@ export async function POST(req: NextRequest) {
 
     if (!mealType || !description || calories == null || !loggedDate || !loggedTime) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+
+    // If a meal photo is attached, validate it against the whitelist + size limit
+    if (imageData) {
+      const validation = validateBase64Upload(imageData);
+      if (!validation.ok) {
+        return NextResponse.json({ error: validation.error }, { status: 400 });
+      }
     }
 
     const meal = await prisma.mealLog.create({

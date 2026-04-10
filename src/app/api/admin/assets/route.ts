@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { requireCoach } from "@/lib/coach-scope";
+import { validateBase64Upload } from "@/lib/upload-validation";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET() {
@@ -31,6 +32,11 @@ export async function POST(req: NextRequest) {
 
     if (!filename || !data || !mimeType) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+
+    const validation = validateBase64Upload(data, mimeType);
+    if (!validation.ok) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
     }
 
     const asset = await prisma.asset.create({

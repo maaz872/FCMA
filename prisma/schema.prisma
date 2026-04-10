@@ -642,3 +642,16 @@ model WeeklyTarget {
 
   @@index([userId, weekStartDate])
 }
+
+// ─── Login Attempts (rate limiting) ──────────────────────────────────
+
+model LoginAttempt {
+  id          Int      @id @default(autoincrement())
+  email       String
+  ipAddress   String?
+  success     Boolean
+  attemptedAt DateTime @default(now())
+
+  @@index([email, attemptedAt])
+  @@index([ipAddress, attemptedAt])
+}

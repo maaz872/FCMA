@@ -2,9 +2,22 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { jwtVerify } from "jose";
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "dev-secret-change-in-production-min-32-chars!!"
-);
+function loadJwtSecret(): Uint8Array {
+  const secret = process.env.JWT_SECRET;
+  if (process.env.NODE_ENV === "production") {
+    if (!secret || secret.length < 32) {
+      throw new Error(
+        "JWT_SECRET env var is missing or shorter than 32 characters. " +
+          "Refusing to start with an insecure secret."
+      );
+    }
+    return new TextEncoder().encode(secret);
+  }
+  return new TextEncoder().encode(
+    secret || "dev-secret-change-in-production-min-32-chars!!"
+  );
+}
+const JWT_SECRET = loadJwtSecret();
 
 const COOKIE_NAME = "levelup_session";
 

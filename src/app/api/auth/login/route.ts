@@ -2,11 +2,17 @@ import { NextResponse } from "next/server";
 import { verifyPassword, createToken, setSessionCookie } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { resolveSubscriptionStatus } from "@/lib/billing";
+import {
+  checkLoginRateLimit,
+  recordLoginAttempt,
+  getClientIp,
+} from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { email, password, rememberMe } = body;
+    const ip = getClientIp(request);
 
     if (!email || !password) {
       return NextResponse.json(
@@ -15,11 +21,29 @@ export async function POST(request: Request) {
       );
     }
 
+    // Rate limit: 5 failed attempts per email per 15 minutes
+    const rateLimit = await checkLoginRateLimit(email);
+    if (!rateLimit.allowed) {
+      const minutes = Math.ceil((rateLimit.retryAfterSeconds || 900) / 60);
+      return NextResponse.json(
+        {
+          error: `Too many failed login attempts. Please try again in ${minutes} minute${minutes === 1 ? "" : "s"}.`,
+        },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(rateLimit.retryAfterSeconds || 900),
+          },
+        }
+      );
+    }
+
     const user = await prisma.user.findUnique({
       where: { email: email.toLowerCase() },
     });
 
     if (!user || !verifyPassword(password, user.passwordHash)) {
+      await recordLoginAttempt(email, ip, false);
       return NextResponse.json(
         { error: "Invalid email or password" },
         { status: 401 }
@@ -121,6 +145,9 @@ export async function POST(request: Request) {
     );
 
     await setSessionCookie(token, rememberMe);
+
+    // Record successful login for rate-limit bookkeeping
+    await recordLoginAttempt(email, ip, true);
 
     // Update lastLoginAt
     await prisma.user.update({

@@ -1,9 +1,32 @@
 import { NextResponse } from "next/server";
 import { hashPassword } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import {
+  checkRegisterRateLimit,
+  recordRegisterAttempt,
+  getClientIp,
+} from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
   try {
+    const ip = getClientIp(request);
+
+    // Rate limit: 3 registrations per IP per hour
+    const rateLimit = await checkRegisterRateLimit(ip);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        {
+          error: "Too many registrations from this IP address. Please try again in an hour.",
+        },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(rateLimit.retryAfterSeconds || 3600),
+          },
+        }
+      );
+    }
+
     const body = await request.json();
     const {
       firstName,
@@ -112,6 +135,9 @@ export async function POST(request: Request) {
         ...(dietaryPrefs && { dietaryPrefs }),
       },
     });
+
+    // Record the successful registration for IP-based rate limiting
+    await recordRegisterAttempt(ip);
 
     // Do NOT create session / set cookie — account needs coach approval first
     return NextResponse.json({

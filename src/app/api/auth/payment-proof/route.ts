@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { validateBase64Upload } from "@/lib/upload-validation";
 
 export async function POST(request: Request) {
   try {
@@ -11,6 +12,11 @@ export async function POST(request: Request) {
         { error: "Email, payment screenshot, and account name are required" },
         { status: 400 }
       );
+    }
+
+    const validation = validateBase64Upload(paymentScreenshot);
+    if (!validation.ok) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
     }
 
     // Find user by email
