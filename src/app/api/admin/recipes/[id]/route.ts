@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { requireCoach } from "@/lib/coach-scope";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
@@ -6,14 +7,18 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const scope = await requireCoach();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { coachId } = scope;
+
     const { id } = await params;
     const recipeId = Number(id);
     if (isNaN(recipeId)) {
       return NextResponse.json({ error: "Invalid recipe ID" }, { status: 400 });
     }
 
-    const recipe = await prisma.recipe.findUnique({
-      where: { id: recipeId },
+    const recipe = await prisma.recipe.findFirst({
+      where: { id: recipeId, coachId },
       include: {
         category: true,
         dietaryTags: {
@@ -41,14 +46,18 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const scope = await requireCoach();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { coachId } = scope;
+
     const { id } = await params;
     const recipeId = Number(id);
     if (isNaN(recipeId)) {
       return NextResponse.json({ error: "Invalid recipe ID" }, { status: 400 });
     }
 
-    const existing = await prisma.recipe.findUnique({
-      where: { id: recipeId },
+    const existing = await prisma.recipe.findFirst({
+      where: { id: recipeId, coachId },
     });
     if (!existing) {
       return NextResponse.json({ error: "Recipe not found" }, { status: 404 });
@@ -112,14 +121,18 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const scope = await requireCoach();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { coachId } = scope;
+
     const { id } = await params;
     const recipeId = Number(id);
     if (isNaN(recipeId)) {
       return NextResponse.json({ error: "Invalid recipe ID" }, { status: 400 });
     }
 
-    const existing = await prisma.recipe.findUnique({
-      where: { id: recipeId },
+    const existing = await prisma.recipe.findFirst({
+      where: { id: recipeId, coachId },
     });
     if (!existing) {
       return NextResponse.json({ error: "Recipe not found" }, { status: 404 });

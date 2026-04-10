@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth";
+import { requireCoach } from "@/lib/coach-scope";
 import { prisma } from "@/lib/db";
 
 export async function GET() {
   try {
-    const user = await getCurrentUser();
-    if (!user || user.role !== "COACH") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const scope = await requireCoach();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { coachId } = scope;
 
     const workouts = await prisma.workout.findMany({
+      where: { coachId },
       include: { subcategory: { include: { category: true } } },
       orderBy: { createdAt: "desc" },
     });
@@ -26,10 +26,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const user = await getCurrentUser();
-    if (!user || user.role !== "COACH") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const scope = await requireCoach();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { coachId } = scope;
 
     const body = await request.json();
     const {
@@ -64,6 +63,7 @@ export async function POST(request: Request) {
         duration: duration || null,
         targetGoal: targetGoal || null,
         isPublished: isPublished ?? false,
+        coachId,
       },
       include: { subcategory: { include: { category: true } } },
     });

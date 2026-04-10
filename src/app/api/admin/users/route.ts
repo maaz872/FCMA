@@ -1,9 +1,15 @@
 import { prisma } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { requireCoach } from "@/lib/coach-scope";
 
 export async function GET() {
   try {
+    const scope = await requireCoach();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { coachId } = scope;
+
     const users = await prisma.user.findMany({
+      where: { coachId, role: "USER" },
       orderBy: { createdAt: "desc" },
       select: {
         id: true,

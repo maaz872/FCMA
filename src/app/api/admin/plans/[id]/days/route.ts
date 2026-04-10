@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth";
+import { requireCoach } from "@/lib/coach-scope";
 import { prisma } from "@/lib/db";
 
 export async function GET(
@@ -7,13 +7,20 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getCurrentUser();
-    if (!user || user.role !== "COACH") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const scope = await requireCoach();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { coachId } = scope;
 
     const { id } = await params;
     const templateId = parseInt(id);
+
+    // Verify the template belongs to this coach
+    const template = await prisma.planTemplate.findFirst({
+      where: { id: templateId, coachId },
+    });
+    if (!template) {
+      return NextResponse.json({ error: "Template not found" }, { status: 404 });
+    }
 
     const days = await prisma.planTemplateDay.findMany({
       where: { templateId },
@@ -70,10 +77,9 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getCurrentUser();
-    if (!user || user.role !== "COACH") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const scope = await requireCoach();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { coachId } = scope;
 
     const { id } = await params;
     const templateId = parseInt(id);
@@ -87,9 +93,9 @@ export async function POST(
       );
     }
 
-    // Verify template exists
-    const template = await prisma.planTemplate.findUnique({
-      where: { id: templateId },
+    // Verify template belongs to this coach
+    const template = await prisma.planTemplate.findFirst({
+      where: { id: templateId, coachId },
     });
     if (!template) {
       return NextResponse.json({ error: "Template not found" }, { status: 404 });

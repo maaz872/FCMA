@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth";
+import { requireCoach } from "@/lib/coach-scope";
 import { prisma } from "@/lib/db";
 
 export async function POST(request: Request) {
   try {
-    const user = await getCurrentUser();
-    if (!user || user.role !== "COACH") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const scope = await requireCoach();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { coachId } = scope;
 
     const body = await request.json();
     const { userId, title, message, type } = body;
@@ -22,7 +21,12 @@ export async function POST(request: Request) {
     const notifType = type || "system";
 
     if (userId) {
-      // Send to specific user
+      // Verify user belongs to this coach before sending
+      const targetUser = await prisma.user.findFirst({ where: { id: userId, coachId } });
+      if (!targetUser) {
+        return NextResponse.json({ error: "User not found" }, { status: 404 });
+      }
+
       const notification = await prisma.notification.create({
         data: {
           userId,
@@ -34,9 +38,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ notification, sent: 1 });
     }
 
-    // Send to all active users
+    // Broadcast to all active users belonging to this coach
     const users = await prisma.user.findMany({
-      where: { role: "USER", isActive: true },
+      where: { role: "USER", coachId, isActive: true },
       select: { id: true },
     });
 
@@ -64,12 +68,19 @@ export async function POST(request: Request) {
 
 export async function GET() {
   try {
-    const user = await getCurrentUser();
-    if (!user || user.role !== "COACH") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const scope = await requireCoach();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { coachId } = scope;
+
+    // Only fetch notifications for users belonging to this coach
+    const coachUserIds = await prisma.user.findMany({
+      where: { coachId },
+      select: { id: true },
+    });
+    const userIds = coachUserIds.map((u) => u.id);
 
     const notifications = await prisma.notification.findMany({
+      where: { userId: { in: userIds } },
       orderBy: { createdAt: "desc" },
       take: 100,
       include: {

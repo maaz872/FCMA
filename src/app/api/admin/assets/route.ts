@@ -1,15 +1,15 @@
 import { prisma } from "@/lib/db";
-import { getCurrentUser } from "@/lib/auth";
+import { requireCoach } from "@/lib/coach-scope";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET() {
   try {
-    const user = await getCurrentUser();
-    if (!user || user.role !== "COACH") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const scope = await requireCoach();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { coachId } = scope;
 
     const assets = await prisma.asset.findMany({
+      where: { coachId },
       orderBy: { createdAt: "desc" },
     });
 
@@ -22,10 +22,9 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const user = await getCurrentUser();
-    if (!user || user.role !== "COACH") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const scope = await requireCoach();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { coachId } = scope;
 
     const body = await req.json();
     const { filename, data, fileSize, mimeType } = body;
@@ -40,7 +39,8 @@ export async function POST(req: NextRequest) {
         data,
         fileSize: fileSize || 0,
         mimeType,
-        uploadedById: user.userId,
+        uploadedById: scope.user.userId,
+        coachId,
       },
     });
 

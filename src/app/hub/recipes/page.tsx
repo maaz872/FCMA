@@ -1,11 +1,13 @@
 export const dynamic = "force-dynamic";
 import { prisma } from "@/lib/db";
+import { getCurrentUser } from "@/lib/auth";
+import { redirect } from "next/navigation";
 import RecipeBrowser from "./RecipeBrowser";
 import RetryError from "@/components/ui/RetryError";
 
-async function loadData() {
+async function loadData(coachId: string) {
   const recipes = await prisma.recipe.findMany({
-    where: { isPublished: true },
+    where: { isPublished: true, coachId },
     include: { category: true, dietaryTags: { include: { tag: true } } },
     orderBy: { createdAt: "desc" },
   });
@@ -20,14 +22,19 @@ async function loadData() {
 }
 
 export default async function RecipesPage() {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  const coachId = user.role === "COACH" ? user.userId : user.coachId;
+  if (!coachId) redirect("/login");
+
   let data;
   try {
-    data = await loadData();
+    data = await loadData(coachId);
   } catch {
     // Retry once on cold start failure
     try {
       await new Promise((r) => setTimeout(r, 1000));
-      data = await loadData();
+      data = await loadData(coachId);
     } catch {
       return <RetryError message="Failed to load recipes. This usually resolves on retry." />;
     }

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth";
+import { requireCoach } from "@/lib/coach-scope";
 import { prisma } from "@/lib/db";
 
 export async function GET(
@@ -7,12 +7,17 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getCurrentUser();
-    if (!user || user.role !== "COACH") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const scope = await requireCoach();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { coachId } = scope;
 
     const { id: userId } = await params;
+
+    // Verify user belongs to this coach
+    const targetUser = await prisma.user.findFirst({ where: { id: userId, coachId } });
+    if (!targetUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
 
     // Get latest targets per metric (permanent, not weekly)
     const targets = await prisma.weeklyTarget.findMany({
@@ -49,12 +54,17 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getCurrentUser();
-    if (!user || user.role !== "COACH") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const scope = await requireCoach();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { coachId } = scope;
 
     const { id: userId } = await params;
+
+    // Verify user belongs to this coach
+    const ownerCheck = await prisma.user.findFirst({ where: { id: userId, coachId } });
+    if (!ownerCheck) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
     const body = await request.json();
     const { targets } = body as { targets: TargetInput[] };
 

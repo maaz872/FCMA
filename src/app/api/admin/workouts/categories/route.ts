@@ -1,17 +1,18 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth";
+import { requireCoach } from "@/lib/coach-scope";
 import { prisma } from "@/lib/db";
 
 export async function GET() {
   try {
-    const user = await getCurrentUser();
-    if (!user || user.role !== "COACH") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const scope = await requireCoach();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { coachId } = scope;
 
     const categories = await prisma.workoutCategory.findMany({
+      where: { coachId },
       include: {
         subcategories: {
+          where: { coachId },
           select: { id: true, name: true, slug: true },
           orderBy: { name: "asc" },
         },

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth";
+import { getCoachScope } from "@/lib/coach-scope";
 import { prisma } from "@/lib/db";
 
 export async function GET(
@@ -7,13 +7,15 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const scope = await getCoachScope();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { user, coachId } = scope;
+
     const { id } = await params;
     const postId = parseInt(id, 10);
     if (isNaN(postId)) {
       return NextResponse.json({ error: "Invalid post ID" }, { status: 400 });
     }
-
-    const user = await getCurrentUser();
 
     const post = await prisma.post.findUnique({
       where: { id: postId },
@@ -34,7 +36,7 @@ export async function GET(
       },
     });
 
-    if (!post) {
+    if (!post || post.coachId !== coachId) {
       return NextResponse.json({ error: "Post not found" }, { status: 404 });
     }
 
@@ -48,9 +50,7 @@ export async function GET(
         author: post.author,
         likeCount: post._count.likes,
         commentCount: post._count.comments,
-        likedByMe: user
-          ? post.likes.some((like) => like.userId === user.userId)
-          : false,
+        likedByMe: post.likes.some((like) => like.userId === user.userId),
         comments: post.comments.map((c) => ({
           id: c.id,
           content: c.content,
@@ -73,15 +73,22 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getCurrentUser();
-    if (!user || user.role !== "COACH") {
+    const scope = await getCoachScope();
+    if (!scope || scope.user.role !== "COACH") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const { coachId } = scope;
 
     const { id } = await params;
     const postId = parseInt(id, 10);
     if (isNaN(postId)) {
       return NextResponse.json({ error: "Invalid post ID" }, { status: 400 });
+    }
+
+    // Verify the post belongs to this coach's feed
+    const post = await prisma.post.findUnique({ where: { id: postId } });
+    if (!post || post.coachId !== coachId) {
+      return NextResponse.json({ error: "Post not found" }, { status: 404 });
     }
 
     await prisma.post.delete({ where: { id: postId } });

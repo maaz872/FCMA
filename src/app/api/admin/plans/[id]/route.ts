@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth";
+import { requireCoach } from "@/lib/coach-scope";
 import { prisma } from "@/lib/db";
 
 export async function GET(
@@ -7,16 +7,15 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getCurrentUser();
-    if (!user || user.role !== "COACH") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const scope = await requireCoach();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { coachId } = scope;
 
     const { id } = await params;
     const templateId = parseInt(id);
 
-    const template = await prisma.planTemplate.findUnique({
-      where: { id: templateId },
+    const template = await prisma.planTemplate.findFirst({
+      where: { id: templateId, coachId },
       include: {
         days: {
           include: { workout: { select: { id: true, title: true, slug: true } } },
@@ -44,13 +43,21 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getCurrentUser();
-    if (!user || user.role !== "COACH") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const scope = await requireCoach();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { coachId } = scope;
 
     const { id } = await params;
     const templateId = parseInt(id);
+
+    // Verify ownership
+    const existing = await prisma.planTemplate.findFirst({
+      where: { id: templateId, coachId },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Template not found" }, { status: 404 });
+    }
+
     const body = await request.json();
     const { name, description, type, durationWeeks } = body;
 
@@ -79,13 +86,20 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getCurrentUser();
-    if (!user || user.role !== "COACH") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const scope = await requireCoach();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { coachId } = scope;
 
     const { id } = await params;
     const templateId = parseInt(id);
+
+    // Verify ownership
+    const existing = await prisma.planTemplate.findFirst({
+      where: { id: templateId, coachId },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Template not found" }, { status: 404 });
+    }
 
     await prisma.planTemplate.delete({
       where: { id: templateId },

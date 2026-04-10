@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth";
+import { requireCoach } from "@/lib/coach-scope";
 import { prisma } from "@/lib/db";
 
 export async function GET() {
   try {
-    const user = await getCurrentUser();
-    if (!user || user.role !== "COACH") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const scope = await requireCoach();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { coachId } = scope;
 
     const templates = await prisma.planTemplate.findMany({
+      where: { coachId },
       include: { _count: { select: { days: true } } },
       orderBy: { createdAt: "desc" },
     });
@@ -48,18 +48,18 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const user = await getCurrentUser();
-    if (!user || user.role !== "COACH") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const scope = await requireCoach();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { coachId } = scope;
 
     const body = await request.json();
     const { name, description, type, durationWeeks, duplicateId } = body;
 
     // ── Duplicate existing template ──
     if (duplicateId) {
-      const source = await prisma.planTemplate.findUnique({
-        where: { id: parseInt(duplicateId) },
+      // Verify source template belongs to this coach
+      const source = await prisma.planTemplate.findFirst({
+        where: { id: parseInt(duplicateId), coachId },
         include: { days: { include: { meals: true } } },
       });
       if (!source) {
@@ -72,6 +72,7 @@ export async function POST(request: Request) {
           description: source.description,
           type: source.type,
           durationWeeks: source.durationWeeks,
+          coachId,
         },
       });
 
@@ -119,6 +120,7 @@ export async function POST(request: Request) {
         description: description || null,
         type: type || "combined",
         durationWeeks: parseInt(durationWeeks) || 4,
+        coachId,
       },
     });
 

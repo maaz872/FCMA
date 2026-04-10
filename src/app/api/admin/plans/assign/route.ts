@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth";
+import { requireCoach } from "@/lib/coach-scope";
 import { prisma } from "@/lib/db";
 
 interface CustomDay {
@@ -17,10 +17,9 @@ interface CustomDay {
 
 export async function POST(request: Request) {
   try {
-    const user = await getCurrentUser();
-    if (!user || user.role !== "COACH") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const scope = await requireCoach();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { coachId } = scope;
 
     const body = await request.json();
     const { userId, templateId, name, description, type, startDate, customDays } = body;
@@ -32,8 +31,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // Verify user exists
-    const targetUser = await prisma.user.findUnique({ where: { id: userId } });
+    // Verify user exists AND belongs to this coach
+    const targetUser = await prisma.user.findFirst({ where: { id: userId, coachId } });
     if (!targetUser) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
@@ -45,9 +44,9 @@ export async function POST(request: Request) {
     let templateDaysWithMeals: any[] = [];
 
     if (templateId) {
-      // Copy days from template (include meals for recipe linking)
-      const template = await prisma.planTemplate.findUnique({
-        where: { id: parseInt(templateId) },
+      // Verify template belongs to this coach
+      const template = await prisma.planTemplate.findFirst({
+        where: { id: parseInt(templateId), coachId },
         include: { days: { include: { meals: true } } },
       });
       if (!template) {

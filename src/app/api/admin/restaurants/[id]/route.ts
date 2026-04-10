@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { requireCoach } from "@/lib/coach-scope";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
@@ -6,9 +7,13 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const scope = await requireCoach();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { coachId } = scope;
+
     const { id } = await params;
-    const restaurant = await prisma.restaurantGuide.findUnique({
-      where: { id: Number(id) },
+    const restaurant = await prisma.restaurantGuide.findFirst({
+      where: { id: Number(id), coachId },
     });
     if (!restaurant) {
       return NextResponse.json(
@@ -31,13 +36,27 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const scope = await requireCoach();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { coachId } = scope;
+
     const { id } = await params;
+    const restaurantId = Number(id);
+
+    // Verify ownership
+    const existing = await prisma.restaurantGuide.findFirst({
+      where: { id: restaurantId, coachId },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Restaurant not found" }, { status: 404 });
+    }
+
     const body = await request.json();
     const { name, slug, logoUrl, introduction, tips, menuItems, isPublished } =
       body;
 
     const restaurant = await prisma.restaurantGuide.update({
-      where: { id: Number(id) },
+      where: { id: restaurantId },
       data: {
         ...(name !== undefined && { name: name.trim() }),
         ...(slug !== undefined && { slug }),
@@ -69,8 +88,22 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const scope = await requireCoach();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { coachId } = scope;
+
     const { id } = await params;
-    await prisma.restaurantGuide.delete({ where: { id: Number(id) } });
+    const restaurantId = Number(id);
+
+    // Verify ownership
+    const existing = await prisma.restaurantGuide.findFirst({
+      where: { id: restaurantId, coachId },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Restaurant not found" }, { status: 404 });
+    }
+
+    await prisma.restaurantGuide.delete({ where: { id: restaurantId } });
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Admin DELETE restaurant error:", error);

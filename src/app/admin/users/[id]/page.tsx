@@ -8,6 +8,7 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
   const { id } = await params;
   const admin = await getCurrentUser();
   if (!admin || admin.role !== "COACH") redirect("/login");
+  const coachId = admin.userId;
 
   const user = await prisma.user.findUnique({
     where: { id },
@@ -21,7 +22,7 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
     },
   });
 
-  if (!user) redirect("/admin/users");
+  if (!user || user.coachId !== coachId) redirect("/admin/users");
 
   // Last activity metrics
   const lastMealLog = user.mealLogs[0];

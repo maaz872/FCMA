@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth";
+import { getCoachScope } from "@/lib/coach-scope";
 import { prisma } from "@/lib/db";
 
 export async function GET() {
   try {
-    const user = await getCurrentUser();
+    const scope = await getCoachScope();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { user, coachId } = scope;
 
     const posts = await prisma.post.findMany({
+      where: { coachId },
       include: {
         author: {
           select: { id: true, firstName: true, lastName: true, role: true },
@@ -43,9 +46,7 @@ export async function GET() {
       },
       likeCount: post._count.likes,
       commentCount: post._count.comments,
-      likedByMe: user
-        ? post.likes.some((like) => like.userId === user.userId)
-        : false,
+      likedByMe: post.likes.some((like) => like.userId === user.userId),
       likes: post.likes.map((like) => ({
         id: like.id,
         user: {
@@ -73,10 +74,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const scope = await getCoachScope();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { user, coachId } = scope;
 
     const body = await request.json();
     const { content, mediaType, mediaUrl } = body;
@@ -94,6 +94,7 @@ export async function POST(request: Request) {
         content: content.trim(),
         mediaType: mediaType || null,
         mediaUrl: mediaUrl || null,
+        coachId,
       },
       include: {
         author: {

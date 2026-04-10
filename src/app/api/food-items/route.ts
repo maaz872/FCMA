@@ -1,14 +1,20 @@
 import { prisma } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
+import { getCoachScope } from "@/lib/coach-scope";
 
 export async function GET(req: NextRequest) {
   try {
+    const scope = await getCoachScope();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { coachId } = scope;
+
     const { searchParams } = new URL(req.url);
     const search = searchParams.get("search") || "";
     const category = searchParams.get("category") || "";
 
     const items = await prisma.foodItem.findMany({
       where: {
+        coachId,
         ...(search && { name: { contains: search, mode: "insensitive" as const } }),
         ...(category && { category }),
       },

@@ -1,15 +1,21 @@
 import { prisma } from "@/lib/db";
+import { requireCoach } from "@/lib/coach-scope";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET() {
   try {
+    const scope = await requireCoach();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { coachId } = scope;
+
     const [recipes, categories, tags] = await Promise.all([
       prisma.recipe.findMany({
+        where: { coachId },
         include: { category: true, dietaryTags: { include: { tag: true } } },
         orderBy: { createdAt: "desc" },
       }),
-      prisma.recipeCategory.findMany({ orderBy: { displayOrder: "asc" } }),
-      prisma.dietaryTag.findMany(),
+      prisma.recipeCategory.findMany({ where: { coachId }, orderBy: { displayOrder: "asc" } }),
+      prisma.dietaryTag.findMany({ where: { coachId } }),
     ]);
 
     return NextResponse.json({
@@ -55,6 +61,10 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const scope = await requireCoach();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { coachId } = scope;
+
     const body = await request.json();
 
     const {
@@ -111,8 +121,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check for slug uniqueness
-    const existing = await prisma.recipe.findFirst({ where: { slug } });
+    // Check for slug uniqueness within this coach's recipes
+    const existing = await prisma.recipe.findFirst({ where: { slug, coachId } });
     if (existing) {
       return NextResponse.json(
         { error: "A recipe with this slug already exists" },
@@ -138,6 +148,7 @@ export async function POST(request: NextRequest) {
         prepTimeMins: Number(prepTimeMins) || 0,
         cookTimeMins: Number(cookTimeMins) || 0,
         isPublished: Boolean(isPublished),
+        coachId,
         dietaryTags: {
           create: (tagIds || []).map((tagId: number) => ({
             tagId: Number(tagId),

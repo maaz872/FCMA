@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import FavouriteButton from "@/components/ui/FavouriteButton";
 
@@ -23,8 +23,13 @@ export default async function RecipeDetailPage({
 }) {
   const { slug } = await params;
 
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  const coachId = user.role === "COACH" ? user.userId : user.coachId;
+  if (!coachId) redirect("/login");
+
   const recipe = await prisma.recipe.findFirst({
-    where: { slug },
+    where: { slug, coachId },
     include: { category: true, dietaryTags: { include: { tag: true } } },
   });
 
@@ -34,16 +39,13 @@ export default async function RecipeDetailPage({
 
   // Check if user has favourited this recipe
   let isFavourited = false;
-  const user = await getCurrentUser();
-  if (user) {
-    const fav = await prisma.favourite.findFirst({
-      where: {
-        userId: user.userId,
-        recipeId: recipe.id,
-      },
-    });
-    isFavourited = !!fav;
-  }
+  const fav = await prisma.favourite.findFirst({
+    where: {
+      userId: user.userId,
+      recipeId: recipe.id,
+    },
+  });
+  isFavourited = !!fav;
 
   const ingredients: string[] = JSON.parse(recipe.ingredients);
   const instructions: string[] = JSON.parse(recipe.instructions);

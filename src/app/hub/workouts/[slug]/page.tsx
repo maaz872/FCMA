@@ -1,7 +1,8 @@
 export const dynamic = "force-dynamic";
 
 import { prisma } from "@/lib/db";
-import { notFound } from "next/navigation";
+import { getCurrentUser } from "@/lib/auth";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import VideoEmbed from "@/components/ui/VideoEmbed";
 import VideoThumbnail from "@/components/ui/VideoThumbnail";
@@ -25,8 +26,13 @@ export default async function WorkoutDetailPage({
 }) {
   const { slug } = await params;
 
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  const coachId = user.role === "COACH" ? user.userId : user.coachId;
+  if (!coachId) redirect("/login");
+
   const workout = await prisma.workout.findFirst({
-    where: { slug },
+    where: { slug, coachId },
     include: { subcategory: { include: { category: true } } },
   });
 
@@ -37,11 +43,12 @@ export default async function WorkoutDetailPage({
   const instructions: string[] = JSON.parse(workout.instructions || "[]");
   const hasVideo = !!workout.videoUrl;
 
-  // Related workouts from same subcategory
+  // Related workouts from same subcategory (also scoped to coach)
   const related = await prisma.workout.findMany({
     where: {
       subcategoryId: workout.subcategoryId,
       isPublished: true,
+      coachId,
       id: { not: workout.id },
     },
     include: { subcategory: { include: { category: true } } },

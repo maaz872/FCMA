@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 import { prisma } from "@/lib/db";
-import { notFound } from "next/navigation";
+import { getCurrentUser } from "@/lib/auth";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 
 interface MenuItem {
@@ -19,8 +20,13 @@ export default async function RestaurantDetailPage({
 }) {
   const { slug } = await params;
 
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  const coachId = user.role === "COACH" ? user.userId : user.coachId;
+  if (!coachId) redirect("/login");
+
   const restaurant = await prisma.restaurantGuide.findFirst({
-    where: { slug },
+    where: { slug, coachId },
   });
 
   if (!restaurant || !restaurant.isPublished) {

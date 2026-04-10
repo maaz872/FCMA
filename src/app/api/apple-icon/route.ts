@@ -1,13 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getCurrentUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
-    const setting = await prisma.siteContent.findFirst({
-      where: { contentKey: "pwa_icon_192" },
-    });
+    // Try to resolve coachId from session for coach-specific PWA icon
+    let coachId: string | null = null;
+    try {
+      const user = await getCurrentUser();
+      if (user) {
+        coachId = user.role === "COACH" ? user.userId : user.coachId || null;
+      }
+    } catch {}
+
+    const where = coachId
+      ? { contentKey: "pwa_icon_192", coachId }
+      : { contentKey: "pwa_icon_192" };
+
+    const setting = await prisma.siteContent.findFirst({ where });
 
     if (setting?.contentValue && setting.contentValue.startsWith("data:")) {
       const match = setting.contentValue.match(/^data:(image\/[^;]+);base64,(.+)$/);

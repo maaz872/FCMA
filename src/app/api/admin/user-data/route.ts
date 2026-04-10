@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth";
+import { requireCoach } from "@/lib/coach-scope";
 import { prisma } from "@/lib/db";
 
 export async function POST(req: NextRequest) {
   try {
-    const user = await getCurrentUser();
-    if (!user || user.role !== "COACH") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const scope = await requireCoach();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { coachId } = scope;
 
     const body = await req.json();
     const { userId, type, data } = body;
@@ -16,8 +15,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing userId, type, or data" }, { status: 400 });
     }
 
-    // Verify user exists
-    const targetUser = await prisma.user.findUnique({ where: { id: userId } });
+    // Verify user exists and belongs to this coach
+    const targetUser = await prisma.user.findFirst({ where: { id: userId, coachId } });
     if (!targetUser) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
@@ -111,31 +110,55 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    const user = await getCurrentUser();
-    if (!user || user.role !== "COACH") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const scope = await requireCoach();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { coachId } = scope;
 
     const { searchParams } = new URL(req.url);
     const type = searchParams.get("type");
     const id = searchParams.get("id");
+    const userId = searchParams.get("userId");
 
     if (!type || !id) {
       return NextResponse.json({ error: "Missing type or id" }, { status: 400 });
     }
 
+    // If userId is provided, verify ownership; otherwise look up the record's userId
+    if (userId) {
+      const ownerCheck = await prisma.user.findFirst({ where: { id: userId, coachId } });
+      if (!ownerCheck) {
+        return NextResponse.json({ error: "User not found" }, { status: 404 });
+      }
+    }
+
     const numId = parseInt(id);
 
+    // For each type, verify the record's user belongs to this coach before deleting
     switch (type) {
-      case "weight":
+      case "weight": {
+        const record = await prisma.weightLog.findUnique({ where: { id: numId }, select: { userId: true } });
+        if (!record) return NextResponse.json({ error: "Record not found" }, { status: 404 });
+        const owner = await prisma.user.findFirst({ where: { id: record.userId, coachId } });
+        if (!owner) return NextResponse.json({ error: "User not found" }, { status: 404 });
         await prisma.weightLog.delete({ where: { id: numId } });
         break;
-      case "step":
+      }
+      case "step": {
+        const record = await prisma.stepLog.findUnique({ where: { id: numId }, select: { userId: true } });
+        if (!record) return NextResponse.json({ error: "Record not found" }, { status: 404 });
+        const owner = await prisma.user.findFirst({ where: { id: record.userId, coachId } });
+        if (!owner) return NextResponse.json({ error: "User not found" }, { status: 404 });
         await prisma.stepLog.delete({ where: { id: numId } });
         break;
-      case "measurement":
+      }
+      case "measurement": {
+        const record = await prisma.bodyMeasurement.findUnique({ where: { id: numId }, select: { userId: true } });
+        if (!record) return NextResponse.json({ error: "Record not found" }, { status: 404 });
+        const owner = await prisma.user.findFirst({ where: { id: record.userId, coachId } });
+        if (!owner) return NextResponse.json({ error: "User not found" }, { status: 404 });
         await prisma.bodyMeasurement.delete({ where: { id: numId } });
         break;
+      }
       default:
         return NextResponse.json({ error: `Unknown type: ${type}` }, { status: 400 });
     }

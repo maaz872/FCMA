@@ -1,9 +1,15 @@
 import { prisma } from "@/lib/db";
+import { requireCoach } from "@/lib/coach-scope";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET() {
   try {
+    const scope = await requireCoach();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { coachId } = scope;
+
     const restaurants = await prisma.restaurantGuide.findMany({
+      where: { coachId },
       orderBy: { name: "asc" },
     });
     return NextResponse.json({ restaurants });
@@ -18,6 +24,10 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const scope = await requireCoach();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { coachId } = scope;
+
     const body = await request.json();
     const { name, slug, logoUrl, introduction, tips, menuItems, isPublished } =
       body;
@@ -44,7 +54,7 @@ export async function POST(request: NextRequest) {
         .replace(/(^-|-$)/g, "");
 
     const existing = await prisma.restaurantGuide.findFirst({
-      where: { slug: generatedSlug },
+      where: { slug: generatedSlug, coachId },
     });
     if (existing) {
       return NextResponse.json(
@@ -62,6 +72,7 @@ export async function POST(request: NextRequest) {
         tips: tips || null,
         menuItems: typeof menuItems === "string" ? menuItems : JSON.stringify(menuItems || []),
         isPublished: Boolean(isPublished),
+        coachId,
       },
     });
 

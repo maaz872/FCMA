@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser, hashPassword } from "@/lib/auth";
+import { hashPassword } from "@/lib/auth";
+import { requireCoach } from "@/lib/coach-scope";
 import { prisma } from "@/lib/db";
 
 export async function PUT(
@@ -7,10 +8,9 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getCurrentUser();
-    if (!user || user.role !== "COACH") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const scope = await requireCoach();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { coachId } = scope;
 
     const { id } = await params;
     const body = await request.json();
@@ -23,8 +23,8 @@ export async function PUT(
       );
     }
 
-    // Verify the target user exists
-    const targetUser = await prisma.user.findUnique({ where: { id } });
+    // Verify the target user exists and belongs to this coach
+    const targetUser = await prisma.user.findFirst({ where: { id, coachId } });
     if (!targetUser) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }

@@ -1,16 +1,15 @@
 import { prisma } from "@/lib/db";
-import { getCurrentUser } from "@/lib/auth";
+import { requireCoach } from "@/lib/coach-scope";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const user = await getCurrentUser();
-    if (!user || user.role !== "COACH") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const scope = await requireCoach();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { coachId } = scope;
 
     const { id } = await params;
-    const item = await prisma.foodItem.findUnique({ where: { id: parseInt(id) } });
+    const item = await prisma.foodItem.findFirst({ where: { id: parseInt(id), coachId } });
 
     if (!item) {
       return NextResponse.json({ error: "Food item not found" }, { status: 404 });
@@ -25,17 +24,24 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const user = await getCurrentUser();
-    if (!user || user.role !== "COACH") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const scope = await requireCoach();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { coachId } = scope;
 
     const { id } = await params;
+    const foodItemId = parseInt(id);
+
+    // Verify ownership
+    const existing = await prisma.foodItem.findFirst({ where: { id: foodItemId, coachId } });
+    if (!existing) {
+      return NextResponse.json({ error: "Food item not found" }, { status: 404 });
+    }
+
     const body = await req.json();
     const { name, category, subcategory, caloriesPer100g, proteinPer100g, carbsPer100g, fatPer100g, fiberPer100g, servingSize, servingUnit, isVerified } = body;
 
     const item = await prisma.foodItem.update({
-      where: { id: parseInt(id) },
+      where: { id: foodItemId },
       data: {
         ...(name && { name }),
         ...(category && { category }),
@@ -60,13 +66,20 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const user = await getCurrentUser();
-    if (!user || user.role !== "COACH") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const scope = await requireCoach();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { coachId } = scope;
 
     const { id } = await params;
-    await prisma.foodItem.delete({ where: { id: parseInt(id) } });
+    const foodItemId = parseInt(id);
+
+    // Verify ownership
+    const existing = await prisma.foodItem.findFirst({ where: { id: foodItemId, coachId } });
+    if (!existing) {
+      return NextResponse.json({ error: "Food item not found" }, { status: 404 });
+    }
+
+    await prisma.foodItem.delete({ where: { id: foodItemId } });
 
     return NextResponse.json({ success: true });
   } catch (error) {

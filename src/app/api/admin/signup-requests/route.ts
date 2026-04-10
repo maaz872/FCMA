@@ -1,17 +1,17 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth";
+import { requireCoach } from "@/lib/coach-scope";
 import { prisma } from "@/lib/db";
 
 export async function GET() {
-  const session = await getCurrentUser();
-  if (!session || session.role !== "COACH") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const scope = await requireCoach();
+  if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { coachId } = scope;
 
-  // Users who uploaded payment proof (have a screenshot)
+  // Users who uploaded payment proof (have a screenshot) and belong to this coach
   const users = await prisma.user.findMany({
     where: {
       role: "USER",
+      coachId,
       paymentScreenshot: { not: null },
     },
     select: {

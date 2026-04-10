@@ -1,8 +1,13 @@
 import { prisma } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
+import { getCoachScope } from "@/lib/coach-scope";
 
 export async function GET(request: NextRequest) {
   try {
+    const scope = await getCoachScope();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { coachId } = scope;
+
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search") || "";
     const category = searchParams.get("category") || "";
@@ -11,7 +16,7 @@ export async function GET(request: NextRequest) {
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
     const limit = Math.min(50, Math.max(1, parseInt(searchParams.get("limit") || "12", 10)));
 
-    const where: Record<string, unknown> = { isPublished: true };
+    const where: Record<string, unknown> = { isPublished: true, coachId };
 
     if (search) {
       where.OR = [

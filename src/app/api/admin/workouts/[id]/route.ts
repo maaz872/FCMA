@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth";
+import { requireCoach } from "@/lib/coach-scope";
 import { prisma } from "@/lib/db";
 
 export async function GET(
@@ -7,14 +7,13 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getCurrentUser();
-    if (!user || user.role !== "COACH") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const scope = await requireCoach();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { coachId } = scope;
 
     const { id } = await params;
-    const workout = await prisma.workout.findUnique({
-      where: { id: parseInt(id) },
+    const workout = await prisma.workout.findFirst({
+      where: { id: parseInt(id), coachId },
       include: { subcategory: { include: { category: true } } },
     });
 
@@ -37,12 +36,21 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getCurrentUser();
-    if (!user || user.role !== "COACH") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const scope = await requireCoach();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { coachId } = scope;
 
     const { id } = await params;
+    const workoutId = parseInt(id);
+
+    // Verify ownership
+    const existing = await prisma.workout.findFirst({
+      where: { id: workoutId, coachId },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
     const body = await request.json();
     const {
       title,
@@ -58,7 +66,7 @@ export async function PUT(
     } = body;
 
     const workout = await prisma.workout.update({
-      where: { id: parseInt(id) },
+      where: { id: workoutId },
       data: {
         title,
         slug,
@@ -100,13 +108,22 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getCurrentUser();
-    if (!user || user.role !== "COACH") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const scope = await requireCoach();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { coachId } = scope;
 
     const { id } = await params;
-    await prisma.workout.delete({ where: { id: parseInt(id) } });
+    const workoutId = parseInt(id);
+
+    // Verify ownership
+    const existing = await prisma.workout.findFirst({
+      where: { id: workoutId, coachId },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    await prisma.workout.delete({ where: { id: workoutId } });
 
     return NextResponse.json({ success: true });
   } catch (error) {

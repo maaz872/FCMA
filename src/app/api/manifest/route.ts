@@ -1,17 +1,25 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getCurrentUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const settings = await prisma.siteContent.findMany({
-      where: {
-        contentKey: {
-          in: ["site_name", "pwa_icon_192", "pwa_icon_512"],
-        },
-      },
-    });
+    // Try to resolve coachId from session for coach-specific manifest
+    let coachId: string | null = null;
+    try {
+      const user = await getCurrentUser();
+      if (user) {
+        coachId = user.role === "COACH" ? user.userId : user.coachId || null;
+      }
+    } catch {}
+
+    const where = coachId
+      ? { contentKey: { in: ["site_name", "pwa_icon_192", "pwa_icon_512"] }, coachId }
+      : { contentKey: { in: ["site_name", "pwa_icon_192", "pwa_icon_512"] } };
+
+    const settings = await prisma.siteContent.findMany({ where });
 
     const map: Record<string, string> = {};
     for (const s of settings) {

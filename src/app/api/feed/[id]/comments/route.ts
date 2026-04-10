@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth";
+import { getCoachScope } from "@/lib/coach-scope";
 import { prisma } from "@/lib/db";
 import { notifyAdmin } from "@/lib/notifications";
 
@@ -8,10 +8,20 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const scope = await getCoachScope();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { coachId } = scope;
+
     const { id } = await params;
     const postId = parseInt(id, 10);
     if (isNaN(postId)) {
       return NextResponse.json({ error: "Invalid post ID" }, { status: 400 });
+    }
+
+    // Verify post belongs to this coach's feed
+    const post = await prisma.post.findUnique({ where: { id: postId } });
+    if (!post || post.coachId !== coachId) {
+      return NextResponse.json({ error: "Post not found" }, { status: 404 });
     }
 
     const comments = await prisma.postComment.findMany({
@@ -46,15 +56,20 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const scope = await getCoachScope();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { user, coachId } = scope;
 
     const { id } = await params;
     const postId = parseInt(id, 10);
     if (isNaN(postId)) {
       return NextResponse.json({ error: "Invalid post ID" }, { status: 400 });
+    }
+
+    // Verify post belongs to this coach's feed
+    const post = await prisma.post.findUnique({ where: { id: postId } });
+    if (!post || post.coachId !== coachId) {
+      return NextResponse.json({ error: "Post not found" }, { status: 404 });
     }
 
     const body = await request.json();
@@ -116,15 +131,22 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getCurrentUser();
-    if (!user || user.role !== "COACH") {
+    const scope = await getCoachScope();
+    if (!scope || scope.user.role !== "COACH") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const { coachId } = scope;
 
     const { id } = await params;
     const postId = parseInt(id, 10);
     if (isNaN(postId)) {
       return NextResponse.json({ error: "Invalid post ID" }, { status: 400 });
+    }
+
+    // Verify post belongs to this coach's feed
+    const post = await prisma.post.findUnique({ where: { id: postId } });
+    if (!post || post.coachId !== coachId) {
+      return NextResponse.json({ error: "Post not found" }, { status: 404 });
     }
 
     const { searchParams } = new URL(request.url);

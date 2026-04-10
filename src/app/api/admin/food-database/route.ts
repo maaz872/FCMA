@@ -1,15 +1,15 @@
 import { prisma } from "@/lib/db";
-import { getCurrentUser } from "@/lib/auth";
+import { requireCoach } from "@/lib/coach-scope";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET() {
   try {
-    const user = await getCurrentUser();
-    if (!user || user.role !== "COACH") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const scope = await requireCoach();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { coachId } = scope;
 
     const items = await prisma.foodItem.findMany({
+      where: { coachId },
       orderBy: { name: "asc" },
     });
 
@@ -22,10 +22,9 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const user = await getCurrentUser();
-    if (!user || user.role !== "COACH") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const scope = await requireCoach();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { coachId } = scope;
 
     const body = await req.json();
     const { name, category, subcategory, caloriesPer100g, proteinPer100g, carbsPer100g, fatPer100g, fiberPer100g, servingSize, servingUnit, isVerified } = body;
@@ -47,6 +46,7 @@ export async function POST(req: NextRequest) {
         servingSize: servingSize ? parseInt(servingSize) : null,
         servingUnit: servingUnit || null,
         isVerified: isVerified ?? true,
+        coachId,
       },
     });
 

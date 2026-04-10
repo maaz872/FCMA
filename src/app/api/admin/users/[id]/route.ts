@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { getCurrentUser } from "@/lib/auth";
+import { requireCoach } from "@/lib/coach-scope";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function PUT(
@@ -7,7 +7,18 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const scope = await requireCoach();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { coachId } = scope;
+
     const { id } = await params;
+
+    // Verify user belongs to this coach
+    const existingUser = await prisma.user.findFirst({ where: { id, coachId } });
+    if (!existingUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
     const body = await request.json();
     const { planStatus, isActive, role, plan } = body;
 
@@ -46,16 +57,21 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getCurrentUser();
-    if (!user || user.role !== "COACH") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const scope = await requireCoach();
+    if (!scope) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { coachId, user } = scope;
 
     const { id } = await params;
 
     // Prevent admin from deleting themselves
     if (id === user.userId) {
       return NextResponse.json({ error: "Cannot delete your own account" }, { status: 400 });
+    }
+
+    // Verify user belongs to this coach
+    const targetUser = await prisma.user.findFirst({ where: { id, coachId } });
+    if (!targetUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     // Delete user — cascade handles all related data
