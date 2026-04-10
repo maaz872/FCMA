@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
+import { getCurrentUser } from "@/lib/auth";
 
 export default async function Footer() {
   let socials: { name: string; url: string; visible: boolean }[] = [];
@@ -7,36 +8,48 @@ export default async function Footer() {
   let logoUrl = "/images/logo.svg";
 
   try {
-    const settings = await prisma.siteContent.findMany({
-      where: {
-        contentKey: {
-          in: [
-            "social_youtube", "social_instagram", "social_facebook", "social_tiktok",
-            "social_youtube_visible", "social_instagram_visible", "social_facebook_visible", "social_tiktok_visible",
-            "site_name", "site_logo",
-          ],
+    // Resolve the current coach from the session, if any
+    let coachId: string | null = null;
+    try {
+      const user = await getCurrentUser();
+      if (user) {
+        coachId = user.role === "COACH" ? user.userId : user.coachId || null;
+      }
+    } catch {}
+
+    // Anonymous (or SUPER_ADMIN) → use static FCMA defaults, no DB query
+    // so we never leak another coach's branding to public visitors.
+    if (!coachId) {
+      socials = [];
+    } else {
+      const settings = await prisma.siteContent.findMany({
+        where: {
+          coachId,
+          contentKey: {
+            in: [
+              "social_youtube", "social_instagram", "social_facebook", "social_tiktok",
+              "social_youtube_visible", "social_instagram_visible", "social_facebook_visible", "social_tiktok_visible",
+              "site_name", "site_logo",
+            ],
+          },
         },
-      },
-    });
+      });
 
-    const s: Record<string, string> = {};
-    for (const item of settings) s[item.contentKey] = item.contentValue;
+      const s: Record<string, string> = {};
+      for (const item of settings) s[item.contentKey] = item.contentValue;
 
-    if (s.site_name) siteName = s.site_name;
-    if (s.site_logo) logoUrl = s.site_logo;
+      if (s.site_name) siteName = s.site_name;
+      if (s.site_logo) logoUrl = s.site_logo;
 
-    socials = [
-      { name: "YouTube", url: s.social_youtube || "", visible: s.social_youtube_visible === "true" },
-      { name: "Instagram", url: s.social_instagram || "", visible: s.social_instagram_visible === "true" },
-      { name: "Facebook", url: s.social_facebook || "", visible: s.social_facebook_visible === "true" },
-      { name: "TikTok", url: s.social_tiktok || "", visible: s.social_tiktok_visible === "true" },
-    ].filter((item) => item.visible);
+      socials = [
+        { name: "YouTube", url: s.social_youtube || "", visible: s.social_youtube_visible === "true" },
+        { name: "Instagram", url: s.social_instagram || "", visible: s.social_instagram_visible === "true" },
+        { name: "Facebook", url: s.social_facebook || "", visible: s.social_facebook_visible === "true" },
+        { name: "TikTok", url: s.social_tiktok || "", visible: s.social_tiktok_visible === "true" },
+      ].filter((item) => item.visible);
+    }
   } catch {
-    socials = [
-      { name: "YouTube", url: "", visible: true },
-      { name: "Instagram", url: "", visible: true },
-      { name: "Facebook", url: "", visible: true },
-    ];
+    socials = [];
   }
 
   return (

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, Suspense } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Button from "@/components/ui/Button";
 import PasswordInput from "@/components/ui/PasswordInput";
@@ -58,7 +58,6 @@ function CheckoutRouter() {
 }
 
 function InviteGate() {
-  const router = useRouter();
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -82,8 +81,10 @@ function InviteGate() {
         setLoading(false);
         return;
       }
-      // Valid — redirect to the branded registration flow
-      router.replace(`/checkout?coach=${encodeURIComponent(trimmed)}`);
+      // Valid — hard-navigate so the server re-renders with the new searchParams.
+      // router.replace to the same pathname doesn't reliably re-trigger
+      // useSearchParams() in the parent CheckoutRouter under Next.js 16 + Turbopack.
+      window.location.assign(`/checkout?coach=${encodeURIComponent(trimmed)}`);
     } catch {
       setError("Something went wrong. Please try again.");
       setLoading(false);
