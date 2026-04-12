@@ -276,6 +276,38 @@ export default function CoachDetailPage() {
         </div>
       </div>
 
+      {/* Seed Defaults */}
+      <div className="bg-[#1E1E1E] rounded-2xl border border-[#2A2A2A] p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-bold text-white">Seed Default Data</h2>
+            <p className="text-white/50 text-xs mt-1">
+              Populates recipe categories, dietary tags, workout categories/subcategories, and 85 food items.
+              Only works once — won&apos;t duplicate if already seeded.
+            </p>
+          </div>
+          <button
+            onClick={async () => {
+              if (!confirm("Seed default categories, tags, and food database for this coach?")) return;
+              const res = await fetch(`/api/super-admin/coaches/${id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "seedDefaults" }),
+              });
+              const data = await res.json();
+              if (res.ok) {
+                alert("Defaults seeded successfully! The coach now has recipe/workout categories and 85 food items.");
+              } else {
+                alert(data.error || "Failed to seed defaults.");
+              }
+            }}
+            className="px-5 py-2.5 bg-purple-600 text-white rounded-xl text-sm font-semibold hover:bg-purple-700 transition-colors cursor-pointer border-none whitespace-nowrap flex-shrink-0"
+          >
+            Seed Defaults
+          </button>
+        </div>
+      </div>
+
       {/* Card A — Subscription */}
       {billing && (
         <div className="bg-[#1E1E1E] rounded-2xl border border-[#2A2A2A] p-6 space-y-4">

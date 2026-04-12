@@ -7,6 +7,7 @@ import {
   daysUntilExpiry,
   resolveSubscriptionStatus,
 } from "@/lib/billing";
+import { seedCoachDefaults } from "@/lib/seed-coach-defaults";
 
 export const dynamic = "force-dynamic";
 
@@ -172,6 +173,20 @@ export async function PUT(
         },
       });
       return NextResponse.json({ success: true });
+    }
+
+    // ─── Seed defaults (categories, tags, food database) ─────
+    if (body.action === "seedDefaults") {
+      // Check if already seeded
+      const existingCats = await prisma.recipeCategory.count({ where: { coachId: id } });
+      if (existingCats > 0) {
+        return NextResponse.json(
+          { error: "This coach already has default data seeded. To re-seed, delete existing categories first." },
+          { status: 409 }
+        );
+      }
+      await seedCoachDefaults(id);
+      return NextResponse.json({ success: true, message: "Default categories, tags, and food database seeded." });
     }
 
     // ─── Coach active toggle ─────────────────────────────────
