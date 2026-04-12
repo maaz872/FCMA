@@ -33,6 +33,7 @@ interface CoachDetail {
     basePriceMonthly: number;
     extraClientPrice: number;
     includedClients: number;
+    maxClients: number;
     billingStatus: string;
     currentPeriodEnd: string;
     subscriptionStatus: SubscriptionStatus;
@@ -65,6 +66,7 @@ export default function CoachDetailPage() {
   // Plan & client limit editor state
   const [planBase, setPlanBase] = useState("");
   const [planIncluded, setPlanIncluded] = useState("");
+  const [planMaxClients, setPlanMaxClients] = useState("");
   const [planExtra, setPlanExtra] = useState("");
   const [planSaving, setPlanSaving] = useState(false);
   const [planMessage, setPlanMessage] = useState<{ kind: "success" | "error"; text: string } | null>(null);
@@ -78,6 +80,7 @@ export default function CoachDetailPage() {
     if (d?.billing) {
       setPlanBase(String(d.billing.basePriceMonthly));
       setPlanIncluded(String(d.billing.includedClients));
+      setPlanMaxClients(String(d.billing.maxClients));
       setPlanExtra(String(d.billing.extraClientPrice));
     }
   }, [id]);
@@ -130,6 +133,7 @@ export default function CoachDetailPage() {
       const body = {
         basePriceMonthly: Number(planBase),
         includedClients: Number(planIncluded),
+        maxClients: Number(planMaxClients),
         extraClientPrice: Number(planExtra),
       };
       const res = await fetch(`/api/super-admin/coaches/${id}`, {
@@ -194,6 +198,7 @@ export default function CoachDetailPage() {
     billing &&
     (Number(planBase) !== billing.basePriceMonthly ||
       Number(planIncluded) !== billing.includedClients ||
+      Number(planMaxClients) !== billing.maxClients ||
       Number(planExtra) !== billing.extraClientPrice);
 
   const inputCls =
@@ -262,7 +267,11 @@ export default function CoachDetailPage() {
         </div>
         <div className="bg-[#1E1E1E] rounded-2xl border border-[#2A2A2A] p-5">
           <p className="text-white/40 text-xs font-semibold uppercase">Active Clients</p>
-          <p className="text-2xl font-bold text-emerald-400 mt-1">{activeClients}</p>
+          <p className={`text-2xl font-bold mt-1 ${
+            billing ? (activeClients < billing.maxClients ? "text-emerald-400" : activeClients === billing.maxClients ? "text-amber-400" : "text-red-400") : "text-emerald-400"
+          }`}>
+            {activeClients}{billing ? ` / ${billing.maxClients}` : ""}
+          </p>
         </div>
         <div className="bg-[#1E1E1E] rounded-2xl border border-[#2A2A2A] p-5">
           <p className="text-white/40 text-xs font-semibold uppercase">Monthly Bill</p>
@@ -406,7 +415,7 @@ export default function CoachDetailPage() {
         <div className="bg-[#1E1E1E] rounded-2xl border border-[#2A2A2A] p-6 space-y-4">
           <h2 className="text-lg font-bold text-white">Plan & Client Limits</h2>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div>
               <label className="block text-[10px] uppercase tracking-wider text-white/40 mb-1">
                 Base / month (PKR)
@@ -428,6 +437,18 @@ export default function CoachDetailPage() {
                 min={0}
                 value={planIncluded}
                 onChange={(e) => setPlanIncluded(e.target.value)}
+                className={inputCls}
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] uppercase tracking-wider text-white/40 mb-1">
+                Max Clients (capacity)
+              </label>
+              <input
+                type="number"
+                min={0}
+                value={planMaxClients}
+                onChange={(e) => setPlanMaxClients(e.target.value)}
                 className={inputCls}
               />
             </div>

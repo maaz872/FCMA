@@ -96,6 +96,7 @@ model CoachBilling {
   basePriceMonthly Int       @default(15000)
   extraClientPrice Int       @default(3500)
   includedClients  Int       @default(5)
+  maxClients       Int       @default(5)
   billingStatus    String    @default("ACTIVE")
   currentPeriodEnd DateTime
   createdAt        DateTime  @default(now())

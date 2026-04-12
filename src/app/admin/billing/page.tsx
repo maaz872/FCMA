@@ -8,6 +8,7 @@ interface Subscription {
   currentPeriodEnd: string;
   basePriceMonthly: number;
   includedClients: number;
+  maxClients: number;
   extraClientPrice: number;
   activeClientCount: number;
   monthlyBill: number;
@@ -157,10 +158,34 @@ export default function CoachBillingPage() {
       {/* Current Usage */}
       <div className="bg-[#1E1E1E] rounded-2xl border border-[#2A2A2A] p-6">
         <h2 className="text-lg font-bold text-white mb-4">Current Usage</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-[#0A0A0A] rounded-xl p-4">
             <p className="text-white/40 text-[10px] uppercase tracking-wider">Active Clients</p>
             <p className="text-xl font-bold text-white mt-1">{sub.activeClientCount}</p>
+          </div>
+          <div className="bg-[#0A0A0A] rounded-xl p-4">
+            <p className="text-white/40 text-[10px] uppercase tracking-wider">Client Capacity</p>
+            <p className={`text-xl font-bold mt-1 ${
+              sub.activeClientCount / sub.maxClients > 1
+                ? "text-red-400"
+                : sub.activeClientCount / sub.maxClients >= 0.8
+                ? "text-amber-400"
+                : "text-emerald-400"
+            }`}>
+              {sub.activeClientCount} / {sub.maxClients}
+            </p>
+            <div className="w-full h-2 bg-[#1E1E1E] rounded-full overflow-hidden mt-2">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ${
+                  sub.activeClientCount / sub.maxClients > 1
+                    ? "bg-red-500"
+                    : sub.activeClientCount / sub.maxClients >= 0.8
+                    ? "bg-amber-500"
+                    : "bg-emerald-500"
+                }`}
+                style={{ width: `${Math.min(100, (sub.activeClientCount / sub.maxClients) * 100)}%` }}
+              />
+            </div>
           </div>
           <div className="bg-[#0A0A0A] rounded-xl p-4">
             <p className="text-white/40 text-[10px] uppercase tracking-wider">Extra Clients</p>

@@ -38,6 +38,7 @@ export async function GET() {
         basePriceMonthly: billing.basePriceMonthly,
         includedClients: billing.includedClients,
         extraClientPrice: billing.extraClientPrice,
+        maxClients: billing.maxClients,
         activeClientCount,
         monthlyBill: calculateMonthlyBill(
           activeClientCount,

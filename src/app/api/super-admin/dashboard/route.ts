@@ -45,6 +45,12 @@ export async function GET() {
       }
     }
 
+    let overCapacityCoaches = 0;
+    for (const b of billings) {
+      const activeClients = b.coach._count.clients;
+      if (activeClients > b.maxClients) overCapacityCoaches++;
+    }
+
     return NextResponse.json({
       totalCoaches,
       activeCoaches,
@@ -53,6 +59,7 @@ export async function GET() {
       monthlyRevenue,
       expiringCoaches,
       expiredCoaches,
+      overCapacityCoaches,
     });
   } catch (error) {
     console.error("Super admin dashboard error:", error);

@@ -81,6 +81,7 @@ export async function GET(
             basePriceMonthly: billing.basePriceMonthly,
             extraClientPrice: billing.extraClientPrice,
             includedClients: billing.includedClients,
+            maxClients: billing.maxClients,
             billingStatus: billing.billingStatus,
             currentPeriodEnd: billing.currentPeriodEnd.toISOString(),
             subscriptionStatus: resolveSubscriptionStatus(billing.currentPeriodEnd, billing.billingStatus),
@@ -206,19 +207,21 @@ export async function PUT(
     }
 
     // ─── Billing terms update (basePriceMonthly / includedClients / extraClientPrice) ─
-    if (body.basePriceMonthly !== undefined || body.extraClientPrice !== undefined || body.includedClients !== undefined) {
+    if (body.basePriceMonthly !== undefined || body.extraClientPrice !== undefined || body.includedClients !== undefined || body.maxClients !== undefined) {
       await prisma.coachBilling.upsert({
         where: { coachId: id },
         update: {
           ...(body.basePriceMonthly !== undefined && { basePriceMonthly: Number(body.basePriceMonthly) }),
           ...(body.extraClientPrice !== undefined && { extraClientPrice: Number(body.extraClientPrice) }),
           ...(body.includedClients !== undefined && { includedClients: Number(body.includedClients) }),
+          ...(body.maxClients !== undefined && { maxClients: Number(body.maxClients) }),
         },
         create: {
           coachId: id,
           basePriceMonthly: body.basePriceMonthly || 15000,
           extraClientPrice: body.extraClientPrice || 3500,
           includedClients: body.includedClients || 5,
+          maxClients: body.maxClients || 5,
           currentPeriodEnd: addDays(new Date(), 30),
         },
       });

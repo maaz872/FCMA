@@ -139,6 +139,27 @@ export async function POST(request: Request) {
     // Record the successful registration for IP-based rate limiting
     await recordRegisterAttempt(ip);
 
+    // Check if coach is now at/over capacity and notify
+    try {
+      const billing = await prisma.coachBilling.findUnique({ where: { coachId: coach.id } });
+      if (billing) {
+        const activeCount = await prisma.user.count({
+          where: { coachId: coach.id, role: "USER", isActive: true, planStatus: "ACTIVE" },
+        });
+        if (activeCount >= billing.maxClients) {
+          await prisma.notification.create({
+            data: {
+              userId: coach.id,
+              title: "Client limit reached",
+              message: `New client registered. You now have ${activeCount} active client(s) out of ${billing.maxClients} allowed. Contact the administrator to increase your limit.`,
+              type: "system",
+              actionUrl: "/admin/billing",
+            },
+          });
+        }
+      }
+    } catch {} // Don't let notification failure break registration
+
     // Do NOT create session / set cookie — account needs coach approval first
     return NextResponse.json({
       success: true,

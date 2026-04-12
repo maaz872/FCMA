@@ -50,6 +50,7 @@ export async function GET() {
               basePriceMonthly: b.basePriceMonthly,
               extraClientPrice: b.extraClientPrice,
               includedClients: b.includedClients,
+              maxClients: b.maxClients,
               billingStatus: b.billingStatus,
               currentPeriodEnd: b.currentPeriodEnd.toISOString(),
               subscriptionStatus: resolveSubscriptionStatus(b.currentPeriodEnd, b.billingStatus),
@@ -73,7 +74,7 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { firstName, lastName, email, password, basePriceMonthly, extraClientPrice, includedClients } = body;
+    const { firstName, lastName, email, password, basePriceMonthly, extraClientPrice, includedClients, maxClients } = body;
 
     if (!firstName || !lastName || !email || !password) {
       return NextResponse.json({ error: "First name, last name, email, and password are required" }, { status: 400 });
@@ -117,6 +118,7 @@ export async function POST(request: Request) {
         basePriceMonthly: basePriceMonthly || 15000,
         extraClientPrice: extraClientPrice || 3500,
         includedClients: includedClients || 5,
+        maxClients: maxClients || 5,
         billingStatus: "ACTIVE",
         currentPeriodEnd: addDays(new Date(), 30),
       },

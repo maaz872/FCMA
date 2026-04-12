@@ -19,6 +19,7 @@ interface Coach {
     basePriceMonthly: number;
     extraClientPrice: number;
     includedClients: number;
+    maxClients: number;
     billingStatus: string;
     currentPeriodEnd: string;
     subscriptionStatus: SubscriptionStatus;
@@ -130,7 +131,17 @@ export default function CoachesListPage() {
               {/* Stats */}
               <div className="flex items-center gap-6 text-sm">
                 <div className="text-center">
-                  <p className="text-white font-bold">{coach.clientCount}</p>
+                  <p className={`font-bold ${
+                    coach.billing?.maxClients
+                      ? coach.clientCount < coach.billing.maxClients
+                        ? "text-emerald-400"
+                        : coach.clientCount === coach.billing.maxClients
+                        ? "text-amber-400"
+                        : "text-red-400"
+                      : "text-white"
+                  }`}>
+                    {coach.clientCount}/{coach.billing?.maxClients || "\u221E"}
+                  </p>
                   <p className="text-white/30 text-[10px]">Clients</p>
                 </div>
                 <div className="text-center">

@@ -24,6 +24,8 @@ interface RecentUser {
 interface Props {
   stats: Stats;
   recentUsers: RecentUser[];
+  activeClients: number;
+  maxClients: number;
 }
 
 const quickActions = [
@@ -68,7 +70,7 @@ function formatDate(iso: string) {
   });
 }
 
-export default function AdminDashboardClient({ stats, recentUsers }: Props) {
+export default function AdminDashboardClient({ stats, recentUsers, activeClients, maxClients }: Props) {
   const { siteName } = useBranding();
   const statCards = [
     {
@@ -125,6 +127,15 @@ export default function AdminDashboardClient({ stats, recentUsers }: Props) {
 
   return (
     <div className="space-y-8">
+      {/* Client capacity warning */}
+      {activeClients >= maxClients && (
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl px-5 py-4">
+          <p className="text-amber-400 text-sm font-semibold">
+            {"\u26A0\uFE0F"} You&apos;ve reached your client limit ({activeClients}/{maxClients}). Contact the administrator to increase your capacity.
+          </p>
+        </div>
+      )}
+
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-white">Admin Dashboard</h1>

@@ -13,6 +13,7 @@ export default function CreateCoachPage() {
     basePriceMonthly: "15000",
     extraClientPrice: "3500",
     includedClients: "5",
+    maxClients: "5",
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -32,6 +33,7 @@ export default function CreateCoachPage() {
           basePriceMonthly: parseInt(form.basePriceMonthly),
           extraClientPrice: parseInt(form.extraClientPrice),
           includedClients: parseInt(form.includedClients),
+          maxClients: parseInt(form.maxClients),
         }),
       });
 
@@ -79,7 +81,7 @@ export default function CreateCoachPage() {
             Back to Coaches
           </button>
           <button
-            onClick={() => { setSuccess(null); setForm({ firstName: "", lastName: "", email: "", password: "", basePriceMonthly: "15000", extraClientPrice: "3500", includedClients: "5" }); }}
+            onClick={() => { setSuccess(null); setForm({ firstName: "", lastName: "", email: "", password: "", basePriceMonthly: "15000", extraClientPrice: "3500", includedClients: "5", maxClients: "5" }); }}
             className="px-5 py-2.5 bg-blue-600 text-white rounded-xl font-semibold text-sm hover:bg-blue-700 transition-colors cursor-pointer border-none"
           >
             Create Another
@@ -154,7 +156,7 @@ export default function CreateCoachPage() {
         <div className="bg-[#1E1E1E] rounded-2xl border border-[#2A2A2A] p-6 space-y-4">
           <p className="text-xs font-bold text-white/30 uppercase tracking-wider">Billing</p>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div>
               <label className="block text-xs text-white/50 mb-1.5">Base Price/mo (PKR)</label>
               <input
@@ -172,6 +174,16 @@ export default function CreateCoachPage() {
                 required
                 value={form.includedClients}
                 onChange={(e) => setForm({ ...form, includedClients: e.target.value })}
+                className={inputCls}
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-white/50 mb-1.5">Max Clients</label>
+              <input
+                type="number"
+                required
+                value={form.maxClients}
+                onChange={(e) => setForm({ ...form, maxClients: e.target.value })}
                 className={inputCls}
               />
             </div>

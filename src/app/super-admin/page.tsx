@@ -11,6 +11,7 @@ interface Stats {
   monthlyRevenue: number;
   expiringCoaches: number;
   expiredCoaches: number;
+  overCapacityCoaches: number;
 }
 
 export default function SuperAdminDashboard() {
@@ -40,6 +41,7 @@ export default function SuperAdminDashboard() {
     { label: "New This Month", value: stats?.newClientsMonth ?? 0, color: "yellow" },
     { label: "Expiring Soon", value: stats?.expiringCoaches ?? 0, color: "amber" },
     { label: "Expired / Cancelled", value: stats?.expiredCoaches ?? 0, color: "red" },
+    { label: "Over Capacity", value: stats?.overCapacityCoaches ?? 0, color: (stats?.overCapacityCoaches ?? 0) > 0 ? "red" : "green" },
   ];
 
   const colorMap: Record<string, string> = {

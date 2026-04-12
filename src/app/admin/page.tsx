@@ -39,6 +39,11 @@ export default async function AdminDashboard() {
   });
   const totalPosts = await prisma.post.count({ where: { coachId } });
 
+  const billing = await prisma.coachBilling.findUnique({ where: { coachId } });
+  const activeClientsCount = await prisma.user.count({
+    where: { role: "USER", coachId, isActive: true, planStatus: "ACTIVE" },
+  });
+
   const recentUsers = await prisma.user.findMany({
     where: { role: "USER", coachId },
     orderBy: { createdAt: "desc" },
@@ -53,6 +58,8 @@ export default async function AdminDashboard() {
 
   return (
     <AdminDashboardClient
+      activeClients={activeClientsCount}
+      maxClients={billing?.maxClients || 5}
       stats={{
         totalUsers,
         newThisMonth,

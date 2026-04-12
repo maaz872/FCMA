@@ -60,6 +60,7 @@ export async function GET() {
         activeClients: active,
         basePriceMonthly: b.basePriceMonthly,
         includedClients: b.includedClients,
+        maxClients: b.maxClients,
         extraClientPrice: b.extraClientPrice,
         monthlyBill: bill,
         billingStatus: b.billingStatus,
