@@ -65,6 +65,26 @@ function MetricChart({ data, metrics }: { data: Measurement[]; metrics: MetricKe
     [data]
   );
 
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent<SVGSVGElement>) => {
+      if (!svgRef.current || sorted.length < 2) return;
+      const xScaleLocal = (i: number) => 60 + (i / Math.max(sorted.length - 1, 1)) * 680;
+      const rect = svgRef.current.getBoundingClientRect();
+      const mouseX = ((e.clientX - rect.left) / rect.width) * 800;
+      let closest = 0;
+      let closestDist = Infinity;
+      for (let i = 0; i < sorted.length; i++) {
+        const dist = Math.abs(xScaleLocal(i) - mouseX);
+        if (dist < closestDist) {
+          closestDist = dist;
+          closest = i;
+        }
+      }
+      setTooltip({ x: xScaleLocal(closest), y: 20, entry: sorted[closest] });
+    },
+    [sorted]
+  );
+
   if (sorted.length === 0 || metrics.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-white/30">
@@ -92,25 +112,6 @@ function MetricChart({ data, metrics }: { data: Measurement[]; metrics: MetricKe
 
   // Shared x-scale from data indices
   const xScale = (i: number) => pad.left + (i / Math.max(sorted.length - 1, 1)) * cw;
-
-  const handleMouseMove = useCallback(
-    (e: React.MouseEvent<SVGSVGElement>) => {
-      if (!svgRef.current || sorted.length < 2) return;
-      const rect = svgRef.current.getBoundingClientRect();
-      const mouseX = ((e.clientX - rect.left) / rect.width) * W;
-      let closest = 0;
-      let closestDist = Infinity;
-      for (let i = 0; i < sorted.length; i++) {
-        const dist = Math.abs(xScale(i) - mouseX);
-        if (dist < closestDist) {
-          closestDist = dist;
-          closest = i;
-        }
-      }
-      setTooltip({ x: xScale(closest), y: pad.top + 10, entry: sorted[closest] });
-    },
-    [sorted]
-  );
 
   return (
     <div className="relative">
