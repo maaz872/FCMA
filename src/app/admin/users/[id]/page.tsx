@@ -56,8 +56,9 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
   const latestWeight = user.weightLogs[0];
   const weightChange = (firstWeight && latestWeight) ? Math.round((latestWeight.weightKg - firstWeight.weightKg) * 10) / 10 : null;
 
-  // Fetch plan templates for assignment dropdown
+  // Fetch plan templates for assignment dropdown (only this coach's plans)
   const planTemplates = await prisma.planTemplate.findMany({
+    where: { coachId },
     include: { _count: { select: { days: true } } },
     orderBy: { name: "asc" },
   });
