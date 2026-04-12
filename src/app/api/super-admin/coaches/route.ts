@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { requireSuperAdmin } from "@/lib/coach-scope";
 import { hashPassword } from "@/lib/auth";
 import { addDays, daysUntilExpiry, resolveSubscriptionStatus } from "@/lib/billing";
+import { seedCoachDefaults } from "@/lib/seed-coach-defaults";
 import crypto from "crypto";
 
 export const dynamic = "force-dynamic";
@@ -131,6 +132,9 @@ export async function POST(request: Request) {
         data: { ...d, coachId },
       });
     }
+
+    // Seed foundational data (categories, tags, food database)
+    await seedCoachDefaults(coachId);
 
     return NextResponse.json({
       success: true,
