@@ -13,6 +13,7 @@ const sidebarGroups = [
     links: [
       { href: "/admin", label: "Dashboard" },
       { href: "/admin/branding", label: "Branding" },
+      { href: "/admin/billing", label: "Billing" },
     ],
   },
   {

@@ -1,10 +1,17 @@
 export const dynamic = "force-dynamic";
 
 import { prisma } from "@/lib/db";
+import { getCurrentUser } from "@/lib/auth";
+import { redirect } from "next/navigation";
 import AdminWorkoutsClient from "./AdminWorkoutsClient";
 
 export default async function AdminWorkoutsPage() {
+  const admin = await getCurrentUser();
+  if (!admin || admin.role !== "COACH") redirect("/login");
+  const coachId = admin.userId;
+
   const workouts = await prisma.workout.findMany({
+    where: { coachId },
     include: { subcategory: { include: { category: true } } },
     orderBy: { createdAt: "desc" },
   });

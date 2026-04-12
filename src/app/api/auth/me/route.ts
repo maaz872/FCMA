@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { daysUntilExpiry, resolveSubscriptionStatus } from "@/lib/billing";
+import {
+  calculateMonthlyBill,
+  daysUntilExpiry,
+  resolveSubscriptionStatus,
+} from "@/lib/billing";
 
 export async function GET() {
   const session = await getCurrentUser();
@@ -24,10 +28,23 @@ export async function GET() {
       where: { coachId: user.id },
     });
     if (billing) {
+      const activeClientCount = await prisma.user.count({
+        where: { coachId: user.id, role: "USER", isActive: true, planStatus: "ACTIVE" },
+      });
       subscription = {
         status: resolveSubscriptionStatus(billing.currentPeriodEnd, billing.billingStatus),
         daysLeft: daysUntilExpiry(billing.currentPeriodEnd),
         currentPeriodEnd: billing.currentPeriodEnd.toISOString(),
+        basePriceMonthly: billing.basePriceMonthly,
+        includedClients: billing.includedClients,
+        extraClientPrice: billing.extraClientPrice,
+        activeClientCount,
+        monthlyBill: calculateMonthlyBill(
+          activeClientCount,
+          billing.basePriceMonthly,
+          billing.includedClients,
+          billing.extraClientPrice
+        ),
       };
     }
   }

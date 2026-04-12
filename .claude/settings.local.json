@@ -147,7 +147,15 @@
       "Bash(curl -s -b /tmp/fcma-test/danzel.txt https://fcma.vercel.app/api/site-settings)",
       "Bash(curl -s https://fcma.vercel.app/api/site-settings -w \"\\\\nHTTP %{http_code}\\\\n\")",
       "Bash(curl -s \"https://fcma.vercel.app/api/site-settings?coach=fake-xyz\" -w \"\\\\nHTTP %{http_code}\\\\n\")",
-      "Bash(curl -s https://fcma.vercel.app/api/manifest)"
+      "Bash(curl -s https://fcma.vercel.app/api/manifest)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" -X POST http://localhost:3000/api/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"admin@levelup.com\",\"password\":\"wrong-pwd-verify\"}')",
+      "Bash(curl -s -X POST http://localhost:3000/api/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"admin@levelup.com\",\"password\":\"wrong-pwd-verify\"}')",
+      "Bash(npx vitest:*)",
+      "Bash(curl -s -c /tmp/raheel.txt -X POST http://localhost:3001/api/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"raheel@fcma.com\",\"password\":\"a1234567\"}')",
+      "Bash(curl -s -b /tmp/raheel.txt http://localhost:3001/api/admin/workouts/categories)",
+      "Bash(curl -s -b /tmp/raheel.txt http://localhost:3001/api/admin/recipes)",
+      "Bash(kill %1)",
+      "Bash(curl -si -c /tmp/raheel2.txt -X POST http://localhost:3001/api/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"raheel@fcma.com\",\"password\":\"a1234567\"}')"
     ]
   }
 }

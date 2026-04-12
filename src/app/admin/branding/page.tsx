@@ -6,11 +6,7 @@ export default function AdminBrandingPage() {
   const [siteName, setSiteName] = useState("");
   const [coachName, setCoachName] = useState("");
   const [inviteCode, setInviteCode] = useState("");
-  const [inviteCodeDraft, setInviteCodeDraft] = useState("");
   const [inviteCopied, setInviteCopied] = useState(false);
-  const [inviteSaving, setInviteSaving] = useState(false);
-  const [inviteError, setInviteError] = useState("");
-  const [inviteSuccess, setInviteSuccess] = useState(false);
   const [siteLogo, setSiteLogo] = useState<string | null>(null);
   const [siteFavicon, setSiteFavicon] = useState<string | null>(null);
   const [pwaIcon192, setPwaIcon192] = useState<string | null>(null);
@@ -39,7 +35,6 @@ export default function AdminBrandingPage() {
       .then((data) => {
         if (data.user?.inviteCode) {
           setInviteCode(data.user.inviteCode);
-          setInviteCodeDraft(data.user.inviteCode);
         }
       })
       .catch(() => {})
@@ -197,94 +192,36 @@ export default function AdminBrandingPage() {
               </p>
             </div>
 
-            {/* Invite Link */}
-            <div className="pt-4 border-t border-[#2A2A2A]">
-              <label className="block font-semibold text-sm text-white mb-1.5">Invite Code</label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={inviteCodeDraft}
-                  onChange={(e) => {
-                    setInviteCodeDraft(e.target.value);
-                    setInviteError("");
-                    setInviteSuccess(false);
-                  }}
-                  placeholder="e.g. coach-sarah"
-                  className={`${inputClass} flex-1`}
-                />
-                <button
-                  type="button"
-                  disabled={inviteSaving || !inviteCodeDraft.trim() || inviteCodeDraft === inviteCode}
-                  onClick={async () => {
-                    setInviteSaving(true);
-                    setInviteError("");
-                    setInviteSuccess(false);
-                    try {
-                      const res = await fetch("/api/admin/invite-code", {
-                        method: "PUT",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ inviteCode: inviteCodeDraft }),
-                      });
-                      const data = await res.json();
-                      if (!res.ok) {
-                        setInviteError(data.error || "Failed to update");
-                      } else {
-                        setInviteCode(data.inviteCode);
-                        setInviteCodeDraft(data.inviteCode);
-                        setInviteSuccess(true);
-                        setTimeout(() => setInviteSuccess(false), 3000);
-                      }
-                    } catch {
-                      setInviteError("Something went wrong");
-                    } finally {
-                      setInviteSaving(false);
-                    }
-                  }}
-                  className="px-4 py-3 bg-[#2A2A2A] text-white rounded-xl font-semibold text-sm hover:bg-[#333] transition-colors cursor-pointer border-none whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  {inviteSaving ? "Saving..." : "Save Code"}
-                </button>
-              </div>
-              <p className="text-white/30 text-xs mt-1.5">
-                Letters, numbers, and dashes only. 3-40 characters.
-              </p>
-
-              {inviteError && (
-                <p className="text-red-400 text-xs mt-2">{inviteError}</p>
-              )}
-              {inviteSuccess && (
-                <p className="text-emerald-400 text-xs mt-2">Invite code updated!</p>
-              )}
-
-              {inviteCode && (
-                <div className="mt-4">
-                  <label className="block font-semibold text-sm text-white mb-1.5">Shareable Invite Link</label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      readOnly
-                      value={`${typeof window !== "undefined" ? window.location.origin : ""}/checkout?coach=${inviteCode}`}
-                      className={`${inputClass} text-blue-400 !bg-[#0A0A0A] flex-1`}
-                      onClick={(e) => (e.target as HTMLInputElement).select()}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        navigator.clipboard.writeText(`${window.location.origin}/checkout?coach=${inviteCode}`);
-                        setInviteCopied(true);
-                        setTimeout(() => setInviteCopied(false), 2000);
-                      }}
-                      className="px-4 py-3 bg-[#E51A1A] text-white rounded-xl font-semibold text-sm hover:opacity-90 transition-opacity cursor-pointer border-none whitespace-nowrap"
-                    >
-                      {inviteCopied ? "Copied!" : "Copy Link"}
-                    </button>
-                  </div>
-                  <p className="text-white/30 text-xs mt-1.5">
-                    Share this link with prospective clients so they can register under your coaching.
-                  </p>
+            {/* Client Invite Link (read-only) */}
+            {inviteCode && (
+              <div className="pt-4 border-t border-[#2A2A2A]">
+                <label className="block font-semibold text-sm text-white mb-1.5">Client Invite Link</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={`${typeof window !== "undefined" ? window.location.origin : ""}/checkout?coach=${inviteCode}`}
+                    className={`${inputClass} text-blue-400 !bg-[#0A0A0A] flex-1`}
+                    onClick={(e) => (e.target as HTMLInputElement).select()}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${window.location.origin}/checkout?coach=${inviteCode}`);
+                      setInviteCopied(true);
+                      setTimeout(() => setInviteCopied(false), 2000);
+                    }}
+                    className="px-4 py-3 bg-[#E51A1A] text-white rounded-xl font-semibold text-sm hover:opacity-90 transition-opacity cursor-pointer border-none whitespace-nowrap"
+                  >
+                    {inviteCopied ? "Copied!" : "Copy Link"}
+                  </button>
                 </div>
-              )}
-            </div>
+                <p className="text-white/30 text-xs mt-1.5">
+                  Share this link with prospective clients so they can register under your coaching.
+                  Contact the administrator to change your invite code.
+                </p>
+              </div>
+            )}
 
             {/* Site Logo & Favicon */}
             <div className="pt-4 border-t border-[#2A2A2A]">
