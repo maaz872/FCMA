@@ -181,9 +181,9 @@ function FoodCard({ food }: { food: FoodItem }) {
             {food.subcategory}
           </span>
         )}
-        {food.servingSize && food.servingUnit && (
+        {food.servingSize && food.servingUnit && !(food.servingUnit === "g" && food.servingSize === 100) && !(food.servingUnit === "ml" && food.servingSize === 100) && (
           <span className="px-2 py-0.5 bg-[#0A0A0A] text-white/40 text-[10px] rounded-full">
-            1 {food.servingUnit} = {food.servingSize}g
+            1 serving = {food.servingSize}{food.servingUnit}
           </span>
         )}
       </div>
