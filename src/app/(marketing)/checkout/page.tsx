@@ -422,30 +422,16 @@ function CheckoutContent({ coachCode }: { coachCode: string }) {
             <Button href="/">Back to Home</Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-15 items-start">
-            {/* Left: Form */}
+          <div className="max-w-[600px] mx-auto">
             <div>
               {step === "account" && (
                 <form onSubmit={handleAccountSubmit} className="space-y-5">
                   <h2 className="text-2xl font-black text-white mb-2">
-                    Join The Hub
+                    Join {siteName}
                   </h2>
                   <p className="text-white/50 text-sm mb-6">
-                    Get lifetime access to 400+ recipes, macro calculator, meal
-                    tracker, progress tracking, and more.
+                    Create your account to get started with your coach.
                   </p>
-
-                  {/* Plan card */}
-                  <div className="bg-[#1E1E1E] border-2 border-[#E51A1A] rounded-2xl p-5 flex items-center gap-4">
-                    <div className="w-12 h-12 bg-[#E51A1A]/20 rounded-xl flex items-center justify-center text-2xl">
-                      🏠
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-white font-bold">The Hub - Lifetime Access</p>
-                      <p className="text-white/40 text-xs">One-time payment. No recurring fees.</p>
-                    </div>
-                    <p className="text-[#E51A1A] font-black text-2xl">&euro;79</p>
-                  </div>
 
                   {error && (
                     <div className="bg-[#E51A1A]/10 border border-[#E51A1A]/20 text-[#E51A1A] px-4 py-3 rounded-xl text-sm">
@@ -788,11 +774,10 @@ function CheckoutContent({ coachCode }: { coachCode: string }) {
               {step === "payment" && (
                 <form onSubmit={handlePaymentSubmit} className="space-y-6">
                   <h2 className="text-2xl font-black text-white mb-2">
-                    Payment via EasyPaisa
+                    Payment Proof
                   </h2>
                   <p className="text-white/50 text-sm mb-6">
-                    Send payment to the account below and upload a screenshot as
-                    proof.
+                    Upload a screenshot of your payment as proof of transaction.
                   </p>
 
                   {error && (
@@ -800,53 +785,6 @@ function CheckoutContent({ coachCode }: { coachCode: string }) {
                       {error}
                     </div>
                   )}
-
-                  {/* EasyPaisa Details Card */}
-                  <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-6 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-white/50 text-sm">
-                        Account Number
-                      </span>
-                      <span className="text-white font-bold text-lg tracking-wide">
-                        0300-1234567
-                      </span>
-                    </div>
-                    <div className="h-px bg-[#2A2A2A]" />
-                    <div className="flex items-center justify-between">
-                      <span className="text-white/50 text-sm">
-                        Account Name
-                      </span>
-                      <span className="text-white font-semibold">
-                        {coachName} - {siteName}
-                      </span>
-                    </div>
-                    <div className="h-px bg-[#2A2A2A]" />
-
-                    {/* QR Code Placeholder */}
-                    <div className="flex justify-center py-2">
-                      <div className="w-40 h-40 border-2 border-dashed border-[#2A2A2A] rounded-xl flex items-center justify-center">
-                        <span className="text-white/30 text-sm font-medium">
-                          QR Code
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="h-px bg-[#2A2A2A]" />
-                    <div className="flex items-center justify-between">
-                      <span className="text-white/50 text-sm">Amount</span>
-                      <span className="text-[#E51A1A] font-black text-2xl">
-                        &euro;79
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Instructions */}
-                  <div className="bg-[#FF6B00]/10 border border-[#FF6B00]/20 rounded-xl p-4">
-                    <p className="text-[#FF6B00] text-sm font-medium">
-                      Send payment to the EasyPaisa account above and upload a
-                      screenshot of the transaction below.
-                    </p>
-                  </div>
 
                   {/* Screenshot Upload */}
                   <div>
@@ -921,7 +859,7 @@ function CheckoutContent({ coachCode }: { coachCode: string }) {
                       type="text"
                       value={accountName}
                       onChange={(e) => setAccountName(e.target.value)}
-                      placeholder="Name on your EasyPaisa account"
+                      placeholder="Name on your payment account"
                       required
                       className={inputClass}
                     />
@@ -976,27 +914,6 @@ function CheckoutContent({ coachCode }: { coachCode: string }) {
               </p>
             </div>
 
-            {/* Right: Order Summary */}
-            <div className="bg-[#1E1E1E] border border-[#2A2A2A] p-9 rounded-2xl sticky top-[94px]">
-              <h3 className="text-xl font-bold text-white mb-5">
-                Order Summary
-              </h3>
-              <div className="flex justify-between py-3 border-b border-[#2A2A2A]">
-                <span className="text-white/60">Hub Lifetime Access</span>
-                <span className="text-white font-semibold">&euro;79</span>
-              </div>
-              <div className="flex justify-between pt-4 font-bold text-lg text-white">
-                <span>Total</span>
-                <span>&euro;79</span>
-              </div>
-              <div className="mt-6 bg-[#0A0A0A] rounded-xl p-4 border border-[#2A2A2A]">
-                <p className="text-xs text-white/40 leading-relaxed">
-                  One-time payment. No recurring fees. Lifetime access to all Hub
-                  features including 400+ recipes, macro calculator, meal tracker,
-                  and progress tracking.
-                </p>
-              </div>
-            </div>
           </div>
         )}
       </div>
