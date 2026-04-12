@@ -26,6 +26,8 @@ export default function NewWorkoutPage() {
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [description, setDescription] = useState("");
+  const [sets, setSets] = useState("");
+  const [reps, setReps] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
   const [instructions, setInstructions] = useState<string[]>([""]);
   const [categoryId, setCategoryId] = useState<number | "">("");
@@ -93,6 +95,8 @@ export default function NewWorkoutPage() {
           title,
           slug,
           description,
+          sets: sets || null,
+          reps: reps || null,
           videoUrl,
           instructions: instructions.filter((s) => s.trim()),
           subcategoryId,
@@ -173,18 +177,32 @@ export default function NewWorkoutPage() {
           />
         </div>
 
-        {/* Slug */}
-        <div>
-          <label className="block text-sm font-semibold text-white/70 mb-2">
-            Slug *
-          </label>
-          <input
-            type="text"
-            value={slug}
-            onChange={(e) => setSlug(e.target.value)}
-            className="w-full bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl py-3 px-4 text-white focus:border-[#E51A1A] focus:outline-none"
-            placeholder="full-body-hiit-burn"
-          />
+        {/* Sets & Reps */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-semibold text-white/70 mb-2">
+              Sets
+            </label>
+            <input
+              type="text"
+              value={sets}
+              onChange={(e) => setSets(e.target.value)}
+              className="w-full bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl py-3 px-4 text-white focus:border-[#E51A1A] focus:outline-none"
+              placeholder="e.g. 3-4 sets"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-white/70 mb-2">
+              Reps
+            </label>
+            <input
+              type="text"
+              value={reps}
+              onChange={(e) => setReps(e.target.value)}
+              className="w-full bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl py-3 px-4 text-white focus:border-[#E51A1A] focus:outline-none"
+              placeholder="e.g. 8-12 reps"
+            />
+          </div>
         </div>
 
         {/* Description */}

@@ -104,6 +104,16 @@ export default async function WorkoutDetailPage({
             {workout.targetGoal}
           </span>
         )}
+        {workout.sets && (
+          <span className="text-xs font-semibold px-3 py-1 rounded-full bg-blue-500/10 text-blue-400">
+            {workout.sets}
+          </span>
+        )}
+        {workout.reps && (
+          <span className="text-xs font-semibold px-3 py-1 rounded-full bg-purple-500/10 text-purple-400">
+            {workout.reps}
+          </span>
+        )}
         <span className="text-xs font-semibold px-3 py-1 rounded-full bg-[#1E1E1E] border border-[#2A2A2A] text-white/50">
           {workout.subcategory.category.name}{" "}
           <span className="text-white/20">&gt;</span>{" "}

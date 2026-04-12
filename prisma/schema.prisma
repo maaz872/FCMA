@@ -291,6 +291,8 @@ model Workout {
   subcategoryId Int
   difficulty    String             @default("Intermediate")
   duration      String?
+  sets          String?
+  reps          String?
   targetGoal    String?
   isPublished   Boolean            @default(false)
   createdAt     DateTime           @default(now())
