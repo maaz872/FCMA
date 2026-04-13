@@ -1,4 +1,4 @@
-const CACHE_NAME = "levelup-v1";
+const CACHE_NAME = "fcma-v1";
 const OFFLINE_URL = "/offline.html";
 
 const PRECACHE_URLS = [OFFLINE_URL, "/icon-192.png", "/icon-512.png"];
