@@ -58,6 +58,18 @@ interface MealInput {
   sortOrder?: number;
 }
 
+interface ExerciseInput {
+  workoutId: number;
+  orderIndex?: number;
+  sets?: number | null;
+  repsLow?: number | null;
+  repsHigh?: number | null;
+  durationSeconds?: number | null;
+  restSeconds?: number | null;
+  weightKg?: number | null;
+  notes?: string | null;
+}
+
 interface DayInput {
   dayOfWeek: number;
   weekNumber: number;
@@ -70,6 +82,7 @@ interface DayInput {
   fatTarget?: number | null;
   notes?: string | null;
   meals?: MealInput[];
+  exercises?: ExerciseInput[];
 }
 
 export async function POST(
@@ -101,17 +114,58 @@ export async function POST(
       return NextResponse.json({ error: "Template not found" }, { status: 404 });
     }
 
-    // Separate days with meals from those without
-    const daysWithMeals = days.filter(d => d.meals && d.meals.length > 0);
-    const daysWithoutMeals = days.filter(d => !d.meals || d.meals.length === 0);
+    // ── Cross-coach FK validation (fixes PROJECT-REFERENCE.md gotcha #23) ──
+    // Collect every workoutId and recipeId mentioned anywhere in the payload
+    // and confirm in one shot that they all belong to this coach.
+    const workoutIds = new Set<number>();
+    const recipeIds = new Set<number>();
+    for (const d of days) {
+      if (d.workoutId) workoutIds.add(d.workoutId);
+      for (const ex of d.exercises ?? []) {
+        if (ex.workoutId) workoutIds.add(ex.workoutId);
+      }
+      for (const m of d.meals ?? []) {
+        if (m.recipeId) recipeIds.add(m.recipeId);
+      }
+    }
+    if (workoutIds.size > 0) {
+      const ownedWorkouts = await prisma.workout.findMany({
+        where: { id: { in: Array.from(workoutIds) }, coachId },
+        select: { id: true },
+      });
+      if (ownedWorkouts.length !== workoutIds.size) {
+        return NextResponse.json(
+          { error: "One or more referenced workouts don't belong to your library" },
+          { status: 400 }
+        );
+      }
+    }
+    if (recipeIds.size > 0) {
+      const ownedRecipes = await prisma.recipe.findMany({
+        where: { id: { in: Array.from(recipeIds) }, coachId },
+        select: { id: true },
+      });
+      if (ownedRecipes.length !== recipeIds.size) {
+        return NextResponse.json(
+          { error: "One or more referenced recipes don't belong to your library" },
+          { status: 400 }
+        );
+      }
+    }
 
-    // Delete existing days (cascade deletes PlanDayMeal records too)
+    // Delete existing days (cascade deletes PlanDayMeal + PlanExercise rows).
     await prisma.planTemplateDay.deleteMany({ where: { templateId } });
 
-    // Bulk create days without meals (fast)
-    if (daysWithoutMeals.length > 0) {
+    // Days without nested data → bulk createMany (fastest path).
+    const isPlain = (d: DayInput) =>
+      (!d.meals || d.meals.length === 0) &&
+      (!d.exercises || d.exercises.length === 0);
+    const daysPlain = days.filter(isPlain);
+    const daysWithNested = days.filter((d) => !isPlain(d));
+
+    if (daysPlain.length > 0) {
       await prisma.planTemplateDay.createMany({
-        data: daysWithoutMeals.map((d: DayInput) => ({
+        data: daysPlain.map((d: DayInput) => ({
           templateId,
           dayOfWeek: d.dayOfWeek,
           weekNumber: d.weekNumber || 1,
@@ -127,8 +181,21 @@ export async function POST(
       });
     }
 
-    // Create days with meals individually (needed for nested creates)
-    for (const d of daysWithMeals) {
+    // Days with nested meals and/or exercises — one create per day so we can
+    // nest both relations in a single round trip.
+    for (const d of daysWithNested) {
+      const exerciseRows = (d.exercises ?? []).map((ex, idx) => ({
+        workoutId: ex.workoutId,
+        orderIndex: ex.orderIndex ?? idx,
+        sets: ex.sets ?? null,
+        repsLow: ex.repsLow ?? null,
+        repsHigh: ex.repsHigh ?? null,
+        durationSeconds: ex.durationSeconds ?? null,
+        restSeconds: ex.restSeconds ?? 60,
+        weightKg: ex.weightKg ?? null,
+        notes: ex.notes ?? null,
+      }));
+
       await prisma.planTemplateDay.create({
         data: {
           templateId,
@@ -150,6 +217,9 @@ export async function POST(
               sortOrder: m.sortOrder ?? idx,
             })),
           },
+          exercises: exerciseRows.length
+            ? { create: exerciseRows }
+            : undefined,
         },
       });
     }
