@@ -296,6 +296,11 @@ model Workout {
   reps          String?
   targetGoal    String?
   isPublished   Boolean            @default(false)
+  // ─── Illustration metadata (Free Exercise DB / coach upload) ───
+  gifUrl          String?
+  bodyPart        String?
+  equipment       String?
+  primaryMuscles  String?
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
 
@@ -303,6 +308,7 @@ model Workout {
   subcategory      WorkoutSubcategory @relation(fields: [subcategoryId], references: [id])
   planTemplateDays PlanTemplateDay[]
   clientPlanDays   ClientPlanDay[]
+  planExercises    PlanExercise[]
   favourites       Favourite[]
 
   @@unique([slug, coachId])
@@ -535,9 +541,10 @@ model PlanTemplateDay {
   fatTarget     Float?
   notes         String?
 
-  template PlanTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  workout  Workout?     @relation(fields: [workoutId], references: [id])
-  meals    PlanDayMeal[]
+  template  PlanTemplate   @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  workout   Workout?       @relation(fields: [workoutId], references: [id])
+  meals     PlanDayMeal[]
+  exercises PlanExercise[]
 
   @@index([templateId, weekNumber, dayOfWeek])
 }
@@ -579,9 +586,10 @@ model ClientPlanDay {
   fatTarget     Float?
   notes         String?
 
-  clientPlan ClientPlan @relation(fields: [clientPlanId], references: [id], onDelete: Cascade)
-  workout    Workout?   @relation(fields: [workoutId], references: [id])
+  clientPlan ClientPlan     @relation(fields: [clientPlanId], references: [id], onDelete: Cascade)
+  workout    Workout?       @relation(fields: [workoutId], references: [id])
   meals      PlanDayMeal[]
+  exercises  PlanExercise[]
 
   @@index([clientPlanId, weekNumber, dayOfWeek])
 }
@@ -604,6 +612,37 @@ model PlanDayMeal {
   @@index([templateDayId, mealType])
   @@index([clientDayId, mealType])
   @@index([recipeId])
+}
+
+// ─── Plan Day Exercises (multi-exercise per day prescriptions) ──────
+// Mirrors PlanDayMeal: shared between template-side (templateDayId) and
+// client-side (clientDayId) via two nullable FKs. Exactly one of the two
+// must be set — enforced by a Postgres CHECK constraint applied by
+// scripts/backfill-plan-exercises.ts (Prisma can't express XOR).
+
+model PlanExercise {
+  id              Int      @id @default(autoincrement())
+  templateDayId   Int?
+  clientDayId     Int?
+  workoutId       Int
+  orderIndex      Int      @default(0)
+  sets            Int?
+  repsLow         Int?
+  repsHigh        Int?
+  durationSeconds Int?
+  restSeconds     Int?     @default(60)
+  weightKg        Float?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  templateDay PlanTemplateDay? @relation(fields: [templateDayId], references: [id], onDelete: Cascade)
+  clientDay   ClientPlanDay?   @relation(fields: [clientDayId], references: [id], onDelete: Cascade)
+  workout     Workout          @relation(fields: [workoutId], references: [id])
+
+  @@index([templateDayId, orderIndex])
+  @@index([clientDayId, orderIndex])
+  @@index([workoutId])
 }
 
 // ─── Daily Progress ──────────────────────────────────────────────────
