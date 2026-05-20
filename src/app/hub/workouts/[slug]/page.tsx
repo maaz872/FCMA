@@ -114,6 +114,16 @@ export default async function WorkoutDetailPage({
             {workout.reps}
           </span>
         )}
+        {workout.bodyPart && (
+          <span className="text-xs font-semibold px-3 py-1 rounded-full bg-white/10 text-white/60 capitalize">
+            {workout.bodyPart.replace("_", " ")}
+          </span>
+        )}
+        {workout.equipment && (
+          <span className="text-xs font-semibold px-3 py-1 rounded-full bg-white/10 text-white/60 capitalize">
+            {workout.equipment}
+          </span>
+        )}
         <span className="text-xs font-semibold px-3 py-1 rounded-full bg-[#1E1E1E] border border-[#2A2A2A] text-white/50">
           {workout.subcategory.category.name}{" "}
           <span className="text-white/20">&gt;</span>{" "}
@@ -121,8 +131,37 @@ export default async function WorkoutDetailPage({
         </span>
       </div>
 
-      {/* Video Embed */}
-      {hasVideo ? (
+      {/* Primary muscles */}
+      {workout.primaryMuscles && (
+        <p className="text-white/40 text-sm mb-6 capitalize">
+          Primary muscles: {workout.primaryMuscles.split(",").join(", ")}
+        </p>
+      )}
+
+      {/* Media: prefer the gif illustration when present (with the video
+          embed below for higher-fidelity demos), otherwise show whichever
+          is available. */}
+      {workout.gifUrl ? (
+        <div className="mb-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl overflow-hidden aspect-square flex items-center justify-center">
+            <img
+              src={workout.gifUrl}
+              alt={workout.title}
+              className="w-full h-full object-contain"
+            />
+          </div>
+          {hasVideo ? (
+            <VideoEmbed url={workout.videoUrl} />
+          ) : (
+            <div className="bg-[#0A0A0A] border border-[#2A2A2A] rounded-2xl flex flex-col items-center justify-center p-8 text-center">
+              <p className="text-white/40 text-sm">
+                No video provided — follow the illustration and instructions
+                below.
+              </p>
+            </div>
+          )}
+        </div>
+      ) : hasVideo ? (
         <div className="mb-8">
           <VideoEmbed url={workout.videoUrl} />
         </div>

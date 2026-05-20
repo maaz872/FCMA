@@ -56,6 +56,10 @@ export default async function WorkoutsPage() {
       difficulty: string;
       duration: string | null;
       targetGoal: string | null;
+      gifUrl: string | null;
+      bodyPart: string | null;
+      equipment: string | null;
+      primaryMuscles: string | null;
       subcategory: {
         id: number;
         name: string;
@@ -72,6 +76,10 @@ export default async function WorkoutsPage() {
       difficulty: w.difficulty,
       duration: w.duration,
       targetGoal: w.targetGoal,
+      gifUrl: w.gifUrl,
+      bodyPart: w.bodyPart,
+      equipment: w.equipment,
+      primaryMuscles: w.primaryMuscles,
       subcategoryId: w.subcategory.id,
       subcategoryName: w.subcategory.name,
       categoryId: w.subcategory.categoryId,

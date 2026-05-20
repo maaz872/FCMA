@@ -12,6 +12,10 @@ interface WorkoutData {
   difficulty: string;
   duration: string | null;
   targetGoal: string | null;
+  gifUrl: string | null;
+  bodyPart: string | null;
+  equipment: string | null;
+  primaryMuscles: string | null;
   subcategoryId: number;
   subcategoryName: string;
   categoryId: number;
@@ -262,7 +266,20 @@ export default function WorkoutsBrowser({ workouts, categories }: Props) {
                     href={`/hub/workouts/${workout.slug}`}
                     className="group bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:border-[#E51A1A]/30"
                   >
-                    <VideoThumbnail url={workout.videoUrl} height="h-[180px]" />
+                    {/* Prefer gif illustration when present, otherwise fall
+                        back to the existing VideoThumbnail. */}
+                    {workout.gifUrl ? (
+                      <div className="h-[180px] bg-[#0A0A0A] flex items-center justify-center overflow-hidden">
+                        <img
+                          src={workout.gifUrl}
+                          alt={workout.title}
+                          loading="lazy"
+                          className="w-full h-full object-contain group-hover:scale-105 transition-transform"
+                        />
+                      </div>
+                    ) : (
+                      <VideoThumbnail url={workout.videoUrl} height="h-[180px]" />
+                    )}
 
                     {/* Card body */}
                     <div className="p-4">
@@ -279,6 +296,16 @@ export default function WorkoutsBrowser({ workouts, categories }: Props) {
                         >
                           {workout.difficulty}
                         </span>
+                        {workout.bodyPart && (
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/10 text-white/50 capitalize">
+                            {workout.bodyPart.replace("_", " ")}
+                          </span>
+                        )}
+                        {workout.equipment && (
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/10 text-white/50 capitalize">
+                            {workout.equipment}
+                          </span>
+                        )}
                         {workout.duration && (
                           <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/10 text-white/50">
                             {workout.duration}
@@ -296,6 +323,11 @@ export default function WorkoutsBrowser({ workouts, categories }: Props) {
                         )}
                       </div>
 
+                      {workout.primaryMuscles && (
+                        <p className="text-[10px] text-white/30 mb-1 capitalize">
+                          {workout.primaryMuscles.split(",").slice(0, 3).join(", ")}
+                        </p>
+                      )}
                       <p className="text-xs text-white/40">
                         {workout.categoryName}{" "}
                         <span className="text-white/20">&gt;</span>{" "}

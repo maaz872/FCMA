@@ -12,6 +12,30 @@ type Workout = {
   slug: string;
 };
 
+type PlanExercise = {
+  id: number;
+  orderIndex: number;
+  sets: number | null;
+  repsLow: number | null;
+  repsHigh: number | null;
+  durationSeconds: number | null;
+  restSeconds: number | null;
+  weightKg: number | null;
+  notes: string | null;
+  workout: {
+    id: number;
+    title: string;
+    slug: string;
+    gifUrl: string | null;
+    videoUrl: string;
+    bodyPart: string | null;
+    equipment: string | null;
+    primaryMuscles: string | null;
+    description: string;
+    instructions: string;
+  };
+};
+
 type PlanData = {
   plan: {
     id: number;
@@ -28,6 +52,7 @@ type PlanData = {
   selectedDate: string;
   today: {
     workout: Workout | null;
+    exercises: PlanExercise[];
     mealPlan: string | null;
     meals: {
       id: number;
@@ -95,6 +120,12 @@ export default function MyPlanPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  // Ephemeral per-set checkmarks: keyed by `${exerciseId}-${setIdx}`. Lives
+  // for the current session only — spec §9 explicitly calls out that v1
+  // ships set-by-set checkoff without persistence beyond the existing
+  // DailyProgress.workoutCompleted boolean (which is auto-toggled below
+  // once every set is ticked).
+  const [setsCompleted, setSetsCompleted] = useState<Record<string, boolean>>({});
 
   // Off-plan meal logging
   const [offPlanOpen, setOffPlanOpen] = useState<Set<string>>(new Set());
@@ -173,6 +204,44 @@ export default function MyPlanPage() {
       // ignore
     } finally {
       setSaving(false);
+    }
+  }
+
+  // Helper: count total sets across all exercises (each exercise contributes
+  // `sets ?? 1` slots — time-based exercises with no sets count as 1).
+  function totalSetSlots(exercises: PlanExercise[]): number {
+    return exercises.reduce((n, ex) => n + (ex.sets ?? 1), 0);
+  }
+  function completedSetSlots(
+    exercises: PlanExercise[],
+    completed: Record<string, boolean>
+  ): number {
+    let n = 0;
+    for (const ex of exercises) {
+      const setsForEx = ex.sets ?? 1;
+      for (let i = 0; i < setsForEx; i++) {
+        if (completed[`${ex.id}-${i}`]) n++;
+      }
+    }
+    return n;
+  }
+
+  async function toggleExerciseSet(exerciseId: number, setIdx: number) {
+    if (!data || data.viewMode !== "today") return;
+    const key = `${exerciseId}-${setIdx}`;
+    const next = { ...setsCompleted, [key]: !setsCompleted[key] };
+    setSetsCompleted(next);
+
+    // If this tick made the workout fully complete (or unticked from
+    // complete state), reflect that in DailyProgress.workoutCompleted.
+    const exercises = data.today.exercises;
+    if (exercises.length === 0) return;
+    const allDone =
+      completedSetSlots(exercises, next) === totalSetSlots(exercises);
+    const currentlyMarked = data.todayProgress.workoutCompleted;
+    if (allDone !== currentlyMarked && !saving) {
+      // Fire-and-forget; this is best-effort.
+      void toggleProgress("workoutCompleted");
     }
   }
 
@@ -515,7 +584,7 @@ export default function MyPlanPage() {
         <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-white">Workout</h2>
-            {today.workout && canToggle && (
+            {(today.workout || today.exercises?.length > 0) && canToggle && (
               <button
                 onClick={() => toggleProgress("workoutCompleted")}
                 disabled={saving}
@@ -537,12 +606,100 @@ export default function MyPlanPage() {
                 {progress.workoutCompleted ? "Completed" : "Mark Complete"}
               </button>
             )}
-            {today.workout && !canToggle && progress.workoutCompleted && (
+            {(today.workout || today.exercises?.length > 0) && !canToggle && progress.workoutCompleted && (
               <span className="text-xs font-semibold text-green-400 bg-green-500/10 px-3 py-1.5 rounded-lg">Completed</span>
             )}
           </div>
 
-          {today.workout ? (
+          {today.exercises && today.exercises.length > 0 ? (
+            <div className="space-y-4">
+              {today.workoutNotes && (
+                <p className="text-white/40 text-sm italic">Coach notes: {today.workoutNotes}</p>
+              )}
+              <p className="text-white/40 text-xs">
+                {completedSetSlots(today.exercises, setsCompleted)} of{" "}
+                {totalSetSlots(today.exercises)} sets complete
+              </p>
+              {today.exercises.map((ex, idx) => {
+                const setCount = ex.sets ?? 1;
+                const reps =
+                  ex.repsLow != null && ex.repsHigh != null
+                    ? ex.repsLow === ex.repsHigh
+                      ? `${ex.repsLow} reps`
+                      : `${ex.repsLow}-${ex.repsHigh} reps`
+                    : ex.durationSeconds != null
+                    ? `${ex.durationSeconds}s`
+                    : "";
+                return (
+                  <div
+                    key={ex.id}
+                    className="bg-[#0A0A0A] border border-[#2A2A2A] rounded-xl p-4"
+                  >
+                    <div className="flex gap-3">
+                      <Link
+                        href={`/hub/workouts/${ex.workout.slug}`}
+                        className="w-20 h-20 bg-[#1E1E1E] rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center"
+                      >
+                        {ex.workout.gifUrl ? (
+                          <img
+                            src={ex.workout.gifUrl}
+                            alt={ex.workout.title}
+                            className="w-full h-full object-contain"
+                          />
+                        ) : (
+                          <span className="text-white/20 text-[10px]">no gif</span>
+                        )}
+                      </Link>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-white/40 font-semibold">
+                          {idx + 1}. {(ex.workout.bodyPart ?? "").replace("_", " ")}
+                          {ex.workout.equipment ? ` · ${ex.workout.equipment}` : ""}
+                        </p>
+                        <Link
+                          href={`/hub/workouts/${ex.workout.slug}`}
+                          className="text-white font-semibold hover:text-[#E51A1A] transition-colors"
+                        >
+                          {ex.workout.title}
+                        </Link>
+                        <p className="text-white/50 text-xs mt-0.5">
+                          {setCount} × {reps}
+                          {ex.restSeconds ? ` · ${ex.restSeconds}s rest` : ""}
+                          {ex.weightKg ? ` · ${ex.weightKg} kg` : ""}
+                        </p>
+                        {ex.notes && (
+                          <p className="text-white/30 text-[11px] italic mt-1">
+                            {ex.notes}
+                          </p>
+                        )}
+                        {canToggle && (
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {Array.from({ length: setCount }).map((_, i) => {
+                              const key = `${ex.id}-${i}`;
+                              const done = !!setsCompleted[key];
+                              return (
+                                <button
+                                  key={key}
+                                  type="button"
+                                  onClick={() => toggleExerciseSet(ex.id, i)}
+                                  className={`min-w-[36px] px-2 py-1 rounded-lg text-[11px] font-semibold border transition-colors cursor-pointer ${
+                                    done
+                                      ? "bg-green-500/20 border-green-500/40 text-green-400"
+                                      : "bg-transparent border-[#2A2A2A] text-white/40 hover:text-white/70"
+                                  }`}
+                                >
+                                  Set {i + 1}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : today.workout ? (
             <div>
               <h3 className="text-xl font-bold text-white mb-2">{today.workout.title}</h3>
               <p className="text-white/50 text-sm mb-4">{today.workout.description}</p>
