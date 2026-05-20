@@ -15,6 +15,9 @@ interface WorkoutRow {
   subcategoryName: string;
   categoryName: string;
   videoUrl: string;
+  gifUrl: string | null;
+  bodyPart: string | null;
+  equipment: string | null;
 }
 
 import VideoThumbnail from "@/components/ui/VideoThumbnail";
@@ -36,7 +39,21 @@ export default function AdminWorkoutsClient({
       if (res.ok) {
         const data = await res.json();
         const w = data.workout || data;
-        setPreviewData({ title: w.title, description: w.description, videoUrl: w.videoUrl, difficulty: w.difficulty, duration: w.duration, targetGoal: w.targetGoal, instructions: w.instructions });
+        setPreviewData({
+          title: w.title,
+          description: w.description,
+          videoUrl: w.videoUrl,
+          difficulty: w.difficulty,
+          duration: w.duration,
+          targetGoal: w.targetGoal,
+          instructions: w.instructions,
+          // Phase 4 illustration fields — required for the PreviewModal
+          // to render the gif when a workout has no video.
+          gifUrl: w.gifUrl,
+          bodyPart: w.bodyPart,
+          equipment: w.equipment,
+          primaryMuscles: w.primaryMuscles,
+        });
       }
     } catch { /* ignore */ }
   }
@@ -115,9 +132,19 @@ export default function AdminWorkoutsClient({
                 key={w.id}
                 className="group bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl overflow-hidden hover:border-[#3A3A3A] transition-colors flex flex-col"
               >
-                {/* Thumbnail */}
+                {/* Thumbnail — prefer the gif illustration when present
+                    (Phase 4), fall back to the existing VideoThumbnail. */}
                 <div className="relative w-full aspect-video bg-[#0A0A0A]">
-                  <VideoThumbnail url={w.videoUrl} height="h-full" />
+                  {w.gifUrl ? (
+                    <img
+                      src={w.gifUrl}
+                      alt={w.title}
+                      loading="lazy"
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <VideoThumbnail url={w.videoUrl} height="h-full" />
+                  )}
                   {/* Duration badge */}
                   {w.duration && (
                     <span className="absolute bottom-2 right-2 bg-black/70 text-white text-[10px] font-semibold px-2 py-0.5 rounded">

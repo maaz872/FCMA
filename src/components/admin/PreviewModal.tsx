@@ -6,6 +6,12 @@ interface WorkoutPreview {
   title: string;
   description?: string;
   videoUrl?: string;
+  /** Phase 4 illustration fields — populated when the workout was built
+   *  via the Free Exercise DB picker, or hand-set by the coach. */
+  gifUrl?: string | null;
+  bodyPart?: string | null;
+  equipment?: string | null;
+  primaryMuscles?: string | null;
   difficulty?: string;
   duration?: string | null;
   targetGoal?: string | null;
@@ -74,15 +80,54 @@ export default function PreviewModal({ type, data, onClose }: PreviewModalProps)
 }
 
 function WorkoutPreviewContent({ data }: { data: WorkoutPreview }) {
+  const hasVideo = !!data.videoUrl;
+  const hasGif = !!data.gifUrl;
   return (
     <div className="space-y-5">
-      {data.videoUrl && <VideoEmbed url={data.videoUrl} />}
+      {/* Media: prefer gif + video side-by-side, fall back to whichever
+          one is set, and show an explicit "no media" placeholder rather
+          than rendering nothing when both are missing. Mirrors the
+          /hub/workouts/[slug] layout introduced in Phase 6 so coaches
+          preview exactly what their clients see. */}
+      {hasGif && hasVideo ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl overflow-hidden aspect-square flex items-center justify-center">
+            <img src={data.gifUrl!} alt={data.title} className="w-full h-full object-contain" />
+          </div>
+          <VideoEmbed url={data.videoUrl!} />
+        </div>
+      ) : hasGif ? (
+        <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl overflow-hidden aspect-square max-h-96 flex items-center justify-center mx-auto">
+          <img src={data.gifUrl!} alt={data.title} className="w-full h-full object-contain" />
+        </div>
+      ) : hasVideo ? (
+        <VideoEmbed url={data.videoUrl!} />
+      ) : (
+        <div className="aspect-video bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl flex flex-col items-center justify-center text-center px-6">
+          <svg className="w-10 h-10 text-white/20 mb-2" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M8 5v14l11-7z" />
+          </svg>
+          <p className="text-white/40 text-xs">
+            No video or illustration attached. Add one from the edit page so users have something to follow.
+          </p>
+        </div>
+      )}
       <div>
         <h2 className="text-2xl font-black text-white mb-2">{data.title}</h2>
         <div className="flex flex-wrap gap-2">
           {data.difficulty && (
             <span className={`text-xs font-semibold px-3 py-1 rounded-full ${difficultyColor[data.difficulty] || "bg-white/10 text-white/50"}`}>
               {data.difficulty}
+            </span>
+          )}
+          {data.bodyPart && (
+            <span className="text-xs font-semibold px-3 py-1 rounded-full bg-white/10 text-white/50 capitalize">
+              {data.bodyPart.replace("_", " ")}
+            </span>
+          )}
+          {data.equipment && (
+            <span className="text-xs font-semibold px-3 py-1 rounded-full bg-white/10 text-white/50 capitalize">
+              {data.equipment}
             </span>
           )}
           {data.duration && (
@@ -92,6 +137,11 @@ function WorkoutPreviewContent({ data }: { data: WorkoutPreview }) {
             <span className="text-xs font-semibold px-3 py-1 rounded-full bg-purple-500/20 text-purple-400">{data.targetGoal}</span>
           )}
         </div>
+        {data.primaryMuscles && (
+          <p className="text-white/40 text-xs mt-2 capitalize">
+            Primary muscles: {data.primaryMuscles.split(",").join(", ")}
+          </p>
+        )}
       </div>
       {data.description && <p className="text-white/60 text-sm leading-relaxed">{data.description}</p>}
       {parseJson(data.instructions).length > 0 && (

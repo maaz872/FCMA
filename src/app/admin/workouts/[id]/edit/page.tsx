@@ -580,7 +580,21 @@ export default function EditWorkoutPage({
       {showPreview && (
         <PreviewModal
           type="workout"
-          data={{ title, description, videoUrl, difficulty, duration, targetGoal, instructions: JSON.stringify(instructions.filter(Boolean)) }}
+          data={{
+            title,
+            description,
+            videoUrl,
+            difficulty,
+            duration,
+            targetGoal,
+            instructions: JSON.stringify(instructions.filter(Boolean)),
+            // Phase 4 illustration fields, so the preview reflects what
+            // the picker just attached (without needing a save first).
+            gifUrl,
+            bodyPart,
+            equipment,
+            primaryMuscles,
+          }}
           onClose={() => setShowPreview(false)}
         />
       )}
