@@ -4,7 +4,12 @@
  * Replaces all duplicated extractYouTubeId() functions across the codebase.
  */
 
-export type VideoPlatform = "youtube" | "instagram" | "tiktok" | "facebook";
+export type VideoPlatform =
+  | "youtube"
+  | "instagram"
+  | "tiktok"
+  | "facebook"
+  | "direct";
 
 export interface VideoInfo {
   platform: VideoPlatform;
@@ -123,6 +128,20 @@ export function parseVideoUrl(url: string): VideoInfo | null {
     };
   }
 
+  // ── Direct video file (MP4 / WebM / MOV / M4V) ──
+  // Used for self-hosted HD demos (e.g. wger.de's CC-licensed MOV catalog).
+  // Rendered with a native <video> tag by VideoEmbed.
+  if (/\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(trimmed)) {
+    return {
+      platform: "direct",
+      id: trimmed,
+      isVertical: false,
+      embedUrl: trimmed,
+      thumbnailUrl: null,
+      originalUrl: trimmed,
+    };
+  }
+
   return null;
 }
 
@@ -144,5 +163,6 @@ export function getPlatformLabel(platform: VideoPlatform): { name: string; color
     case "instagram": return { name: "Instagram", color: "#E1306C", icon: "📷" };
     case "tiktok": return { name: "TikTok", color: "#000000", icon: "♪" };
     case "facebook": return { name: "Facebook", color: "#1877F2", icon: "f" };
+    case "direct": return { name: "HD Video", color: "#1E88E5", icon: "▶" };
   }
 }
