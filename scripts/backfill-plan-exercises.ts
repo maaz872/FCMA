@@ -17,7 +17,7 @@
  */
 
 import "dotenv/config";
-import { Pool } from "pg";
+import { Pool, type QueryResultRow } from "pg";
 
 const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL;
 if (!connectionString) {
@@ -27,7 +27,10 @@ if (!connectionString) {
 
 const pool = new Pool({ connectionString, max: 3 });
 
-async function q<T = unknown>(text: string, params: unknown[] = []) {
+async function q<T extends QueryResultRow = QueryResultRow>(
+  text: string,
+  params: unknown[] = []
+) {
   return pool.query<T>(text, params);
 }
 
