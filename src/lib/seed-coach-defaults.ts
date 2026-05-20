@@ -1,17 +1,51 @@
 /**
- * Seeds foundational data for a new coach account:
- * - 10 recipe categories (for dropdowns)
- * - 12 dietary tags
- * - 5 workout categories + 28 subcategories
- * - 85+ food items with macros
+ * Seeds the per-coach starter library:
  *
- * Called from POST /api/super-admin/coaches during coach creation.
- * Does NOT seed recipes or workouts — coaches create their own.
+ *   1. Taxonomies (existing, retained):
+ *      - 10 recipe categories
+ *      - 12 dietary tags
+ *      - 5 workout categories + 28 subcategories
+ *      - 85+ food items
+ *
+ *   2. Content (new in v2, per docs/SEED-CONTENT-SPEC.md §6):
+ *      - 50 recipes from `SEED_RECIPES`
+ *      - 50 workouts from `WORKOUT_PICKS` (sourced from the Free
+ *        Exercise DB, copying gif / bodyPart / equipment / primary
+ *        muscles / instructions from the library entry)
+ *      - 6 plan templates from `SEED_PLANS`, fully wired with
+ *        per-day exercise prescriptions (PlanExercise) and meal
+ *        slots (PlanDayMeal)
+ *
+ * Called from POST /api/super-admin/coaches during coach creation
+ * (the manual "Seed Defaults" action on /super-admin/coaches/[id]
+ * still works via `seedCoachDefaults(coachId)`), and from the
+ * back-fill script `scripts/backfill-coach-seed-content.ts`.
+ *
+ * Idempotent: every insert uses `skipDuplicates` or per-slug guards,
+ * so re-running on a coach who already has some seed content is safe
+ * — but the seed function returns counts of inserted-this-call so
+ * the caller can detect partial-seed states.
  */
 
 import { prisma } from "./db";
+import {
+  getExerciseLibraryEntry,
+  deriveAppBodyPart,
+  deriveAppEquipment,
+  type ExerciseLibraryEntry,
+} from "./exercise-library";
+import {
+  WORKOUT_PICKS,
+  type WorkoutPick,
+} from "./seed/workout-picks";
+import { SEED_RECIPES, type RecipeDef } from "./seed/recipes";
+import {
+  SEED_PLANS,
+  workoutSlugFromLibraryId,
+  type PlanDefinition,
+} from "./seed/plans";
 
-// ─── Recipe Categories ───────────────────────────────────────────────
+// ─── Taxonomies (unchanged from v1) ─────────────────────────────────
 
 const RECIPE_CATEGORIES = [
   { name: "Breakfast", slug: "breakfast", displayOrder: 1 },
@@ -26,15 +60,11 @@ const RECIPE_CATEGORIES = [
   { name: "High Protein", slug: "high-protein", displayOrder: 10 },
 ];
 
-// ─── Dietary Tags ────────────────────────────────────────────────────
-
 const DIETARY_TAGS = [
   "High-Protein", "Low-Carb", "Vegetarian", "Vegan",
   "Gluten-Free", "Dairy-Free", "Keto", "Halal",
   "Low-Fat", "Sugar-Free", "Paleo", "Nut-Free",
 ];
-
-// ─── Workout Categories + Subcategories ──────────────────────────────
 
 const WORKOUT_CATEGORIES = [
   { name: "Strength", slug: "strength", order: 1, subs: [
@@ -53,8 +83,6 @@ const WORKOUT_CATEGORIES = [
     "Foam Rolling", "Cool Down", "Active Recovery", "Meditation",
   ]},
 ];
-
-// ─── Food Items (85+) ────────────────────────────────────────────────
 
 interface FoodItemSeed {
   name: string;
@@ -162,20 +190,40 @@ const FOOD_ITEMS: Omit<FoodItemSeed, "coachId">[] = [
   { name: "Rice Cakes", category: "Snacks & Condiments", caloriesPer100g: 387, proteinPer100g: 8, carbsPer100g: 81, fatPer100g: 2.8, fiberPer100g: 0, servingSize: 100, servingUnit: "g", isVerified: true },
   { name: "Protein Bar (avg)", category: "Snacks & Condiments", caloriesPer100g: 350, proteinPer100g: 20, carbsPer100g: 35, fatPer100g: 12, fiberPer100g: 0, servingSize: 60, servingUnit: "g", isVerified: true },
   { name: "Soy Sauce", category: "Snacks & Condiments", caloriesPer100g: 53, proteinPer100g: 8, carbsPer100g: 5, fatPer100g: 0, fiberPer100g: 0, servingSize: 100, servingUnit: "ml", isVerified: true },
-  { name: "Hot Sauce", category: "Snacks & Condiments", caloriesPer100g: 11, proteinPer100g: 0.3, carbsPer100g: 2, fatPer100g: 0.1, fiberPer100g: 0, servingSize: 100, servingUnit: "ml", isVerified: true },
+  { name: "Hot Sauce", category: "Snacks & Condiments", caloriesPer100g: 11, proteinPer100g: 0.3, carbsPer100g: 2, fatPer100g: 0.1, fiberPer100g: 0, servingSize: 100, servingUnit: "g", isVerified: true },
   { name: "Balsamic Vinegar", category: "Snacks & Condiments", caloriesPer100g: 88, proteinPer100g: 0.5, carbsPer100g: 17, fatPer100g: 0, fiberPer100g: 0, servingSize: 100, servingUnit: "ml", isVerified: true },
 ];
 
-// ─── Main seed function ──────────────────────────────────────────────
+// ─── Helpers ────────────────────────────────────────────────────────
 
-export async function seedCoachDefaults(coachId: string): Promise<void> {
-  // 1. Recipe categories
+/** Map our bodyPart enum to the matching WorkoutSubcategory slug. */
+const BODYPART_TO_SUBCATEGORY: Record<string, string> = {
+  chest: "chest",
+  back: "back",
+  legs: "legs",
+  shoulders: "shoulders",
+  arms: "arms",
+  core: "core",
+  full_body: "full-body",
+  cardio: "hiit",
+};
+
+function slugify(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+// ─── Per-content-block seeders ─────────────────────────────────────
+
+/** Insert recipe categories, dietary tags, workout categories+subcategories, food items. */
+async function seedTaxonomies(coachId: string): Promise<void> {
   await prisma.recipeCategory.createMany({
     data: RECIPE_CATEGORIES.map((c) => ({ ...c, coachId })),
     skipDuplicates: true,
   });
 
-  // 2. Dietary tags
   await prisma.dietaryTag.createMany({
     data: DIETARY_TAGS.map((name) => ({
       name,
@@ -185,29 +233,324 @@ export async function seedCoachDefaults(coachId: string): Promise<void> {
     skipDuplicates: true,
   });
 
-  // 3. Workout categories + subcategories (need IDs for FK)
+  // Workout categories must be created in a loop because we need each
+  // returned id to attach subcategories.
   for (const cat of WORKOUT_CATEGORIES) {
-    const created = await prisma.workoutCategory.create({
-      data: {
-        name: cat.name,
-        slug: cat.slug,
-        displayOrder: cat.order,
-        coachId,
-      },
+    // Check if the category already exists for this coach (idempotency).
+    let existing = await prisma.workoutCategory.findUnique({
+      where: { slug_coachId: { slug: cat.slug, coachId } },
     });
+    if (!existing) {
+      existing = await prisma.workoutCategory.create({
+        data: {
+          name: cat.name,
+          slug: cat.slug,
+          displayOrder: cat.order,
+          coachId,
+        },
+      });
+    }
     await prisma.workoutSubcategory.createMany({
       data: cat.subs.map((sub) => ({
         name: sub,
         slug: sub.toLowerCase().replace(/\s+/g, "-"),
-        categoryId: created.id,
+        categoryId: existing!.id,
         coachId,
       })),
+      skipDuplicates: true,
     });
   }
 
-  // 4. Food items
   await prisma.foodItem.createMany({
     data: FOOD_ITEMS.map((f) => ({ ...f, coachId })),
     skipDuplicates: true,
   });
 }
+
+/** Seed the 50 recipes. Returns a map of recipeSlug → recipeId. */
+async function seedRecipes(coachId: string): Promise<Map<string, number>> {
+  const categories = await prisma.recipeCategory.findMany({
+    where: { coachId },
+  });
+  const catBySlug = new Map(categories.map((c) => [c.slug, c.id]));
+
+  const tags = await prisma.dietaryTag.findMany({ where: { coachId } });
+  const tagBySlug = new Map(tags.map((t) => [t.slug, t.id]));
+
+  const map = new Map<string, number>();
+  for (const def of SEED_RECIPES) {
+    const categoryId = catBySlug.get(def.categorySlug);
+    if (!categoryId) {
+      console.warn(
+        `[seed] Recipe "${def.slug}" references missing category "${def.categorySlug}" — skipping`
+      );
+      continue;
+    }
+
+    // Skip if already exists (idempotency on the (slug, coachId) unique).
+    const existing = await prisma.recipe.findUnique({
+      where: { slug_coachId: { slug: def.slug, coachId } },
+    });
+    if (existing) {
+      map.set(def.slug, existing.id);
+      continue;
+    }
+
+    const recipe = await prisma.recipe.create({
+      data: {
+        title: def.title,
+        slug: def.slug,
+        coachId,
+        description: def.description,
+        categoryId,
+        ingredients: JSON.stringify(def.ingredients),
+        instructions: JSON.stringify(def.instructions),
+        calories: def.calories,
+        protein: def.protein,
+        carbs: def.carbs,
+        fat: def.fat,
+        servings: def.servings,
+        prepTimeMins: def.prepTimeMins,
+        cookTimeMins: def.cookTimeMins,
+        isPublished: true,
+      },
+    });
+    map.set(def.slug, recipe.id);
+
+    // Attach dietary tags
+    if (def.tags && def.tags.length) {
+      const tagIds = def.tags
+        .map((t) => tagBySlug.get(t))
+        .filter((id): id is number => typeof id === "number");
+      if (tagIds.length) {
+        await prisma.recipeDietaryTag.createMany({
+          data: tagIds.map((tagId) => ({ recipeId: recipe.id, tagId })),
+          skipDuplicates: true,
+        });
+      }
+    }
+  }
+  return map;
+}
+
+/**
+ * Seed the 50 workouts from the curated picks. Returns a map of
+ * workoutSlug → workoutId for downstream plan-template wiring.
+ */
+async function seedWorkouts(coachId: string): Promise<Map<string, number>> {
+  const subs = await prisma.workoutSubcategory.findMany({ where: { coachId } });
+  const subBySlug = new Map(subs.map((s) => [s.slug, s.id]));
+
+  const map = new Map<string, number>();
+  for (const pick of WORKOUT_PICKS) {
+    const entry = getExerciseLibraryEntry(pick.libraryId);
+    if (!entry) {
+      console.warn(
+        `[seed] Workout pick "${pick.libraryId}" not found in exercise library — skipping`
+      );
+      continue;
+    }
+    const bodyPart = pick.bodyPartOverride ?? deriveAppBodyPart(entry);
+    const equipment = pick.equipmentOverride ?? deriveAppEquipment(entry);
+    const subSlug = BODYPART_TO_SUBCATEGORY[bodyPart];
+    const subcategoryId = subBySlug.get(subSlug);
+    if (!subcategoryId) {
+      console.warn(
+        `[seed] No subcategory "${subSlug}" found for coach — workout "${pick.libraryId}" skipped`
+      );
+      continue;
+    }
+
+    const slug = slugify(pick.libraryId);
+    const existing = await prisma.workout.findUnique({
+      where: { slug_coachId: { slug, coachId } },
+    });
+    if (existing) {
+      map.set(slug, existing.id);
+      continue;
+    }
+
+    const description =
+      entry.instructions[0]?.slice(0, 240) ||
+      `Library-sourced exercise — ${entry.name}`;
+    const difficulty =
+      pick.difficulty ||
+      (entry.level === "beginner"
+        ? "Beginner"
+        : entry.level === "expert"
+        ? "Advanced"
+        : "Intermediate");
+
+    const created = await prisma.workout.create({
+      data: {
+        title: entry.name,
+        slug,
+        coachId,
+        description,
+        videoUrl: "",
+        instructions: JSON.stringify(entry.instructions),
+        subcategoryId,
+        difficulty,
+        gifUrl: entry.primaryImageUrl,
+        bodyPart,
+        equipment,
+        primaryMuscles: entry.primaryMuscles.join(","),
+        isPublished: true,
+      },
+    });
+    map.set(slug, created.id);
+  }
+  return map;
+}
+
+/**
+ * Seed the 6 plan templates. For each plan, instantiates one
+ * PlanTemplate row, then iterates durationWeeks × 7 days; for training
+ * days it creates a PlanTemplateDay + PlanExercise rows (cycling the
+ * trainingDayTemplate list) + PlanDayMeal rows from trainingDayMeals;
+ * for rest days it creates a PlanTemplateDay + PlanDayMeal rows from
+ * restDayMeals (no exercises).
+ */
+async function seedPlans(
+  coachId: string,
+  workoutIdBySlug: Map<string, number>,
+  recipeIdBySlug: Map<string, number>
+): Promise<void> {
+  for (const plan of SEED_PLANS) {
+    // Idempotency: skip if a plan with this exact name already exists.
+    const existing = await prisma.planTemplate.findFirst({
+      where: { coachId, name: plan.name },
+    });
+    if (existing) continue;
+
+    const template = await prisma.planTemplate.create({
+      data: {
+        name: plan.name,
+        coachId,
+        description: plan.description,
+        type: plan.type,
+        durationWeeks: plan.durationWeeks,
+      },
+    });
+
+    const trainingSet = new Set(plan.trainingDayNumbers);
+    let trainingDayCounter = 0;
+    for (let week = 1; week <= plan.durationWeeks; week++) {
+      for (let dow = 1; dow <= 7; dow++) {
+        const isTraining = trainingSet.has(dow);
+
+        // Pick template & meals for this day.
+        const trainingTpl = isTraining
+          ? plan.trainingDays[trainingDayCounter % plan.trainingDays.length]
+          : null;
+        const meals = isTraining ? plan.trainingDayMeals : plan.restDayMeals;
+
+        const day = await prisma.planTemplateDay.create({
+          data: {
+            templateId: template.id,
+            dayOfWeek: dow,
+            weekNumber: week,
+            workoutNotes: trainingTpl?.notes ?? null,
+            mealPlan: trainingTpl?.label ?? null,
+            calorieTarget: plan.calorieTarget,
+            proteinTarget: plan.proteinTarget,
+            carbsTarget: plan.carbsTarget,
+            fatTarget: plan.fatTarget,
+            notes: isTraining ? null : "Rest day — recovery focus.",
+          },
+        });
+
+        // Meals
+        for (let i = 0; i < meals.length; i++) {
+          const slot = meals[i];
+          const recipeId = recipeIdBySlug.get(slot.recipeSlug);
+          if (!recipeId) {
+            console.warn(
+              `[seed] Plan "${plan.slug}" references missing recipe "${slot.recipeSlug}"`
+            );
+            continue;
+          }
+          await prisma.planDayMeal.create({
+            data: {
+              templateDayId: day.id,
+              mealType: slot.mealType,
+              recipeId,
+              servings: slot.servings ?? 1,
+              sortOrder: i,
+            },
+          });
+        }
+
+        // Exercises
+        if (trainingTpl) {
+          for (let i = 0; i < trainingTpl.exercises.length; i++) {
+            const ex = trainingTpl.exercises[i];
+            const workoutId = workoutIdBySlug.get(ex.workoutSlug);
+            if (!workoutId) {
+              console.warn(
+                `[seed] Plan "${plan.slug}" references missing workout "${ex.workoutSlug}"`
+              );
+              continue;
+            }
+            await prisma.planExercise.create({
+              data: {
+                templateDayId: day.id,
+                workoutId,
+                orderIndex: i,
+                sets: ex.sets ?? null,
+                repsLow: ex.repsLow ?? null,
+                repsHigh: ex.repsHigh ?? null,
+                durationSeconds: ex.durationSeconds ?? null,
+                restSeconds: ex.restSeconds ?? 60,
+                weightKg: ex.weightKg ?? null,
+                notes: ex.notes ?? null,
+              },
+            });
+          }
+          trainingDayCounter++;
+        }
+      }
+    }
+  }
+}
+
+// ─── Main entry ─────────────────────────────────────────────────────
+
+export interface SeedCoachDefaultsResult {
+  recipeCount: number;
+  workoutCount: number;
+  planCount: number;
+}
+
+/**
+ * Seeds the full starter library for a coach. Idempotent: if rerun on
+ * an already-seeded coach, missing rows are filled in and existing rows
+ * are left intact.
+ */
+export async function seedCoachDefaults(
+  coachId: string
+): Promise<SeedCoachDefaultsResult> {
+  await seedTaxonomies(coachId);
+  const recipeMap = await seedRecipes(coachId);
+  const workoutMap = await seedWorkouts(coachId);
+  await seedPlans(coachId, workoutMap, recipeMap);
+
+  // Return counts (not insert counts — total rows for this coach after
+  // the call, so callers can sanity-check "did this actually seed?")
+  const [recipeCount, workoutCount, planCount] = await Promise.all([
+    prisma.recipe.count({ where: { coachId } }),
+    prisma.workout.count({ where: { coachId } }),
+    prisma.planTemplate.count({ where: { coachId } }),
+  ]);
+
+  return { recipeCount, workoutCount, planCount };
+}
+
+// Convenience re-exports for tests / scripts
+export {
+  WORKOUT_PICKS,
+  SEED_RECIPES,
+  SEED_PLANS,
+  workoutSlugFromLibraryId,
+};
+export type { WorkoutPick, RecipeDef, PlanDefinition, ExerciseLibraryEntry };
