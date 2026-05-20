@@ -11,7 +11,7 @@ import WorkoutPickerModal, {
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
 
-interface Workout extends PickableWorkout {}
+type Workout = PickableWorkout;
 
 interface ExerciseEntry {
   workoutId: number;
