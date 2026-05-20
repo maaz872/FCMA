@@ -63,7 +63,10 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
     orderBy: { name: "asc" },
   });
 
-  // Fetch user's active plan with days and progress
+  // Fetch user's active plan with days and progress.
+  // Includes Phase-5 PlanExercise rows so the Plans tab in the client
+  // dashboard can show the per-day multi-exercise prescription, not just
+  // the legacy single workout.
   const activePlan = user.activePlanId ? await prisma.clientPlan.findFirst({
     where: { userId: id, status: "active" },
     include: {
@@ -71,6 +74,14 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
         include: {
           workout: { select: { title: true, videoUrl: true } },
           meals: { include: { recipe: { select: { id: true, title: true } } }, orderBy: [{ mealType: "asc" }, { sortOrder: "asc" }] },
+          exercises: {
+            include: {
+              workout: {
+                select: { id: true, title: true, slug: true, gifUrl: true, bodyPart: true, equipment: true },
+              },
+            },
+            orderBy: { orderIndex: "asc" },
+          },
         },
         orderBy: [{ weekNumber: "asc" }, { dayOfWeek: "asc" }],
       },

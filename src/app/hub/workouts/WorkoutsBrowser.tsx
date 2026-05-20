@@ -41,6 +41,7 @@ interface Props {
 }
 
 import VideoThumbnail from "@/components/ui/VideoThumbnail";
+import ExerciseGif from "@/components/ui/ExerciseGif";
 
 const difficultyColor: Record<string, string> = {
   Beginner: "bg-green-500/20 text-green-400",
@@ -269,14 +270,11 @@ export default function WorkoutsBrowser({ workouts, categories }: Props) {
                     {/* Prefer gif illustration when present, otherwise fall
                         back to the existing VideoThumbnail. */}
                     {workout.gifUrl ? (
-                      <div className="h-[180px] bg-[#0A0A0A] flex items-center justify-center overflow-hidden">
-                        <img
-                          src={workout.gifUrl}
-                          alt={workout.title}
-                          loading="lazy"
-                          className="w-full h-full object-contain group-hover:scale-105 transition-transform"
-                        />
-                      </div>
+                      <ExerciseGif
+                        src={workout.gifUrl}
+                        alt={workout.title}
+                        className="h-[180px] bg-[#0A0A0A] w-full"
+                      />
                     ) : (
                       <VideoThumbnail url={workout.videoUrl} height="h-[180px]" />
                     )}

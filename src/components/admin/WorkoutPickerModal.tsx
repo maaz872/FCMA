@@ -14,6 +14,7 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
+import ExerciseGif from "@/components/ui/ExerciseGif";
 
 export interface PickableWorkout {
   id: number;
@@ -163,11 +164,10 @@ export default function WorkoutPickerModal({
                 >
                   <div className="aspect-square bg-[#0A0A0A] flex items-center justify-center overflow-hidden">
                     {w.gifUrl ? (
-                      <img
+                      <ExerciseGif
                         src={w.gifUrl}
                         alt={w.title}
-                        loading="lazy"
-                        className="w-full h-full object-contain"
+                        className="w-full h-full"
                       />
                     ) : (
                       <span className="text-white/20 text-xs">No image</span>

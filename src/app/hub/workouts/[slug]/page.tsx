@@ -6,6 +6,7 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import VideoEmbed from "@/components/ui/VideoEmbed";
 import VideoThumbnail from "@/components/ui/VideoThumbnail";
+import ExerciseGif from "@/components/ui/ExerciseGif";
 
 const difficultyColor: Record<string, string> = {
   Beginner: "bg-green-500/20 text-green-400",
@@ -143,11 +144,12 @@ export default async function WorkoutDetailPage({
           is available. */}
       {workout.gifUrl ? (
         <div className="mb-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl overflow-hidden aspect-square flex items-center justify-center">
-            <img
+          <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl overflow-hidden aspect-square">
+            <ExerciseGif
               src={workout.gifUrl}
               alt={workout.title}
-              className="w-full h-full object-contain"
+              className="w-full h-full"
+              loading="eager"
             />
           </div>
           {hasVideo ? (

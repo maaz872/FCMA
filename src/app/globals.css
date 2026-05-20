@@ -33,6 +33,27 @@ body {
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 
+/* Two-frame exercise illustrations (see src/components/ui/ExerciseGif.tsx).
+   The Free Exercise DB ships two static JPGs per exercise; we stack them
+   and alternate visibility with a hard step at 50% so it reads as a
+   2-fps cycle (matches the cadence of the source dataset which was built
+   for that purpose). step-end avoids cross-fade flicker.
+   prefers-reduced-motion users get the first frame as a still image. */
+@keyframes exercise-gif-toggle-0 {
+  0%, 50%       { opacity: 1; }
+  50.01%, 100%  { opacity: 0; }
+}
+@keyframes exercise-gif-toggle-1 {
+  0%, 50%       { opacity: 0; }
+  50.01%, 100%  { opacity: 1; }
+}
+.exercise-gif-frame-0 { animation: exercise-gif-toggle-0 1.2s step-end infinite; }
+.exercise-gif-frame-1 { animation: exercise-gif-toggle-1 1.2s step-end infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .exercise-gif-frame-0 { animation: none; opacity: 1; }
+  .exercise-gif-frame-1 { animation: none; opacity: 0; }
+}
+
 /* FAQ animation */
 .faq-answer { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
 .faq-answer.open { max-height: 500px; }

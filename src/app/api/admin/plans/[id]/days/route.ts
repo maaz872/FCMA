@@ -37,6 +37,17 @@ export async function GET(
           },
           orderBy: [{ mealType: "asc" }, { sortOrder: "asc" }],
         },
+        exercises: {
+          include: {
+            workout: {
+              select: {
+                id: true, title: true, slug: true,
+                gifUrl: true, bodyPart: true, equipment: true, primaryMuscles: true,
+              },
+            },
+          },
+          orderBy: { orderIndex: "asc" },
+        },
       },
       orderBy: [{ weekNumber: "asc" }, { dayOfWeek: "asc" }],
     });

@@ -1,6 +1,7 @@
 "use client";
 
 import VideoEmbed from "@/components/ui/VideoEmbed";
+import ExerciseGif from "@/components/ui/ExerciseGif";
 
 interface WorkoutPreview {
   title: string;
@@ -91,14 +92,14 @@ function WorkoutPreviewContent({ data }: { data: WorkoutPreview }) {
           preview exactly what their clients see. */}
       {hasGif && hasVideo ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl overflow-hidden aspect-square flex items-center justify-center">
-            <img src={data.gifUrl!} alt={data.title} className="w-full h-full object-contain" />
+          <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl overflow-hidden aspect-square">
+            <ExerciseGif src={data.gifUrl!} alt={data.title} className="w-full h-full" />
           </div>
           <VideoEmbed url={data.videoUrl!} />
         </div>
       ) : hasGif ? (
-        <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl overflow-hidden aspect-square max-h-96 flex items-center justify-center mx-auto">
-          <img src={data.gifUrl!} alt={data.title} className="w-full h-full object-contain" />
+        <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl overflow-hidden aspect-square max-h-96 mx-auto">
+          <ExerciseGif src={data.gifUrl!} alt={data.title} className="w-full h-full" />
         </div>
       ) : hasVideo ? (
         <VideoEmbed url={data.videoUrl!} />

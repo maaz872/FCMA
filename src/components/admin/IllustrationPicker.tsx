@@ -18,6 +18,7 @@ import type {
   AppEquipment,
   ExerciseLibraryEntry,
 } from "@/lib/exercise-library";
+import ExerciseGif from "@/components/ui/ExerciseGif";
 
 interface IllustrationPickerProps {
   open: boolean;
@@ -225,11 +226,10 @@ export default function IllustrationPicker({
                 >
                   <div className="aspect-square bg-[#0A0A0A] flex items-center justify-center overflow-hidden">
                     {e.primaryImageUrl ? (
-                      <img
+                      <ExerciseGif
                         src={e.primaryImageUrl}
                         alt={e.name}
-                        loading="lazy"
-                        className="w-full h-full object-contain"
+                        className="w-full h-full"
                       />
                     ) : (
                       <span className="text-white/20 text-xs">No image</span>

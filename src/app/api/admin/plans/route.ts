@@ -60,7 +60,16 @@ export async function POST(request: Request) {
       // Verify source template belongs to this coach
       const source = await prisma.planTemplate.findFirst({
         where: { id: parseInt(duplicateId), coachId },
-        include: { days: { include: { meals: true } } },
+        include: {
+          days: {
+            include: {
+              meals: true,
+              // Pre-Phase-5 this branch only copied meals; the new
+              // PlanExercise rows would silently disappear in the copy.
+              exercises: { orderBy: { orderIndex: "asc" } },
+            },
+          },
+        },
       });
       if (!source) {
         return NextResponse.json({ error: "Source template not found" }, { status: 404 });
@@ -76,7 +85,7 @@ export async function POST(request: Request) {
         },
       });
 
-      // Copy all days with meals
+      // Copy all days with meals AND exercises
       for (const day of source.days) {
         await prisma.planTemplateDay.create({
           data: {
@@ -97,6 +106,19 @@ export async function POST(request: Request) {
                 recipeId: m.recipeId,
                 servings: m.servings,
                 sortOrder: m.sortOrder,
+              })),
+            } : undefined,
+            exercises: day.exercises.length > 0 ? {
+              create: day.exercises.map((ex) => ({
+                workoutId: ex.workoutId,
+                orderIndex: ex.orderIndex,
+                sets: ex.sets,
+                repsLow: ex.repsLow,
+                repsHigh: ex.repsHigh,
+                durationSeconds: ex.durationSeconds,
+                restSeconds: ex.restSeconds,
+                weightKg: ex.weightKg,
+                notes: ex.notes,
               })),
             } : undefined,
           },

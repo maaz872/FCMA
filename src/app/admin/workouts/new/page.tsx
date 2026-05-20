@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import IllustrationPicker from "@/components/admin/IllustrationPicker";
+import ExerciseGif from "@/components/ui/ExerciseGif";
 import type { ExerciseLibraryEntry } from "@/lib/exercise-library";
 
 interface Subcategory {
@@ -226,11 +227,7 @@ export default function NewWorkoutPage() {
           <div className="flex items-start gap-4">
             <div className="w-24 h-24 bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
               {gifUrl ? (
-                <img
-                  src={gifUrl}
-                  alt="Illustration preview"
-                  className="w-full h-full object-contain"
-                />
+                <ExerciseGif src={gifUrl} alt="Illustration preview" className="w-full h-full" />
               ) : (
                 <span className="text-white/20 text-[10px] text-center px-2">
                   No illustration

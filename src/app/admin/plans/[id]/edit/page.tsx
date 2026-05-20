@@ -6,6 +6,7 @@ import Link from "next/link";
 import WorkoutPickerModal, {
   type PickableWorkout,
 } from "@/components/admin/WorkoutPickerModal";
+import ExerciseGif from "@/components/ui/ExerciseGif";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -779,10 +780,10 @@ export default function EditPlanTemplatePage() {
                         <div className="flex items-start gap-2">
                           <div className="w-14 h-14 bg-[#1E1E1E] rounded overflow-hidden flex items-center justify-center flex-shrink-0">
                             {ex.gifUrl ? (
-                              <img
+                              <ExerciseGif
                                 src={ex.gifUrl}
                                 alt={ex.workoutTitle}
-                                className="w-full h-full object-contain"
+                                className="w-full h-full"
                               />
                             ) : (
                               <span className="text-white/20 text-[9px]">no gif</span>

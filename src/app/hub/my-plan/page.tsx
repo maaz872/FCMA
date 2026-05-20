@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { fetchWithRetry } from "@/lib/fetch-retry";
+import ExerciseGif from "@/components/ui/ExerciseGif";
 
 type Workout = {
   id: number;
@@ -641,10 +642,10 @@ export default function MyPlanPage() {
                         className="w-20 h-20 bg-[#1E1E1E] rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center"
                       >
                         {ex.workout.gifUrl ? (
-                          <img
+                          <ExerciseGif
                             src={ex.workout.gifUrl}
                             alt={ex.workout.title}
-                            className="w-full h-full object-contain"
+                            className="w-full h-full"
                           />
                         ) : (
                           <span className="text-white/20 text-[10px]">no gif</span>

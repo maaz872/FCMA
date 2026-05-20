@@ -22,6 +22,7 @@ interface WorkoutRow {
 
 import VideoThumbnail from "@/components/ui/VideoThumbnail";
 import PreviewModal from "@/components/admin/PreviewModal";
+import ExerciseGif from "@/components/ui/ExerciseGif";
 
 export default function AdminWorkoutsClient({
   workouts,
@@ -136,12 +137,7 @@ export default function AdminWorkoutsClient({
                     (Phase 4), fall back to the existing VideoThumbnail. */}
                 <div className="relative w-full aspect-video bg-[#0A0A0A]">
                   {w.gifUrl ? (
-                    <img
-                      src={w.gifUrl}
-                      alt={w.title}
-                      loading="lazy"
-                      className="w-full h-full object-contain"
-                    />
+                    <ExerciseGif src={w.gifUrl} alt={w.title} className="w-full h-full" />
                   ) : (
                     <VideoThumbnail url={w.videoUrl} height="h-full" />
                   )}
