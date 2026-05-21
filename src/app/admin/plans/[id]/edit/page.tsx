@@ -127,6 +127,50 @@ export default function EditPlanTemplatePage() {
   const [cellForm, setCellForm] = useState<TemplateDay>(emptyDay(1, 1));
   const [workoutPickerOpen, setWorkoutPickerOpen] = useState(false);
 
+  // Inline "auto-progress this exercise across all weeks" popover
+  const [progressionForIdx, setProgressionForIdx] = useState<number | null>(null);
+  const [progStart, setProgStart] = useState("");
+  const [progIncrement, setProgIncrement] = useState("2.5");
+  const [progDeloadWeek, setProgDeloadWeek] = useState("");
+  const [progDeloadKg, setProgDeloadKg] = useState("");
+  const [progApplying, setProgApplying] = useState(false);
+
+  async function applyProgression(exerciseIdx: number) {
+    if (!template) return;
+    const ex = cellForm.exercises[exerciseIdx];
+    const startKg = parseFloat(progStart);
+    const incrementKg = parseFloat(progIncrement);
+    if (!Number.isFinite(startKg) || !Number.isFinite(incrementKg)) {
+      alert("Start kg and increment kg are required");
+      return;
+    }
+    setProgApplying(true);
+    const res = await fetch(`/api/admin/plans/${template.id}/progression`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        workoutId: ex.workoutId,
+        dayOfWeek: cellForm.dayOfWeek,
+        startKg,
+        incrementKg,
+        deloadWeek: progDeloadWeek ? Number(progDeloadWeek) : null,
+        deloadKg: progDeloadKg ? Number(progDeloadKg) : null,
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      alert(err.error || "Failed to apply progression");
+      setProgApplying(false);
+      return;
+    }
+    const data = await res.json();
+    alert(`Applied progression to ${data.touched} weeks. Reloading…`);
+    // Reload the editor's day map so the visible weights reflect the new state
+    router.refresh();
+    setProgressionForIdx(null);
+    setProgApplying(false);
+  }
+
   const dayKey = (week: number, day: number) => `${week}-${day}`;
 
   // ── Exercise list helpers (used by the cell modal) ──
@@ -821,6 +865,20 @@ export default function EditPlanTemplatePage() {
                                 </button>
                                 <button
                                   type="button"
+                                  onClick={() => {
+                                    setProgressionForIdx(progressionForIdx === i ? null : i);
+                                    setProgStart(String(ex.weightKg ?? ""));
+                                    setProgIncrement("2.5");
+                                    setProgDeloadWeek("");
+                                    setProgDeloadKg("");
+                                  }}
+                                  className="w-6 h-6 flex items-center justify-center text-white/40 hover:text-[#FFB800] cursor-pointer bg-transparent border-none text-xs"
+                                  title="Auto-progress across all weeks"
+                                >
+                                  📈
+                                </button>
+                                <button
+                                  type="button"
                                   onClick={() => removeExerciseAt(i)}
                                   className="w-6 h-6 flex items-center justify-center text-red-400/60 hover:text-red-400 cursor-pointer bg-transparent border-none text-xs"
                                   title="Remove"
@@ -877,6 +935,66 @@ export default function EditPlanTemplatePage() {
                                 className="col-span-2 px-2 py-1 bg-[#1E1E1E] border border-[#2A2A2A] rounded text-[10px] text-white placeholder-white/20 focus:outline-none focus:border-[#E51A1A]/50"
                               />
                             </div>
+                            {progressionForIdx === i && (
+                              <div className="mt-2 p-2 bg-[#1E1E1E] border border-[#FFB800]/30 rounded">
+                                <p className="text-[10px] text-[#FFB800]/90 mb-2">
+                                  📈 Auto-progress this exercise across all {template?.durationWeeks ?? 0} weeks (only days where the schedule has this on the same weekday).
+                                </p>
+                                <div className="grid grid-cols-4 gap-1.5 mb-2">
+                                  <label className="flex flex-col gap-0.5">
+                                    <span className="text-[9px] text-white/40 uppercase">Start kg (wk 1)</span>
+                                    <input
+                                      type="number" step="0.5"
+                                      value={progStart} onChange={(e) => setProgStart(e.target.value)}
+                                      className="px-1.5 py-0.5 bg-[#0A0A0A] border border-[#2A2A2A] rounded text-[11px] text-white focus:outline-none focus:border-[#FFB800]/50"
+                                    />
+                                  </label>
+                                  <label className="flex flex-col gap-0.5">
+                                    <span className="text-[9px] text-white/40 uppercase">+ kg/week</span>
+                                    <input
+                                      type="number" step="0.5"
+                                      value={progIncrement} onChange={(e) => setProgIncrement(e.target.value)}
+                                      className="px-1.5 py-0.5 bg-[#0A0A0A] border border-[#2A2A2A] rounded text-[11px] text-white focus:outline-none focus:border-[#FFB800]/50"
+                                    />
+                                  </label>
+                                  <label className="flex flex-col gap-0.5">
+                                    <span className="text-[9px] text-white/40 uppercase">Deload wk</span>
+                                    <input
+                                      type="number" min={1} max={template?.durationWeeks ?? 0}
+                                      value={progDeloadWeek} onChange={(e) => setProgDeloadWeek(e.target.value)}
+                                      placeholder="opt"
+                                      className="px-1.5 py-0.5 bg-[#0A0A0A] border border-[#2A2A2A] rounded text-[11px] text-white placeholder-white/20 focus:outline-none focus:border-[#FFB800]/50"
+                                    />
+                                  </label>
+                                  <label className="flex flex-col gap-0.5">
+                                    <span className="text-[9px] text-white/40 uppercase">Deload kg</span>
+                                    <input
+                                      type="number" step="0.5"
+                                      value={progDeloadKg} onChange={(e) => setProgDeloadKg(e.target.value)}
+                                      placeholder="opt"
+                                      className="px-1.5 py-0.5 bg-[#0A0A0A] border border-[#2A2A2A] rounded text-[11px] text-white placeholder-white/20 focus:outline-none focus:border-[#FFB800]/50"
+                                    />
+                                  </label>
+                                </div>
+                                <div className="flex justify-end gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => setProgressionForIdx(null)}
+                                    className="text-[10px] text-white/40 hover:text-white/70 bg-transparent border-none cursor-pointer px-2 py-0.5"
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => applyProgression(i)}
+                                    disabled={progApplying || !progStart}
+                                    className="text-[10px] font-semibold px-2.5 py-1 bg-[#FFB800] text-black rounded disabled:opacity-50 cursor-pointer"
+                                  >
+                                    {progApplying ? "…" : "Apply across weeks"}
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
