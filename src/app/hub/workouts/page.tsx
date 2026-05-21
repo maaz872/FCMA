@@ -12,18 +12,7 @@ async function loadData(coachId: string) {
     include: { subcategory: { include: { category: true } } },
     orderBy: { createdAt: "desc" },
   });
-
-  const categories = await prisma.workoutCategory.findMany({
-    include: {
-      subcategories: {
-        select: { id: true, name: true, slug: true },
-        orderBy: { name: "asc" },
-      },
-    },
-    orderBy: { displayOrder: "asc" },
-  });
-
-  return { workouts, categories };
+  return { workouts };
 }
 
 export default async function WorkoutsPage() {
@@ -44,7 +33,7 @@ export default async function WorkoutsPage() {
     }
   }
 
-  const { workouts, categories } = data;
+  const { workouts } = data;
 
   const serialized = workouts.map(
     (w: {
@@ -87,19 +76,5 @@ export default async function WorkoutsPage() {
     })
   );
 
-  const cats = categories.map(
-    (c: {
-      id: number;
-      name: string;
-      slug: string;
-      subcategories: { id: number; name: string; slug: string }[];
-    }) => ({
-      id: c.id,
-      name: c.name,
-      slug: c.slug,
-      subcategories: c.subcategories,
-    })
-  );
-
-  return <WorkoutsBrowser workouts={serialized} categories={cats} />;
+  return <WorkoutsBrowser workouts={serialized} />;
 }

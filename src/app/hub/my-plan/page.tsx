@@ -5,6 +5,7 @@ import Link from "next/link";
 import { fetchWithRetry } from "@/lib/fetch-retry";
 import ExerciseGif from "@/components/ui/ExerciseGif";
 import WorkoutMediaThumbnail from "@/components/ui/WorkoutMediaThumbnail";
+import VideoEmbed from "@/components/ui/VideoEmbed";
 
 type Workout = {
   id: number;
@@ -128,6 +129,9 @@ export default function MyPlanPage() {
   // DailyProgress.workoutCompleted boolean (which is auto-toggled below
   // once every set is ticked).
   const [setsCompleted, setSetsCompleted] = useState<Record<string, boolean>>({});
+  // Modal: shows the full video + instructions for the currently-tapped exercise
+  // without taking the user away from /hub/my-plan.
+  const [openExercise, setOpenExercise] = useState<PlanExercise | null>(null);
 
   // Off-plan meal logging
   const [offPlanOpen, setOffPlanOpen] = useState<Set<string>>(new Set());
@@ -638,9 +642,11 @@ export default function MyPlanPage() {
                     className="bg-[#0A0A0A] border border-[#2A2A2A] rounded-xl p-4"
                   >
                     <div className="flex gap-3">
-                      <Link
-                        href={`/hub/workouts/${ex.workout.slug}`}
-                        className="w-20 h-20 bg-[#1E1E1E] rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center"
+                      <button
+                        type="button"
+                        onClick={() => setOpenExercise(ex)}
+                        className="w-20 h-20 bg-[#1E1E1E] rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center cursor-pointer border-none p-0"
+                        title="Tap for full video"
                       >
                         {ex.workout.videoUrl || ex.workout.gifUrl ? (
                           <WorkoutMediaThumbnail
@@ -652,18 +658,19 @@ export default function MyPlanPage() {
                         ) : (
                           <span className="text-white/20 text-[10px]">no media</span>
                         )}
-                      </Link>
+                      </button>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs text-white/40 font-semibold">
                           {idx + 1}. {(ex.workout.bodyPart ?? "").replace("_", " ")}
                           {ex.workout.equipment ? ` · ${ex.workout.equipment}` : ""}
                         </p>
-                        <Link
-                          href={`/hub/workouts/${ex.workout.slug}`}
-                          className="text-white font-semibold hover:text-[#E51A1A] transition-colors"
+                        <button
+                          type="button"
+                          onClick={() => setOpenExercise(ex)}
+                          className="text-white font-semibold hover:text-[#E51A1A] transition-colors cursor-pointer bg-transparent border-none p-0 text-left"
                         >
                           {ex.workout.title}
-                        </Link>
+                        </button>
                         <p className="text-white/50 text-xs mt-0.5">
                           {setCount} × {reps}
                           {ex.restSeconds ? ` · ${ex.restSeconds}s rest` : ""}
@@ -966,6 +973,116 @@ export default function MyPlanPage() {
           </div>
         )}
 
+      </div>
+
+      {/* Exercise detail modal — tap a card or title to open. Plays the
+          full video with controls + audio without leaving /hub/my-plan. */}
+      {openExercise && (
+        <ExerciseDetailModal exercise={openExercise} onClose={() => setOpenExercise(null)} />
+      )}
+    </div>
+  );
+}
+
+function ExerciseDetailModal({ exercise, onClose }: {
+  exercise: PlanExercise;
+  onClose: () => void;
+}) {
+  const w = exercise.workout;
+  let instructions: string[] = [];
+  try {
+    instructions = JSON.parse(w.instructions || "[]");
+  } catch { instructions = []; }
+
+  // Lock body scroll while open.
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
+  const setCount = exercise.sets ?? 1;
+  const reps =
+    exercise.repsLow != null && exercise.repsHigh != null
+      ? exercise.repsLow === exercise.repsHigh
+        ? `${exercise.repsLow} reps`
+        : `${exercise.repsLow}-${exercise.repsHigh} reps`
+      : exercise.durationSeconds != null
+      ? `${exercise.durationSeconds}s`
+      : "";
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-stretch sm:items-center justify-center p-0 sm:p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-[#111111] border border-[#2A2A2A] sm:rounded-2xl w-full max-w-2xl h-full sm:h-auto sm:max-h-[90vh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[#1A1A1A]">
+          <div className="min-w-0">
+            <h2 className="text-white font-semibold text-lg truncate">{w.title}</h2>
+            <p className="text-white/40 text-xs mt-0.5 capitalize">
+              {(w.bodyPart ?? "").replace("_", " ")}
+              {w.equipment ? ` · ${w.equipment}` : ""}
+              {w.primaryMuscles ? ` · ${w.primaryMuscles.split(",").slice(0,2).join(", ")}` : ""}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-white/40 hover:text-white text-2xl leading-none bg-transparent border-none cursor-pointer p-1"
+            aria-label="Close"
+          >
+            &times;
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          {/* Video */}
+          {w.videoUrl ? (
+            <VideoEmbed url={w.videoUrl} />
+          ) : w.gifUrl ? (
+            <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl overflow-hidden aspect-square max-h-80 mx-auto">
+              <img src={w.gifUrl} alt={w.title} className="w-full h-full object-contain" />
+            </div>
+          ) : null}
+
+          {/* Prescription */}
+          <div className="bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg p-3">
+            <p className="text-xs text-white/40 font-semibold uppercase mb-1">Today's prescription</p>
+            <p className="text-white text-sm">
+              {setCount} × {reps}
+              {exercise.restSeconds ? ` · ${exercise.restSeconds}s rest` : ""}
+              {exercise.weightKg ? ` · ${exercise.weightKg} kg` : ""}
+            </p>
+            {exercise.notes && (
+              <p className="text-white/50 text-xs italic mt-1">{exercise.notes}</p>
+            )}
+          </div>
+
+          {/* Instructions */}
+          {instructions.length > 0 && (
+            <div>
+              <p className="text-xs text-white/40 font-semibold uppercase mb-2">Instructions</p>
+              <ol className="space-y-2">
+                {instructions.map((step, i) => (
+                  <li key={i} className="flex gap-3 text-sm">
+                    <span className="text-[#E51A1A] font-bold shrink-0">{i + 1}.</span>
+                    <span className="text-white/70">{step}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+        </div>
+
+        <div className="px-5 py-3 border-t border-[#1A1A1A] flex justify-end">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-white/70 hover:text-white bg-transparent border-none cursor-pointer">
+            Close
+          </button>
+        </div>
       </div>
     </div>
   );
