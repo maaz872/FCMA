@@ -6,7 +6,7 @@ import Link from "next/link";
 import WorkoutPickerModal, {
   type PickableWorkout,
 } from "@/components/admin/WorkoutPickerModal";
-import ExerciseGif from "@/components/ui/ExerciseGif";
+import WorkoutMediaThumbnail from "@/components/ui/WorkoutMediaThumbnail";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -18,6 +18,7 @@ interface ExerciseEntry {
   workoutId: number;
   workoutTitle: string;
   gifUrl: string | null;
+  videoUrl: string | null;
   bodyPart: string | null;
   equipment: string | null;
   sets: number | null;
@@ -138,6 +139,7 @@ export default function EditPlanTemplatePage() {
           workoutId: w.id,
           workoutTitle: w.title,
           gifUrl: w.gifUrl,
+          videoUrl: (w as PickableWorkout & { videoUrl?: string }).videoUrl ?? null,
           bodyPart: w.bodyPart,
           equipment: w.equipment,
           sets: 3,
@@ -194,12 +196,13 @@ export default function EditPlanTemplatePage() {
 
       setTemplate(tData);
       setWorkouts(
-        (wData as Array<Workout & { subcategory?: Workout["subcategory"] }>).map(
+        (wData as Array<Workout & { subcategory?: Workout["subcategory"]; videoUrl?: string }>).map(
           (w) => ({
             id: w.id,
             title: w.title,
             slug: w.slug,
             gifUrl: w.gifUrl ?? null,
+            videoUrl: w.videoUrl ?? null,
             bodyPart: w.bodyPart ?? null,
             equipment: w.equipment ?? null,
             primaryMuscles: w.primaryMuscles ?? null,
@@ -261,6 +264,7 @@ export default function EditPlanTemplatePage() {
               workout?: {
                 title?: string;
                 gifUrl?: string | null;
+                videoUrl?: string | null;
                 bodyPart?: string | null;
                 equipment?: string | null;
               } | null;
@@ -268,6 +272,7 @@ export default function EditPlanTemplatePage() {
               workoutId: ex.workoutId,
               workoutTitle: ex.workout?.title || "Exercise",
               gifUrl: ex.workout?.gifUrl ?? null,
+              videoUrl: ex.workout?.videoUrl ?? null,
               bodyPart: ex.workout?.bodyPart ?? null,
               equipment: ex.workout?.equipment ?? null,
               sets: ex.sets,
@@ -779,14 +784,15 @@ export default function EditPlanTemplatePage() {
                       >
                         <div className="flex items-start gap-2">
                           <div className="w-14 h-14 bg-[#1E1E1E] rounded overflow-hidden flex items-center justify-center flex-shrink-0">
-                            {ex.gifUrl ? (
-                              <ExerciseGif
-                                src={ex.gifUrl}
-                                alt={ex.workoutTitle}
+                            {ex.videoUrl || ex.gifUrl ? (
+                              <WorkoutMediaThumbnail
+                                videoUrl={ex.videoUrl}
+                                gifUrl={ex.gifUrl}
+                                title={ex.workoutTitle}
                                 className="w-full h-full"
                               />
                             ) : (
-                              <span className="text-white/20 text-[9px]">no gif</span>
+                              <span className="text-white/20 text-[9px]">no media</span>
                             )}
                           </div>
                           <div className="flex-1 min-w-0">

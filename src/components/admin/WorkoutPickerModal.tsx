@@ -14,13 +14,14 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
-import ExerciseGif from "@/components/ui/ExerciseGif";
+import WorkoutMediaThumbnail from "@/components/ui/WorkoutMediaThumbnail";
 
 export interface PickableWorkout {
   id: number;
   title: string;
   slug: string;
   gifUrl: string | null;
+  videoUrl: string | null;
   bodyPart: string | null;
   equipment: string | null;
   primaryMuscles: string | null;
@@ -163,10 +164,11 @@ export default function WorkoutPickerModal({
                   className="text-left bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl overflow-hidden hover:border-[#E51A1A]/60 transition-colors cursor-pointer"
                 >
                   <div className="aspect-square bg-[#0A0A0A] flex items-center justify-center overflow-hidden">
-                    {w.gifUrl ? (
-                      <ExerciseGif
-                        src={w.gifUrl}
-                        alt={w.title}
+                    {w.videoUrl || w.gifUrl ? (
+                      <WorkoutMediaThumbnail
+                        videoUrl={w.videoUrl}
+                        gifUrl={w.gifUrl}
+                        title={w.title}
                         className="w-full h-full"
                       />
                     ) : (

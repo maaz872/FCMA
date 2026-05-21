@@ -28,6 +28,7 @@ export async function GET(
                     title: true,
                     slug: true,
                     gifUrl: true,
+                    videoUrl: true,
                     bodyPart: true,
                     equipment: true,
                     primaryMuscles: true,

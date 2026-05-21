@@ -139,40 +139,28 @@ export default async function WorkoutDetailPage({
         </p>
       )}
 
-      {/* Media: prefer the gif illustration when present (with the video
-          embed below for higher-fidelity demos), otherwise show whichever
-          is available. */}
-      {workout.gifUrl ? (
-        <div className="mb-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl overflow-hidden aspect-square">
-            <ExerciseGif
-              src={workout.gifUrl}
-              alt={workout.title}
-              className="w-full h-full"
-              loading="eager"
-            />
-          </div>
-          {hasVideo ? (
-            <VideoEmbed url={workout.videoUrl} />
-          ) : (
-            <div className="bg-[#0A0A0A] border border-[#2A2A2A] rounded-2xl flex flex-col items-center justify-center p-8 text-center">
-              <p className="text-white/40 text-sm">
-                No video provided — follow the illustration and instructions
-                below.
-              </p>
-            </div>
-          )}
-        </div>
-      ) : hasVideo ? (
+      {/* Media: video is the primary representation (full controls,
+          audio). Gif is only used as a fallback when the workout has no
+          video attached. No side-by-side anymore. */}
+      {hasVideo ? (
         <div className="mb-8">
           <VideoEmbed url={workout.videoUrl} />
+        </div>
+      ) : workout.gifUrl ? (
+        <div className="mb-8 bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl overflow-hidden aspect-square max-w-md mx-auto">
+          <ExerciseGif
+            src={workout.gifUrl}
+            alt={workout.title}
+            className="w-full h-full"
+            loading="eager"
+          />
         </div>
       ) : (
         <div className="relative aspect-video bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl flex flex-col items-center justify-center mb-8 overflow-hidden">
           <svg className="w-16 h-16 text-white/20 mb-3" fill="currentColor" viewBox="0 0 24 24">
             <path d="M8 5v14l11-7z" />
           </svg>
-          <span className="text-white/40 text-sm font-semibold">Video Unavailable</span>
+          <span className="text-white/40 text-sm font-semibold">No media attached</span>
         </div>
       )}
 

@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { fetchWithRetry } from "@/lib/fetch-retry";
 import ExerciseGif from "@/components/ui/ExerciseGif";
+import WorkoutMediaThumbnail from "@/components/ui/WorkoutMediaThumbnail";
 
 type Workout = {
   id: number;
@@ -641,14 +642,15 @@ export default function MyPlanPage() {
                         href={`/hub/workouts/${ex.workout.slug}`}
                         className="w-20 h-20 bg-[#1E1E1E] rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center"
                       >
-                        {ex.workout.gifUrl ? (
-                          <ExerciseGif
-                            src={ex.workout.gifUrl}
-                            alt={ex.workout.title}
+                        {ex.workout.videoUrl || ex.workout.gifUrl ? (
+                          <WorkoutMediaThumbnail
+                            videoUrl={ex.workout.videoUrl}
+                            gifUrl={ex.workout.gifUrl}
+                            title={ex.workout.title}
                             className="w-full h-full"
                           />
                         ) : (
-                          <span className="text-white/20 text-[10px]">no gif</span>
+                          <span className="text-white/20 text-[10px]">no media</span>
                         )}
                       </Link>
                       <div className="flex-1 min-w-0">

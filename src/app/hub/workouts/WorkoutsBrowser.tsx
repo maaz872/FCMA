@@ -42,6 +42,7 @@ interface Props {
 
 import VideoThumbnail from "@/components/ui/VideoThumbnail";
 import ExerciseGif from "@/components/ui/ExerciseGif";
+import WorkoutMediaThumbnail from "@/components/ui/WorkoutMediaThumbnail";
 
 const difficultyColor: Record<string, string> = {
   Beginner: "bg-green-500/20 text-green-400",
@@ -57,6 +58,7 @@ const goalColor: Record<string, string> = {
 
 export default function WorkoutsBrowser({ workouts, categories }: Props) {
   const [search, setSearch] = useState("");
+  const [selectedBodyPart, setSelectedBodyPart] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [selectedSubcategory, setSelectedSubcategory] = useState<number | null>(
     null
@@ -86,6 +88,12 @@ export default function WorkoutsBrowser({ workouts, categories }: Props) {
       );
     }
 
+    if (selectedBodyPart) {
+      result = result.filter(
+        (w) => (w.bodyPart || "").toLowerCase() === selectedBodyPart
+      );
+    }
+
     if (selectedSubcategory) {
       result = result.filter((w) => w.subcategoryId === selectedSubcategory);
     } else if (selectedCategory) {
@@ -101,7 +109,7 @@ export default function WorkoutsBrowser({ workouts, categories }: Props) {
     }
 
     return result;
-  }, [workouts, search, selectedCategory, selectedSubcategory, difficulty, goal]);
+  }, [workouts, search, selectedBodyPart, selectedCategory, selectedSubcategory, difficulty, goal]);
 
   const difficultyOptions = ["All", "Beginner", "Intermediate", "Advanced"];
   const goalOptions = ["All", "Fat Loss", "Muscle Gain", "General Fitness"];
@@ -109,9 +117,48 @@ export default function WorkoutsBrowser({ workouts, categories }: Props) {
   return (
     <div>
       <h1 className="text-3xl font-black mb-2 text-white">Workouts</h1>
-      <p className="text-white/60 mb-8">
+      <p className="text-white/60 mb-6">
         Follow along with workout videos for every fitness level.
       </p>
+
+      {/* Body-part fast filter — primary nav. */}
+      <div className="flex flex-wrap gap-1.5 mb-8">
+        {(
+          [
+            { v: null, l: "All" },
+            { v: "chest", l: "Chest" },
+            { v: "back", l: "Back" },
+            { v: "legs", l: "Legs" },
+            { v: "shoulders", l: "Shoulders" },
+            { v: "arms", l: "Arms" },
+            { v: "core", l: "Core" },
+            { v: "full_body", l: "Full body" },
+            { v: "cardio", l: "Cardio" },
+          ] as const
+        ).map((p) => {
+          const count = p.v
+            ? workouts.filter(
+                (w) => (w.bodyPart || "").toLowerCase() === p.v
+              ).length
+            : workouts.length;
+          if (p.v && count === 0) return null;
+          const active = selectedBodyPart === p.v;
+          return (
+            <button
+              key={p.l}
+              type="button"
+              onClick={() => setSelectedBodyPart(p.v as string | null)}
+              className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors cursor-pointer ${
+                active
+                  ? "bg-[#E51A1A] border-[#E51A1A] text-white"
+                  : "bg-transparent border-[#2A2A2A] text-white/50 hover:border-[#E51A1A]/40 hover:text-white/80"
+              }`}
+            >
+              {p.l} <span className="opacity-50">({count})</span>
+            </button>
+          );
+        })}
+      </div>
 
       <div className="flex flex-col lg:flex-row gap-8">
         {/* Sidebar filters */}
@@ -267,12 +314,14 @@ export default function WorkoutsBrowser({ workouts, categories }: Props) {
                     href={`/hub/workouts/${workout.slug}`}
                     className="group bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:border-[#E51A1A]/30"
                   >
-                    {/* Prefer gif illustration when present, otherwise fall
-                        back to the existing VideoThumbnail. */}
-                    {workout.gifUrl ? (
-                      <ExerciseGif
-                        src={workout.gifUrl}
-                        alt={workout.title}
+                    {/* Video autoplays muted+looped when available; gif is
+                        the fallback. VideoThumbnail (YouTube poster
+                        image) is the last-resort when neither is set. */}
+                    {workout.videoUrl || workout.gifUrl ? (
+                      <WorkoutMediaThumbnail
+                        videoUrl={workout.videoUrl}
+                        gifUrl={workout.gifUrl}
+                        title={workout.title}
                         className="h-[180px] bg-[#0A0A0A] w-full"
                       />
                     ) : (
