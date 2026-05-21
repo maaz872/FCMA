@@ -61,6 +61,7 @@ model User {
   coachNotesWritten    CoachClientNote[]  @relation("CoachNotes")
   coachNotesReceived   CoachClientNote[]  @relation("ClientNotes")
   personalRecords      PersonalRecord[]
+  dailyHabits          DailyHabit[]
   posts                Post[]
   postLikes            PostLike[]
   postComments         PostComment[]
@@ -106,6 +107,26 @@ model CoachBilling {
   updatedAt        DateTime  @updatedAt
 
   coach User @relation("CoachBilling", fields: [coachId], references: [id])
+}
+
+// ─── DailyHabit — sleep / water / mood / stress ─────────────────────
+
+model DailyHabit {
+  id           Int      @id @default(autoincrement())
+  userId       String
+  date         DateTime @db.Date
+  sleepHours   Float?
+  waterLiters  Float?
+  moodScore    Int?     // 1..10
+  stressScore  Int?     // 1..10
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId, date])
 }
 
 // ─── PersonalRecord — strength PRs per (user, workout) ──────────────

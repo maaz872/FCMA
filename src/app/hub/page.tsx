@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useBranding } from "@/lib/branding";
 import { fetchWithRetry } from "@/lib/fetch-retry";
@@ -38,6 +38,13 @@ type PlanSummary = {
   };
 };
 
+type HabitState = {
+  sleepHours: number | null;
+  waterLiters: number | null;
+  moodScore: number | null;
+  stressScore: number | null;
+};
+
 export default function HubDashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [planData, setPlanData] = useState<PlanSummary | null>(null);
@@ -45,6 +52,8 @@ export default function HubDashboard() {
   const [loading, setLoading] = useState(true);
   const [targets, setTargets] = useState<{ metric: string; targetValue: number; currentValue: number | null }[]>([]);
   const [stepTarget, setStepTarget] = useState<number | null>(null);
+  const [habit, setHabit] = useState<HabitState>({ sleepHours: null, waterLiters: null, moodScore: null, stressScore: null });
+  const habitSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { siteName } = useBranding();
 
   useEffect(() => {
@@ -56,7 +65,16 @@ export default function HubDashboard() {
       fetchWithRetry("/api/user/dashboard?range=today").then(r => r.json()).catch(() => null),
       fetchWithRetry("/api/user/plan").then(r => r.json()).catch(() => null),
       fetchWithRetry("/api/user/targets").then(r => r.json()).catch(() => null),
-    ]).then(([dashData, planData, targetData]) => {
+      fetchWithRetry("/api/hub/habits").then(r => r.json()).catch(() => null),
+    ]).then(([dashData, planData, targetData, habitData]) => {
+      if (!cancelled && habitData?.habit) {
+        setHabit({
+          sleepHours: habitData.habit.sleepHours ?? null,
+          waterLiters: habitData.habit.waterLiters ?? null,
+          moodScore: habitData.habit.moodScore ?? null,
+          stressScore: habitData.habit.stressScore ?? null,
+        });
+      }
       if (cancelled) return; // Component unmounted
       if (dashData && !dashData.error) setData(dashData);
       if (planData && !planData.error && planData.plan) setPlanData(planData);
@@ -121,6 +139,21 @@ export default function HubDashboard() {
   const proteinStatus = macroStatus(proteinEaten, proteinTarget);
   const carbsStatus = macroStatus(carbsEaten, carbsTarget);
   const fatStatus = macroStatus(fatEaten, fatTarget);
+
+  function patchHabit(patch: Partial<HabitState>) {
+    setHabit((prev) => {
+      const next = { ...prev, ...patch };
+      if (habitSaveTimer.current) clearTimeout(habitSaveTimer.current);
+      habitSaveTimer.current = setTimeout(() => {
+        void fetch("/api/hub/habits", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(next),
+        });
+      }, 500);
+      return next;
+    });
+  }
   const steps = data?.stepsToday || 0;
   const stepGoal = stepTarget || data?.stepGoal || 10000;
   const stepPercent = stepGoal > 0 ? Math.min(Math.round((steps / stepGoal) * 100), 100) : 0;
@@ -241,6 +274,65 @@ export default function HubDashboard() {
           })}
         </div>
       )}
+
+      {/* Daily habits — tap to edit, autosaves on change */}
+      <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-4">
+        <p className="text-[10px] text-white/40 font-semibold uppercase tracking-wide mb-2">📊 Today&apos;s habits</p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <label className="flex flex-col gap-0.5">
+            <span className="text-[10px] text-white/40 flex items-center gap-1">💤 Sleep</span>
+            <div className="flex items-center gap-1">
+              <input
+                type="number" step="0.5" min={0} max={24}
+                value={habit.sleepHours ?? ""}
+                onChange={(e) => patchHabit({ sleepHours: e.target.value === "" ? null : parseFloat(e.target.value) })}
+                placeholder="—"
+                className="w-full px-2 py-1.5 bg-[#0A0A0A] border border-[#2A2A2A] rounded text-sm text-white focus:outline-none focus:border-[#E51A1A]/50"
+              />
+              <span className="text-[10px] text-white/30">h</span>
+            </div>
+          </label>
+          <label className="flex flex-col gap-0.5">
+            <span className="text-[10px] text-white/40 flex items-center gap-1">💧 Water</span>
+            <div className="flex items-center gap-1">
+              <input
+                type="number" step="0.25" min={0} max={20}
+                value={habit.waterLiters ?? ""}
+                onChange={(e) => patchHabit({ waterLiters: e.target.value === "" ? null : parseFloat(e.target.value) })}
+                placeholder="—"
+                className="w-full px-2 py-1.5 bg-[#0A0A0A] border border-[#2A2A2A] rounded text-sm text-white focus:outline-none focus:border-[#E51A1A]/50"
+              />
+              <span className="text-[10px] text-white/30">L</span>
+            </div>
+          </label>
+          <label className="flex flex-col gap-0.5">
+            <span className="text-[10px] text-white/40 flex items-center gap-1">😊 Mood</span>
+            <div className="flex items-center gap-1">
+              <input
+                type="number" step="1" min={1} max={10}
+                value={habit.moodScore ?? ""}
+                onChange={(e) => patchHabit({ moodScore: e.target.value === "" ? null : parseInt(e.target.value) })}
+                placeholder="—"
+                className="w-full px-2 py-1.5 bg-[#0A0A0A] border border-[#2A2A2A] rounded text-sm text-white focus:outline-none focus:border-[#E51A1A]/50"
+              />
+              <span className="text-[10px] text-white/30">/10</span>
+            </div>
+          </label>
+          <label className="flex flex-col gap-0.5">
+            <span className="text-[10px] text-white/40 flex items-center gap-1">😰 Stress</span>
+            <div className="flex items-center gap-1">
+              <input
+                type="number" step="1" min={1} max={10}
+                value={habit.stressScore ?? ""}
+                onChange={(e) => patchHabit({ stressScore: e.target.value === "" ? null : parseInt(e.target.value) })}
+                placeholder="—"
+                className="w-full px-2 py-1.5 bg-[#0A0A0A] border border-[#2A2A2A] rounded text-sm text-white focus:outline-none focus:border-[#E51A1A]/50"
+              />
+              <span className="text-[10px] text-white/30">/10</span>
+            </div>
+          </label>
+        </div>
+      </div>
 
       {/* Step tracker (own card now that macros has its own panel) */}
       <div className="grid grid-cols-1 gap-3">
