@@ -394,6 +394,7 @@ export default function ProgressPage() {
         Track your body measurements and transformation over time.
       </p>
 
+      <ProgressPhotoUploader />
 
       {/* ================================================================= */}
       {/* TAB 1: MEASUREMENTS                                               */}
@@ -668,6 +669,150 @@ export default function ProgressPage() {
         </div>
       )}
 
+    </div>
+  );
+}
+
+/* ─── ProgressPhotoUploader — base64 upload + thumbnail list ─────── */
+
+interface PhotoRow {
+  id: number;
+  imageData: string;
+  photoDate: string;
+  category: string;
+  notes: string | null;
+}
+
+function ProgressPhotoUploader() {
+  const [photos, setPhotos] = useState<PhotoRow[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [category, setCategory] = useState<"front" | "side" | "back">("front");
+  const [photoDate, setPhotoDate] = useState(todayISO());
+  const [notes, setNotes] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/hub/photos")
+      .then((r) => r.json())
+      .then((d) => setPhotos(d.photos || []))
+      .catch(() => {});
+  }, []);
+
+  async function handleUpload(file: File) {
+    setError(null);
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Image must be under 5 MB.");
+      return;
+    }
+    setUploading(true);
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const dataUrl = String(reader.result);
+      const res = await fetch("/api/hub/photos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageData: dataUrl, category, photoDate, notes: notes.trim() || null }),
+      });
+      if (res.ok) {
+        const { photo } = await res.json();
+        setPhotos((prev) => [photo, ...prev]);
+        setOpen(false);
+        setNotes("");
+        if (fileRef.current) fileRef.current.value = "";
+      } else {
+        const err = await res.json();
+        setError(err.error || "Upload failed");
+      }
+      setUploading(false);
+    };
+    reader.onerror = () => { setError("Couldn't read the file."); setUploading(false); };
+    reader.readAsDataURL(file);
+  }
+
+  async function deletePhoto(id: number) {
+    if (!confirm("Delete this photo?")) return;
+    const res = await fetch(`/api/hub/photos/${id}`, { method: "DELETE" });
+    if (res.ok) setPhotos((prev) => prev.filter((p) => p.id !== id));
+  }
+
+  return (
+    <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-4 mb-6">
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <h2 className="text-sm font-bold text-white">📸 Progress photos</h2>
+          <p className="text-xs text-white/40">Front / side / back. Your coach can compare any two side-by-side.</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-[#E51A1A] text-white hover:bg-[#E51A1A]/90 cursor-pointer"
+        >
+          {open ? "Cancel" : "+ Add photo"}
+        </button>
+      </div>
+
+      {open && (
+        <div className="bg-[#0A0A0A] border border-[#2A2A2A] rounded-xl p-3 mb-3 space-y-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <label className="flex flex-col gap-0.5">
+              <span className="text-[10px] text-white/40 uppercase">Category</span>
+              <select value={category} onChange={(e) => setCategory(e.target.value as "front" | "side" | "back")}
+                className="px-2 py-1.5 bg-[#1E1E1E] border border-[#2A2A2A] rounded text-sm text-white">
+                <option value="front">Front</option>
+                <option value="side">Side</option>
+                <option value="back">Back</option>
+              </select>
+            </label>
+            <label className="flex flex-col gap-0.5">
+              <span className="text-[10px] text-white/40 uppercase">Date</span>
+              <input type="date" value={photoDate} onChange={(e) => setPhotoDate(e.target.value)}
+                className="px-2 py-1.5 bg-[#1E1E1E] border border-[#2A2A2A] rounded text-sm text-white" />
+            </label>
+            <label className="flex flex-col gap-0.5 col-span-2 sm:col-span-1">
+              <span className="text-[10px] text-white/40 uppercase">Notes (optional)</span>
+              <input type="text" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="e.g. morning, post-shower"
+                className="px-2 py-1.5 bg-[#1E1E1E] border border-[#2A2A2A] rounded text-sm text-white placeholder-white/20" />
+            </label>
+          </div>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f); }}
+            className="block w-full text-xs text-white/60 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[#FF6B00]/20 file:text-[#FF6B00] hover:file:bg-[#FF6B00]/30 cursor-pointer"
+          />
+          {uploading && <p className="text-xs text-white/40">Uploading…</p>}
+          {error && <p className="text-xs text-red-400">{error}</p>}
+        </div>
+      )}
+
+      {photos.length === 0 ? (
+        <p className="text-xs text-white/30 text-center py-4">No photos yet. Add your first to start tracking visual progress.</p>
+      ) : (
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+          {photos.slice(0, 12).map((p) => (
+            <div key={p.id} className="relative group bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg overflow-hidden aspect-[3/4]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={p.imageData} alt="" className="w-full h-full object-cover" />
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-1.5 py-1 text-[9px]">
+                <p className="text-white/80 capitalize">{p.category}</p>
+                <p className="text-white/40">{new Date(p.photoDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => deletePhoto(p.id)}
+                className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white/70 hover:text-red-400 cursor-pointer flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                aria-label="Delete"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

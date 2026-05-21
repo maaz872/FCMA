@@ -105,7 +105,7 @@ type WeeklyTargetData = {
 
 /* ─── Helpers ────────────────────────────────────────────────────────── */
 
-const TABS = ["Overview", "Meals", "Steps", "Body", "Messages", "Plans", "Targets", "Analytics", "PRs", "Notes"] as const;
+const TABS = ["Overview", "Meals", "Steps", "Body", "Messages", "Plans", "Targets", "Analytics", "PRs", "Photos", "Notes"] as const;
 type Tab = typeof TABS[number];
 
 function fmtDate(iso: string) {
@@ -155,6 +155,7 @@ const TAB_META: Record<Tab, { icon: string; label: string }> = {
   Targets:  { icon: "🎯", label: "Targets" },
   Analytics: { icon: "📊", label: "Analytics" },
   PRs:      { icon: "🏆", label: "PRs" },
+  Photos:   { icon: "📸", label: "Photos" },
   Notes:    { icon: "📝", label: "Notes" },
 };
 
@@ -293,6 +294,7 @@ export default function UserDetailClient({ user, planTemplates, activePlan, week
         {tab === "Targets" && <TargetsTab userId={user.id} weeklyTargets={weeklyTargets} onRefresh={() => router.refresh()} />}
         {tab === "Analytics" && <AnalyticsTab mealLogs={user.mealLogs} weightLogs={user.weightLogs} bodyMeasurements={user.bodyMeasurements} stepLogs={user.stepLogs} calorieTarget={user.macroTarget?.calories || null} targetWeightKg={user.targetWeightKg} />}
         {tab === "PRs" && <PRsTab userId={user.id} coachWorkouts={coachWorkouts} />}
+        {tab === "Photos" && <PhotosTab userId={user.id} />}
         {tab === "Notes" && <NotesTab userId={user.id} />}
       </div>
 
@@ -2513,6 +2515,145 @@ function PRsTab({ userId, coachWorkouts }: { userId: string; coachWorkouts: Coac
             </div>
           ))}
         </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Photos Tab — before/after comparison ──────────────────────── */
+
+interface ProgressPhoto {
+  id: number;
+  imageData: string;
+  photoDate: string;
+  category: string;
+  notes: string | null;
+}
+
+function PhotosTab({ userId }: { userId: string }) {
+  const [photos, setPhotos] = useState<ProgressPhoto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [category, setCategory] = useState<string>("front");
+  const [beforeId, setBeforeId] = useState<number | null>(null);
+  const [afterId, setAfterId] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetch(`/api/admin/users/${userId}/photos`)
+      .then((r) => r.json())
+      .then((d) => {
+        setPhotos(d.photos || []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [userId]);
+
+  const visiblePhotos = useMemo(
+    () => photos.filter((p) => p.category === category),
+    [photos, category],
+  );
+
+  // When category changes, auto-select oldest as before, newest as after.
+  useEffect(() => {
+    if (visiblePhotos.length === 0) {
+      setBeforeId(null); setAfterId(null);
+      return;
+    }
+    const sortedAsc = [...visiblePhotos].sort((a, b) => a.photoDate.localeCompare(b.photoDate));
+    setBeforeId(sortedAsc[0].id);
+    setAfterId(sortedAsc[sortedAsc.length - 1].id);
+  }, [visiblePhotos]);
+
+  const before = visiblePhotos.find((p) => p.id === beforeId);
+  const after = visiblePhotos.find((p) => p.id === afterId);
+
+  if (loading) return <p className="text-white/30 text-sm text-center py-8">Loading…</p>;
+
+  return (
+    <div className="space-y-4">
+      {/* Category pills */}
+      <div className="flex gap-1.5">
+        {["front", "side", "back"].map((cat) => {
+          const count = photos.filter((p) => p.category === cat).length;
+          const active = category === cat;
+          return (
+            <button
+              key={cat}
+              type="button"
+              onClick={() => setCategory(cat)}
+              className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors cursor-pointer capitalize ${
+                active
+                  ? "bg-[#E51A1A] border-[#E51A1A] text-white"
+                  : "bg-transparent border-[#2A2A2A] text-white/50 hover:border-[#E51A1A]/40 hover:text-white/80"
+              }`}
+            >
+              {cat} <span className="opacity-50">({count})</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {visiblePhotos.length < 2 ? (
+        <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-8 text-center text-white/40 text-sm">
+          {visiblePhotos.length === 0
+            ? "No photos in this category yet."
+            : "Need at least 2 photos in this category to compare."}
+          <p className="text-xs text-white/30 mt-2">Clients upload progress photos from their /hub/progress page.</p>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="flex flex-col gap-0.5">
+              <span className="text-[10px] text-white/40 uppercase">Before</span>
+              <select
+                value={beforeId ?? ""}
+                onChange={(e) => setBeforeId(parseInt(e.target.value))}
+                className="px-2 py-1.5 bg-[#0A0A0A] border border-[#2A2A2A] rounded text-sm text-white"
+              >
+                {visiblePhotos.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {new Date(p.photoDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-0.5">
+              <span className="text-[10px] text-white/40 uppercase">After</span>
+              <select
+                value={afterId ?? ""}
+                onChange={(e) => setAfterId(parseInt(e.target.value))}
+                className="px-2 py-1.5 bg-[#0A0A0A] border border-[#2A2A2A] rounded text-sm text-white"
+              >
+                {visiblePhotos.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {new Date(p.photoDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {[before, after].map((p, i) => p ? (
+              <div key={`${i}-${p.id}`} className="bg-[#0A0A0A] border border-[#2A2A2A] rounded-xl overflow-hidden">
+                <div className="aspect-[3/4] bg-[#0A0A0A]">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={p.imageData} alt={i === 0 ? "Before" : "After"} className="w-full h-full object-cover" />
+                </div>
+                <div className="px-3 py-2 text-[10px]">
+                  <p className="text-white/60 font-semibold uppercase">{i === 0 ? "Before" : "After"}</p>
+                  <p className="text-white/40">{new Date(p.photoDate).toLocaleDateString("en-GB", { dateStyle: "long" })}</p>
+                  {p.notes && <p className="text-white/30 mt-0.5 italic">{p.notes}</p>}
+                </div>
+              </div>
+            ) : <div key={i} />)}
+          </div>
+
+          {/* Days between */}
+          {before && after && (
+            <p className="text-center text-xs text-white/50">
+              {Math.abs(Math.round((new Date(after.photoDate).getTime() - new Date(before.photoDate).getTime()) / (24*60*60*1000)))} days between photos
+            </p>
+          )}
+        </>
       )}
     </div>
   );
