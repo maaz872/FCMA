@@ -21,11 +21,19 @@ interface RecentUser {
   plan: string;
 }
 
+interface AtRiskClient {
+  userId: string;
+  name: string;
+  score: number;
+  primaryReason: string;
+}
+
 interface Props {
   stats: Stats;
   recentUsers: RecentUser[];
   activeClients: number;
   maxClients: number;
+  atRiskClients: AtRiskClient[];
 }
 
 const quickActions = [
@@ -70,7 +78,7 @@ function formatDate(iso: string) {
   });
 }
 
-export default function AdminDashboardClient({ stats, recentUsers, activeClients, maxClients }: Props) {
+export default function AdminDashboardClient({ stats, recentUsers, activeClients, maxClients, atRiskClients }: Props) {
   const { siteName } = useBranding();
   const statCards = [
     {
@@ -164,6 +172,36 @@ export default function AdminDashboardClient({ stats, recentUsers, activeClients
           </div>
         ))}
       </div>
+
+      {/* At-risk clients — only renders when there's at least one */}
+      {atRiskClients.length > 0 && (
+        <div>
+          <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+            <span>⚠️</span>
+            <span>Needs your attention this week</span>
+            <span className="text-xs text-white/40 font-normal">({atRiskClients.length})</span>
+          </h2>
+          <div className="bg-[#1E1E1E] border border-orange-500/30 rounded-2xl divide-y divide-[#2A2A2A]">
+            {atRiskClients.map((c) => (
+              <div key={c.userId} className="px-6 py-4 flex items-center gap-4">
+                <div className="w-10 h-10 rounded-full bg-orange-500/20 text-orange-400 flex items-center justify-center font-bold text-sm flex-shrink-0">
+                  {c.name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-white truncate">{c.name}</p>
+                  <p className="text-xs text-orange-400/80 capitalize">{c.primaryReason}</p>
+                </div>
+                <Link
+                  href={`/admin/users/${c.userId}`}
+                  className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-[#E51A1A]/20 text-[#E51A1A] hover:bg-[#E51A1A]/30 transition-colors"
+                >
+                  Open
+                </Link>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Recent Signups */}
       <div>
