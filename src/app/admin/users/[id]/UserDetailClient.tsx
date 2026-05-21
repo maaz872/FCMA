@@ -105,7 +105,7 @@ type WeeklyTargetData = {
 
 /* ─── Helpers ────────────────────────────────────────────────────────── */
 
-const TABS = ["Overview", "Meals", "Steps", "Body", "Messages", "Plans", "Targets", "Analytics"] as const;
+const TABS = ["Overview", "Meals", "Steps", "Body", "Messages", "Plans", "Targets", "Analytics", "Notes"] as const;
 type Tab = typeof TABS[number];
 
 function fmtDate(iso: string) {
@@ -154,6 +154,7 @@ const TAB_META: Record<Tab, { icon: string; label: string }> = {
   Plans:    { icon: "📋", label: "Plans" },
   Targets:  { icon: "🎯", label: "Targets" },
   Analytics: { icon: "📊", label: "Analytics" },
+  Notes:    { icon: "📝", label: "Notes" },
 };
 
 function getMonday(d?: Date) {
@@ -290,6 +291,7 @@ export default function UserDetailClient({ user, planTemplates, activePlan, week
         {tab === "Plans" && <PlansTab userId={user.id} activePlan={activePlan} planTemplates={planTemplates} coachWorkouts={coachWorkouts} coachRecipes={coachRecipes} onRefresh={() => router.refresh()} />}
         {tab === "Targets" && <TargetsTab userId={user.id} weeklyTargets={weeklyTargets} onRefresh={() => router.refresh()} />}
         {tab === "Analytics" && <AnalyticsTab mealLogs={user.mealLogs} weightLogs={user.weightLogs} bodyMeasurements={user.bodyMeasurements} stepLogs={user.stepLogs} calorieTarget={user.macroTarget?.calories || null} targetWeightKg={user.targetWeightKg} />}
+        {tab === "Notes" && <NotesTab userId={user.id} />}
       </div>
 
       {/* ── Photo Modal ── */}
@@ -2136,6 +2138,201 @@ function EmptyState({ text }: { text: string }) {
   return (
     <div className="text-center py-12">
       <p className="text-white/30 text-sm">{text}</p>
+    </div>
+  );
+}
+
+/* ─── Notes Tab — private coach journal ──────────────────────────── */
+
+interface CoachNote {
+  id: number;
+  content: string;
+  isPinned: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+function NotesTab({ userId }: { userId: string }) {
+  const [notes, setNotes] = useState<CoachNote[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [draft, setDraft] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingContent, setEditingContent] = useState("");
+
+  useEffect(() => {
+    fetch(`/api/admin/users/${userId}/notes`)
+      .then((r) => r.json())
+      .then((d) => {
+        setNotes(d.notes || []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [userId]);
+
+  async function addNote() {
+    if (!draft.trim() || saving) return;
+    setSaving(true);
+    const res = await fetch(`/api/admin/users/${userId}/notes`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: draft }),
+    });
+    if (res.ok) {
+      const { note } = await res.json();
+      setNotes((prev) => [note, ...prev]);
+      setDraft("");
+    }
+    setSaving(false);
+  }
+
+  async function togglePin(note: CoachNote) {
+    const res = await fetch(`/api/admin/users/${userId}/notes/${note.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isPinned: !note.isPinned }),
+    });
+    if (res.ok) {
+      const { note: updated } = await res.json();
+      setNotes((prev) =>
+        [...prev.filter((n) => n.id !== updated.id), updated].sort((a, b) => {
+          if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
+          return b.createdAt.localeCompare(a.createdAt);
+        }),
+      );
+    }
+  }
+
+  async function saveEdit(noteId: number) {
+    if (!editingContent.trim()) return;
+    const res = await fetch(`/api/admin/users/${userId}/notes/${noteId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: editingContent }),
+    });
+    if (res.ok) {
+      const { note: updated } = await res.json();
+      setNotes((prev) => prev.map((n) => (n.id === updated.id ? updated : n)));
+      setEditingId(null);
+      setEditingContent("");
+    }
+  }
+
+  async function removeNote(noteId: number) {
+    if (!confirm("Delete this note?")) return;
+    const res = await fetch(`/api/admin/users/${userId}/notes/${noteId}`, { method: "DELETE" });
+    if (res.ok) setNotes((prev) => prev.filter((n) => n.id !== noteId));
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-4">
+        <p className="text-xs text-white/40 mb-2">
+          Private journal — only you can see these notes. The client never sees them.
+        </p>
+        <textarea
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          rows={3}
+          placeholder="e.g. Left knee tender after lunges — sub step-ups for 2 weeks. Discussed on Mar 10 call."
+          className="w-full px-3 py-2 bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#E51A1A]/50 resize-none"
+        />
+        <div className="flex justify-end mt-2">
+          <button
+            type="button"
+            onClick={addNote}
+            disabled={!draft.trim() || saving}
+            className="px-4 py-2 bg-[#E51A1A] text-white text-sm font-semibold rounded-lg hover:bg-[#E51A1A]/90 disabled:opacity-50 cursor-pointer"
+          >
+            {saving ? "Saving…" : "+ Add Note"}
+          </button>
+        </div>
+      </div>
+
+      {loading ? (
+        <p className="text-white/30 text-sm text-center py-8">Loading…</p>
+      ) : notes.length === 0 ? (
+        <div className="text-center py-12 text-white/30 text-sm">
+          No notes yet. Start with anything you&apos;d want to remember next time you open this client.
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {notes.map((note) => (
+            <div
+              key={note.id}
+              className={`bg-[#0A0A0A] border rounded-xl p-3 ${
+                note.isPinned ? "border-[#FFB800]/50" : "border-[#2A2A2A]"
+              }`}
+            >
+              {editingId === note.id ? (
+                <>
+                  <textarea
+                    value={editingContent}
+                    onChange={(e) => setEditingContent(e.target.value)}
+                    rows={3}
+                    className="w-full px-2 py-1.5 bg-[#1E1E1E] border border-[#2A2A2A] rounded text-sm text-white focus:outline-none focus:border-[#E51A1A]/50 resize-none"
+                  />
+                  <div className="flex justify-end gap-2 mt-2">
+                    <button
+                      type="button"
+                      onClick={() => { setEditingId(null); setEditingContent(""); }}
+                      className="text-xs text-white/50 hover:text-white/70 bg-transparent border-none cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => saveEdit(note.id)}
+                      className="text-xs font-semibold px-3 py-1 bg-[#E51A1A] text-white rounded cursor-pointer"
+                    >
+                      Save
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-sm text-white/90 whitespace-pre-wrap flex-1">
+                      {note.isPinned && <span className="mr-1">📌</span>}
+                      {note.content}
+                    </p>
+                    <div className="flex gap-0.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => togglePin(note)}
+                        className="w-7 h-7 text-white/40 hover:text-[#FFB800] cursor-pointer bg-transparent border-none text-xs"
+                        title={note.isPinned ? "Unpin" : "Pin"}
+                      >
+                        {note.isPinned ? "📌" : "📍"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setEditingId(note.id); setEditingContent(note.content); }}
+                        className="w-7 h-7 text-white/40 hover:text-white cursor-pointer bg-transparent border-none text-xs"
+                        title="Edit"
+                      >
+                        ✎
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeNote(note.id)}
+                        className="w-7 h-7 text-red-400/60 hover:text-red-400 cursor-pointer bg-transparent border-none text-xs"
+                        title="Delete"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-white/30 mt-1.5">
+                    {new Date(note.createdAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}
+                    {note.updatedAt !== note.createdAt && " · edited"}
+                  </p>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

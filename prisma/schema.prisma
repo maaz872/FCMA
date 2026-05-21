@@ -58,6 +58,8 @@ model User {
   favourites           Favourite[]
   sentMessages         Message[]          @relation("SentMessages")
   receivedMessages     Message[]          @relation("ReceivedMessages")
+  coachNotesWritten    CoachClientNote[]  @relation("CoachNotes")
+  coachNotesReceived   CoachClientNote[]  @relation("ClientNotes")
   posts                Post[]
   postLikes            PostLike[]
   postComments         PostComment[]
@@ -103,6 +105,23 @@ model CoachBilling {
   updatedAt        DateTime  @updatedAt
 
   coach User @relation("CoachBilling", fields: [coachId], references: [id])
+}
+
+// ─── CoachClientNote — private coach journal per client ─────────────
+
+model CoachClientNote {
+  id        Int      @id @default(autoincrement())
+  coachId   String
+  clientId  String
+  content   String
+  isPinned  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  coach  User @relation("CoachNotes",  fields: [coachId],  references: [id], onDelete: Cascade)
+  client User @relation("ClientNotes", fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([coachId, clientId, createdAt])
 }
 
 // ─── Message ─────────────────────────────────────────────────────────
