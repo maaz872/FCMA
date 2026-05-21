@@ -7,6 +7,7 @@ interface Message {
   senderId: string;
   content: string;
   imageData?: string | null;
+  attachmentType?: "image" | "video" | null;
   createdAt: string;
   sender: {
     id: string;
@@ -35,6 +36,7 @@ export default function AdminMessagesPage() {
   const [sending, setSending] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [attachmentType, setAttachmentType] = useState<"image" | "video" | null>(null);
   const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -96,20 +98,26 @@ export default function AdminMessagesPage() {
     );
   }
 
-  function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleAttachmentSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      alert("Image must be under 5MB");
+    const isVideo = file.type.startsWith("video/");
+    const limit = isVideo ? 10 : 5;
+    if (file.size > limit * 1024 * 1024) {
+      alert(`${isVideo ? "Video" : "Image"} must be under ${limit} MB`);
       return;
     }
     const reader = new FileReader();
-    reader.onload = () => setImagePreview(reader.result as string);
+    reader.onload = () => {
+      setImagePreview(reader.result as string);
+      setAttachmentType(isVideo ? "video" : "image");
+    };
     reader.readAsDataURL(file);
   }
 
   function clearImage() {
     setImagePreview(null);
+    setAttachmentType(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
@@ -124,8 +132,11 @@ export default function AdminMessagesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           receiverId: selectedUserId,
-          content: newMessage.trim() || (imagePreview ? "[Image]" : ""),
+          content:
+            newMessage.trim() ||
+            (imagePreview ? (attachmentType === "video" ? "[Video]" : "[Image]") : ""),
           imageData: imagePreview || undefined,
+          attachmentType: imagePreview ? attachmentType : undefined,
         }),
       });
 
@@ -379,15 +390,23 @@ export default function AdminMessagesPage() {
                             : "bg-[#2A2A2A] text-white"
                         }`}
                       >
-                        {msg.imageData && (
+                        {msg.imageData && msg.attachmentType === "video" ? (
+                          <video
+                            src={msg.imageData}
+                            controls
+                            playsInline
+                            className="max-w-[300px] w-full rounded-lg mb-2"
+                          />
+                        ) : msg.imageData ? (
+                          // eslint-disable-next-line @next/next/no-img-element
                           <img
                             src={msg.imageData}
                             alt="Shared image"
                             className="max-w-[300px] w-full rounded-lg mb-2 cursor-pointer hover:opacity-90 transition-opacity"
                             onClick={() => setFullScreenImage(msg.imageData!)}
                           />
-                        )}
-                        {msg.content && msg.content !== "[Image]" && (
+                        ) : null}
+                        {msg.content && msg.content !== "[Image]" && msg.content !== "[Video]" && (
                           <p className="text-sm whitespace-pre-wrap">
                             {msg.content}
                           </p>
@@ -406,15 +425,16 @@ export default function AdminMessagesPage() {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Image preview */}
+              {/* Attachment preview */}
               {imagePreview && (
                 <div className="px-4 py-2 border-t border-[#2A2A2A] bg-[#0A0A0A]">
                   <div className="relative inline-block">
-                    <img
-                      src={imagePreview}
-                      alt="Preview"
-                      className="h-16 rounded-lg"
-                    />
+                    {attachmentType === "video" ? (
+                      <video src={imagePreview} className="h-16 rounded-lg" muted />
+                    ) : (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={imagePreview} alt="Preview" className="h-16 rounded-lg" />
+                    )}
                     <button
                       onClick={clearImage}
                       className="absolute -top-2 -right-2 w-5 h-5 bg-[#E51A1A] text-white rounded-full text-xs flex items-center justify-center cursor-pointer border-none hover:bg-red-600"
@@ -433,8 +453,8 @@ export default function AdminMessagesPage() {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  onChange={handleImageSelect}
+                  accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm"
+                  onChange={handleAttachmentSelect}
                   className="hidden"
                 />
                 <button

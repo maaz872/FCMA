@@ -92,13 +92,31 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { receiverId, content, imageData } = body;
+    const { receiverId, content, imageData, attachmentType } = body as {
+      receiverId?: string;
+      content?: string;
+      imageData?: string;
+      attachmentType?: "image" | "video";
+    };
 
     if (!receiverId || (!content?.trim() && !imageData)) {
       return NextResponse.json(
-        { error: "Receiver and content or image are required" },
+        { error: "Receiver and content or attachment are required" },
         { status: 400 }
       );
+    }
+
+    // Soft caps. Videos cap higher than images but still bounded — base64
+    // in DB is a stopgap; large clips should move to object storage.
+    if (imageData) {
+      const isVideo = attachmentType === "video";
+      const max = isVideo ? 15_000_000 : 7_500_000; // ~10 MB video, ~5 MB image (base64-encoded)
+      if (imageData.length > max) {
+        return NextResponse.json(
+          { error: isVideo ? "Video too large (max ~10 MB)" : "Image too large (max ~5 MB)" },
+          { status: 413 },
+        );
+      }
     }
 
     // Verify receiver exists
@@ -116,8 +134,9 @@ export async function POST(request: Request) {
       data: {
         senderId: user.userId,
         receiverId,
-        content: content?.trim() || "[Image]",
+        content: content?.trim() || (attachmentType === "video" ? "[Video]" : "[Image]"),
         imageData: imageData || null,
+        attachmentType: imageData ? (attachmentType === "video" ? "video" : "image") : null,
       },
       include: {
         sender: {

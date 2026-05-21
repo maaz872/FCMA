@@ -28,6 +28,7 @@ export async function GET(
         senderId: true,
         content: true,
         imageData: true,
+        attachmentType: true,
         createdAt: true,
         sender: {
           select: { id: true, firstName: true, lastName: true, role: true },

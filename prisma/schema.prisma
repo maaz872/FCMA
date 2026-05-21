@@ -167,13 +167,14 @@ model CoachClientNote {
 // ─── Message ─────────────────────────────────────────────────────────
 
 model Message {
-  id         Int      @id @default(autoincrement())
-  senderId   String
-  receiverId String
-  content    String
-  imageData  String?
-  isRead     Boolean  @default(false)
-  createdAt  DateTime @default(now())
+  id             Int      @id @default(autoincrement())
+  senderId       String
+  receiverId     String
+  content        String
+  imageData      String?
+  attachmentType String?  // "image" | "video" — set when imageData carries a video clip
+  isRead         Boolean  @default(false)
+  createdAt      DateTime @default(now())
 
   sender   User @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
   receiver User @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
