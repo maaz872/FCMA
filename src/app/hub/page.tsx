@@ -25,6 +25,9 @@ type PlanSummary = {
   today: {
     workout: { title: string } | null;
     calorieTarget: number | null;
+    proteinTarget: number | null;
+    carbsTarget: number | null;
+    fatTarget: number | null;
   };
   todayProgress: {
     workoutCompleted: boolean;
@@ -93,7 +96,31 @@ export default function HubDashboard() {
   const firstName = data?.user?.firstName || "";
   const caloriesEaten = data?.mealTotals?.calories || 0;
   const calorieTarget = planData?.today?.calorieTarget || data?.targets?.calories || 0;
-  const calPercent = calorieTarget > 0 ? Math.min(Math.round((caloriesEaten / calorieTarget) * 100), 100) : 0;
+
+  // Full macro panel: logged vs target with within/over/under band labels.
+  const proteinEaten = data?.mealTotals?.protein || 0;
+  const carbsEaten = data?.mealTotals?.carbs || 0;
+  const fatEaten = data?.mealTotals?.fat || 0;
+  const proteinTarget = planData?.today?.proteinTarget || 0;
+  const carbsTarget = planData?.today?.carbsTarget || 0;
+  const fatTarget = planData?.today?.fatTarget || 0;
+
+  function macroStatus(eaten: number, target: number) {
+    if (target <= 0) return { status: "n/a" as const, label: "no target", cls: "text-white/30", barCls: "bg-white/20", delta: 0 };
+    const delta = eaten - target;
+    const pctDelta = delta / target;
+    if (Math.abs(pctDelta) <= 0.1) {
+      return { status: "within" as const, label: "✓ on target", cls: "text-green-400", barCls: "bg-green-500", delta };
+    }
+    if (delta > 0) {
+      return { status: "over" as const, label: `+${Math.round(delta)} over`, cls: "text-[#E51A1A]", barCls: "bg-[#E51A1A]", delta };
+    }
+    return { status: "under" as const, label: `${Math.round(delta)} under`, cls: "text-[#FF6B00]", barCls: "bg-[#FF6B00]", delta };
+  }
+  const calStatus = macroStatus(caloriesEaten, calorieTarget);
+  const proteinStatus = macroStatus(proteinEaten, proteinTarget);
+  const carbsStatus = macroStatus(carbsEaten, carbsTarget);
+  const fatStatus = macroStatus(fatEaten, fatTarget);
   const steps = data?.stepsToday || 0;
   const stepGoal = stepTarget || data?.stepGoal || 10000;
   const stepPercent = stepGoal > 0 ? Math.min(Math.round((steps / stepGoal) * 100), 100) : 0;
@@ -103,13 +130,6 @@ export default function HubDashboard() {
   const weightChange = weightLatest !== null && weightWeekAgo !== null && weightLatest !== undefined && weightWeekAgo !== undefined
     ? Math.round((weightLatest - weightWeekAgo) * 10) / 10 : null;
 
-  function calMotivation() {
-    if (calPercent > 100) return { text: "Over target", cls: "text-[#E51A1A]" };
-    if (calPercent >= 90) return { text: "On target!", cls: "text-green-400" };
-    if (calPercent >= 50) return { text: "Almost there!", cls: "text-[#FF6B00]" };
-    return { text: "Keep going!", cls: "text-white/25" };
-  }
-  const calMsg = calMotivation();
 
   if (loading) {
     return (
@@ -189,21 +209,41 @@ export default function HubDashboard() {
         </div>
       )}
 
-      {/* Calorie + Step Trackers — 2 columns */}
-      <div className="grid grid-cols-2 gap-3">
-        {/* Calories */}
-        <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-4">
-          <p className="text-[10px] text-white/40 font-semibold uppercase tracking-wide mb-1">🔥 Calories</p>
-          <p className="text-lg font-black text-white">
-            {caloriesEaten.toLocaleString()}
-            <span className="text-[10px] text-white/30 font-semibold ml-1">/ {calorieTarget.toLocaleString()}</span>
-          </p>
-          <div className="w-full h-1.5 bg-[#2A2A2A] rounded-full overflow-hidden mt-2">
-            <div className="h-full bg-[#E51A1A] rounded-full transition-all duration-700" style={{ width: `${calPercent}%` }} />
-          </div>
-          <p className={`text-[9px] mt-1.5 ${calMsg.cls}`}>{calMsg.text}</p>
+      {/* Macros panel — full breakdown with within/over/under banding */}
+      {(calorieTarget > 0 || proteinTarget > 0) && (
+        <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-4 space-y-2.5">
+          <p className="text-[10px] text-white/40 font-semibold uppercase tracking-wide">🔥 Today&apos;s macros</p>
+          {[
+            { name: "Calories", unit: "kcal", eaten: caloriesEaten, target: calorieTarget, s: calStatus },
+            { name: "Protein", unit: "g", eaten: proteinEaten, target: proteinTarget, s: proteinStatus },
+            { name: "Carbs", unit: "g", eaten: carbsEaten, target: carbsTarget, s: carbsStatus },
+            { name: "Fat", unit: "g", eaten: fatEaten, target: fatTarget, s: fatStatus },
+          ].map((row) => {
+            const pct = row.target > 0 ? Math.min(Math.round((row.eaten / row.target) * 100), 130) : 0;
+            return (
+              <div key={row.name}>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-white/70 font-medium">{row.name}</span>
+                  <span className="text-white/50">
+                    <span className="text-white font-semibold">{Math.round(row.eaten).toLocaleString()}</span>
+                    {" / "}{Math.round(row.target).toLocaleString()} {row.unit}
+                  </span>
+                </div>
+                <div className="relative w-full h-1.5 bg-[#2A2A2A] rounded-full overflow-hidden mt-1">
+                  <div className={`h-full rounded-full transition-all duration-700 ${row.s.barCls}`} style={{ width: `${Math.min(pct, 100)}%` }} />
+                  {pct > 100 && (
+                    <div className="absolute right-0 top-0 h-full w-[2px] bg-white/70" />
+                  )}
+                </div>
+                <p className={`text-[9px] mt-0.5 ${row.s.cls}`}>{row.s.label}</p>
+              </div>
+            );
+          })}
         </div>
+      )}
 
+      {/* Step tracker (own card now that macros has its own panel) */}
+      <div className="grid grid-cols-1 gap-3">
         {/* Steps */}
         <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-4">
           <p className="text-[10px] text-white/40 font-semibold uppercase tracking-wide mb-1">👟 Steps</p>
