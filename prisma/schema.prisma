@@ -60,6 +60,7 @@ model User {
   receivedMessages     Message[]          @relation("ReceivedMessages")
   coachNotesWritten    CoachClientNote[]  @relation("CoachNotes")
   coachNotesReceived   CoachClientNote[]  @relation("ClientNotes")
+  personalRecords      PersonalRecord[]
   posts                Post[]
   postLikes            PostLike[]
   postComments         PostComment[]
@@ -105,6 +106,24 @@ model CoachBilling {
   updatedAt        DateTime  @updatedAt
 
   coach User @relation("CoachBilling", fields: [coachId], references: [id])
+}
+
+// ─── PersonalRecord — strength PRs per (user, workout) ──────────────
+
+model PersonalRecord {
+  id         Int      @id @default(autoincrement())
+  userId     String
+  workoutId  Int
+  weightKg   Float
+  reps       Int      @default(1)
+  recordedAt DateTime @default(now())
+  source     String   @default("self") // "self" | "coach" | "calculated"
+  notes      String?
+
+  user    User    @relation(fields: [userId],    references: [id], onDelete: Cascade)
+  workout Workout @relation(fields: [workoutId], references: [id])
+
+  @@index([userId, workoutId, recordedAt])
 }
 
 // ─── CoachClientNote — private coach journal per client ─────────────
@@ -329,6 +348,7 @@ model Workout {
   clientPlanDays   ClientPlanDay[]
   planExercises    PlanExercise[]
   favourites       Favourite[]
+  personalRecords  PersonalRecord[]
 
   @@unique([slug, coachId])
   @@index([coachId])

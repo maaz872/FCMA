@@ -105,7 +105,7 @@ type WeeklyTargetData = {
 
 /* ─── Helpers ────────────────────────────────────────────────────────── */
 
-const TABS = ["Overview", "Meals", "Steps", "Body", "Messages", "Plans", "Targets", "Analytics", "Notes"] as const;
+const TABS = ["Overview", "Meals", "Steps", "Body", "Messages", "Plans", "Targets", "Analytics", "PRs", "Notes"] as const;
 type Tab = typeof TABS[number];
 
 function fmtDate(iso: string) {
@@ -154,6 +154,7 @@ const TAB_META: Record<Tab, { icon: string; label: string }> = {
   Plans:    { icon: "📋", label: "Plans" },
   Targets:  { icon: "🎯", label: "Targets" },
   Analytics: { icon: "📊", label: "Analytics" },
+  PRs:      { icon: "🏆", label: "PRs" },
   Notes:    { icon: "📝", label: "Notes" },
 };
 
@@ -291,6 +292,7 @@ export default function UserDetailClient({ user, planTemplates, activePlan, week
         {tab === "Plans" && <PlansTab userId={user.id} activePlan={activePlan} planTemplates={planTemplates} coachWorkouts={coachWorkouts} coachRecipes={coachRecipes} onRefresh={() => router.refresh()} />}
         {tab === "Targets" && <TargetsTab userId={user.id} weeklyTargets={weeklyTargets} onRefresh={() => router.refresh()} />}
         {tab === "Analytics" && <AnalyticsTab mealLogs={user.mealLogs} weightLogs={user.weightLogs} bodyMeasurements={user.bodyMeasurements} stepLogs={user.stepLogs} calorieTarget={user.macroTarget?.calories || null} targetWeightKg={user.targetWeightKg} />}
+        {tab === "PRs" && <PRsTab userId={user.id} coachWorkouts={coachWorkouts} />}
         {tab === "Notes" && <NotesTab userId={user.id} />}
       </div>
 
@@ -2329,6 +2331,185 @@ function NotesTab({ userId }: { userId: string }) {
                   </p>
                 </>
               )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── PRs Tab — strength PRs per (user, workout) ────────────────── */
+
+interface PRRow {
+  id: number;
+  workoutId: number;
+  weightKg: number;
+  reps: number;
+  recordedAt: string;
+  notes: string | null;
+  workout: { id: number; title: string; slug: string; bodyPart: string | null; equipment: string | null };
+}
+
+function PRsTab({ userId, coachWorkouts }: { userId: string; coachWorkouts: CoachWorkout[] }) {
+  const [prs, setPRs] = useState<PRRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedWorkoutId, setSelectedWorkoutId] = useState<number | "">("");
+  const [weight, setWeight] = useState<string>("");
+  const [reps, setReps] = useState<string>("1");
+  const [saving, setSaving] = useState(false);
+  const [bodyPartFilter, setBodyPartFilter] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch(`/api/admin/users/${userId}/prs`)
+      .then((r) => r.json())
+      .then((d) => { setPRs(d.prs || []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [userId]);
+
+  const visiblePicker = useMemo(
+    () => bodyPartFilter
+      ? coachWorkouts.filter((w) => (w.bodyPart || "").toLowerCase() === bodyPartFilter)
+      : coachWorkouts,
+    [coachWorkouts, bodyPartFilter]
+  );
+
+  async function recordPR(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedWorkoutId || !weight || saving) return;
+    setSaving(true);
+    const res = await fetch(`/api/admin/users/${userId}/prs`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        workoutId: Number(selectedWorkoutId),
+        weightKg: Number(weight),
+        reps: Number(reps) || 1,
+      }),
+    });
+    if (res.ok) {
+      const { pr } = await res.json();
+      setPRs((prev) => {
+        const filtered = prev.filter((p) => p.workoutId !== pr.workoutId);
+        return [pr, ...filtered];
+      });
+      setSelectedWorkoutId("");
+      setWeight("");
+      setReps("1");
+    } else {
+      const err = await res.json();
+      alert(err.error || "Failed to record PR");
+    }
+    setSaving(false);
+  }
+
+  async function deletePR(prId: number) {
+    if (!confirm("Remove this PR?")) return;
+    const res = await fetch(`/api/admin/users/${userId}/prs/${prId}`, { method: "DELETE" });
+    if (res.ok) setPRs((prev) => prev.filter((p) => p.id !== prId));
+  }
+
+  const prByBodyPart = prs.reduce<Record<string, PRRow[]>>((acc, pr) => {
+    const k = pr.workout.bodyPart || "other";
+    (acc[k] ||= []).push(pr);
+    return acc;
+  }, {});
+
+  return (
+    <div className="space-y-4">
+      <form onSubmit={recordPR} className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-4">
+        <p className="text-xs text-white/40 mb-3">Record a new max for this client. Multiple entries for the same exercise are kept; the latest counts as the current PR.</p>
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          {[null, "chest", "back", "legs", "shoulders", "arms", "core"].map((bp) => {
+            const active = bodyPartFilter === bp;
+            return (
+              <button
+                key={bp ?? "all"}
+                type="button"
+                onClick={() => setBodyPartFilter(bp)}
+                className={`text-[10px] px-2 py-0.5 rounded-full border capitalize cursor-pointer ${
+                  active ? "bg-[#E51A1A] border-[#E51A1A] text-white" : "border-[#2A2A2A] text-white/40"
+                }`}
+              >
+                {bp ?? "all"}
+              </button>
+            );
+          })}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-[1fr_100px_70px_auto] gap-2 items-end">
+          <label className="flex flex-col gap-0.5">
+            <span className="text-[10px] text-white/40 uppercase">Exercise</span>
+            <select
+              value={selectedWorkoutId}
+              onChange={(e) => setSelectedWorkoutId(e.target.value === "" ? "" : Number(e.target.value))}
+              className="px-2 py-2 bg-[#0A0A0A] border border-[#2A2A2A] rounded text-sm text-white focus:outline-none focus:border-[#E51A1A]/50"
+              required
+            >
+              <option value="">Pick an exercise…</option>
+              {visiblePicker.map((w) => (
+                <option key={w.id} value={w.id}>{w.title}</option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-0.5">
+            <span className="text-[10px] text-white/40 uppercase">Weight kg</span>
+            <input
+              type="number" step="0.5" min={0}
+              value={weight} onChange={(e) => setWeight(e.target.value)}
+              className="px-2 py-2 bg-[#0A0A0A] border border-[#2A2A2A] rounded text-sm text-white focus:outline-none focus:border-[#E51A1A]/50"
+              required
+            />
+          </label>
+          <label className="flex flex-col gap-0.5">
+            <span className="text-[10px] text-white/40 uppercase">Reps</span>
+            <input
+              type="number" min={1} max={20}
+              value={reps} onChange={(e) => setReps(e.target.value)}
+              className="px-2 py-2 bg-[#0A0A0A] border border-[#2A2A2A] rounded text-sm text-white focus:outline-none focus:border-[#E51A1A]/50"
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={!selectedWorkoutId || !weight || saving}
+            className="px-4 py-2 bg-[#E51A1A] text-white text-sm font-semibold rounded-lg hover:bg-[#E51A1A]/90 disabled:opacity-50 cursor-pointer"
+          >
+            {saving ? "…" : "+ PR"}
+          </button>
+        </div>
+      </form>
+
+      {loading ? (
+        <p className="text-white/30 text-sm text-center py-8">Loading…</p>
+      ) : prs.length === 0 ? (
+        <p className="text-white/30 text-sm text-center py-12">No PRs recorded yet.</p>
+      ) : (
+        <div className="space-y-4">
+          {Object.entries(prByBodyPart).map(([bp, rows]) => (
+            <div key={bp}>
+              <h3 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2 capitalize">{bp.replace("_", " ")}</h3>
+              <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl divide-y divide-[#2A2A2A]">
+                {rows.map((pr) => (
+                  <div key={pr.id} className="px-4 py-3 flex items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-white font-medium truncate">{pr.workout.title}</p>
+                      <p className="text-[10px] text-white/40 capitalize">
+                        {pr.workout.equipment ?? ""}{pr.notes ? ` · ${pr.notes}` : ""}
+                      </p>
+                    </div>
+                    <p className="text-lg font-black text-[#FFB800] flex-shrink-0">
+                      {pr.weightKg} <span className="text-xs font-normal text-white/40">kg × {pr.reps}</span>
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => deletePR(pr.id)}
+                      className="text-red-400/60 hover:text-red-400 text-sm bg-transparent border-none cursor-pointer"
+                      aria-label="Delete PR"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
           ))}
         </div>
