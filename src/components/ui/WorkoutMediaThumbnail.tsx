@@ -1,24 +1,27 @@
 "use client";
 
 /**
- * Unified thumbnail/preview component for workout cards.
+ * Unified thumbnail/preview component for workout cards. Plays the
+ * video on hover / touch only — keeps initial network and CPU cost
+ * low when a list of 20+ cards is on screen.
  *
  * Renders, in priority order:
  *   1. If `videoUrl` is a DIRECT video file (mp4/mov/webm) → native
- *      <video autoplay muted loop playsinline> that plays automatically
- *      in a feed-style card.
- *   2. If `videoUrl` is a YouTube URL → <iframe> with autoplay=1, mute=1,
- *      loop=1 (YouTube quirk: needs playlist=<id> for self-loop).
- *   3. Other recognised platforms (Instagram, TikTok, Facebook) can't
- *      reliably autoplay in an iframe → fall through to the gif.
+ *      <video> that starts playing on mouseenter and pauses on
+ *      mouseleave. On touch devices, the first tap starts it; the
+ *      Link wrapping the card still handles navigation on the second
+ *      tap.
+ *   2. If `videoUrl` is a YouTube URL → static poster image
+ *      (img.youtube.com/vi/<id>/hqdefault.jpg). On hover, swap to an
+ *      iframe with `autoplay=1`, `mute=1`. (We can't pause the iframe
+ *      from outside, so we just unmount it on leave to "stop".)
+ *   3. Other recognised platforms (Instagram, TikTok, Facebook) → fall
+ *      through to the gif.
  *   4. If a `gifUrl` is set → animated illustration via ExerciseGif.
  *   5. Otherwise → empty placeholder div.
- *
- * Use for card-style surfaces (admin/workouts list, hub/workouts list,
- * plan editor exercise cards, my-plan exercise cards). For the detail
- * page (with full audio/controls) use `VideoEmbed` directly.
  */
 
+import { useRef, useState } from "react";
 import { parseVideoUrl } from "@/lib/video";
 import ExerciseGif from "./ExerciseGif";
 
@@ -37,43 +40,14 @@ export default function WorkoutMediaThumbnail({
 }: Props) {
   const info = videoUrl ? parseVideoUrl(videoUrl) : null;
 
-  // 1. Direct video file — native autoplay-muted-loop
+  // 1. Direct video file — play on hover/touch
   if (info?.platform === "direct") {
-    return (
-      <div className={`relative overflow-hidden ${className}`}>
-        <video
-          src={info.embedUrl}
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="metadata"
-          aria-label={title || undefined}
-          className="absolute inset-0 w-full h-full object-cover"
-        >
-          Your browser doesn&apos;t support embedded video.
-        </video>
-      </div>
-    );
+    return <DirectVideoHover src={info.embedUrl} title={title} className={className} />;
   }
 
-  // 2. YouTube — iframe with autoplay quirks
+  // 2. YouTube — poster frame, iframe swaps in on hover
   if (info?.platform === "youtube") {
-    const ytEmbed =
-      `${info.embedUrl}?autoplay=1&mute=1&loop=1&playlist=${info.id}` +
-      `&controls=0&modestbranding=1&showinfo=0&rel=0&playsinline=1`;
-    return (
-      <div className={`relative overflow-hidden ${className}`}>
-        <iframe
-          src={ytEmbed}
-          allow="autoplay; encrypted-media; picture-in-picture"
-          loading="lazy"
-          referrerPolicy="no-referrer-when-downgrade"
-          title={title || "Workout preview"}
-          className="absolute inset-0 w-full h-full pointer-events-none"
-        />
-      </div>
-    );
+    return <YouTubeHover videoId={info.id} title={title} className={className} />;
   }
 
   // 3+4. Other video platforms or no video → fall back to gif
@@ -83,4 +57,97 @@ export default function WorkoutMediaThumbnail({
 
   // 5. Nothing to show
   return <div className={className} aria-hidden />;
+}
+
+function DirectVideoHover({
+  src,
+  title,
+  className,
+}: {
+  src: string;
+  title: string;
+  className: string;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  const start = () => {
+    const v = videoRef.current;
+    if (!v) return;
+    // Some mobile browsers reject autoplay if currentTime isn't 0,
+    // and we want every hover to restart the demo.
+    v.currentTime = 0;
+    // play() returns a Promise — silence rejections (autoplay policies).
+    void v.play().catch(() => {});
+  };
+  const stop = () => {
+    const v = videoRef.current;
+    if (!v) return;
+    v.pause();
+  };
+
+  return (
+    <div
+      className={`relative overflow-hidden ${className}`}
+      onMouseEnter={start}
+      onMouseLeave={stop}
+      onTouchStart={start}
+      onTouchEnd={stop}
+    >
+      <video
+        ref={videoRef}
+        src={src}
+        muted
+        loop
+        playsInline
+        preload="metadata"
+        aria-label={title || undefined}
+        className="absolute inset-0 w-full h-full object-cover"
+      >
+        Your browser doesn&apos;t support embedded video.
+      </video>
+    </div>
+  );
+}
+
+function YouTubeHover({
+  videoId,
+  title,
+  className,
+}: {
+  videoId: string;
+  title: string;
+  className: string;
+}) {
+  const [hover, setHover] = useState(false);
+  const poster = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+  const embed =
+    `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&` +
+    `playlist=${videoId}&controls=0&modestbranding=1&showinfo=0&rel=0&playsinline=1`;
+
+  return (
+    <div
+      className={`relative overflow-hidden ${className}`}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      onTouchStart={() => setHover(true)}
+    >
+      {hover ? (
+        <iframe
+          src={embed}
+          allow="autoplay; encrypted-media; picture-in-picture"
+          loading="lazy"
+          referrerPolicy="no-referrer-when-downgrade"
+          title={title || "Workout preview"}
+          className="absolute inset-0 w-full h-full pointer-events-none"
+        />
+      ) : (
+        <img
+          src={poster}
+          alt={title || ""}
+          loading="lazy"
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+      )}
+    </div>
+  );
 }

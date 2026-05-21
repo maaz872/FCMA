@@ -63,6 +63,24 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
     orderBy: { name: "asc" },
   });
 
+  // Coach's full workout + recipe library for the per-day edit modal
+  // on the Plans tab.
+  const [coachWorkouts, coachRecipes] = await Promise.all([
+    prisma.workout.findMany({
+      where: { coachId },
+      select: {
+        id: true, title: true, slug: true, gifUrl: true, videoUrl: true,
+        bodyPart: true, equipment: true, primaryMuscles: true, difficulty: true,
+      },
+      orderBy: { title: "asc" },
+    }),
+    prisma.recipe.findMany({
+      where: { coachId },
+      select: { id: true, title: true, slug: true, category: { select: { name: true } } },
+      orderBy: { title: "asc" },
+    }),
+  ]);
+
   // Fetch user's active plan with days and progress.
   // Includes Phase-5 PlanExercise rows so the Plans tab in the client
   // dashboard can show the per-day multi-exercise prescription, not just
@@ -77,7 +95,7 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
           exercises: {
             include: {
               workout: {
-                select: { id: true, title: true, slug: true, gifUrl: true, bodyPart: true, equipment: true },
+                select: { id: true, title: true, slug: true, gifUrl: true, videoUrl: true, bodyPart: true, equipment: true },
               },
             },
             orderBy: { orderIndex: "asc" },
@@ -193,8 +211,24 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
       carbsTarget: d.carbsTarget, fatTarget: d.fatTarget, notes: d.notes,
       workoutTitle: d.workout?.title || null,
       workoutVideoUrl: d.workout?.videoUrl || null,
-      meals: (d.meals || []).map((m: { mealType: string; recipeId: number; servings: number; recipe: { title: string } }) => ({
-        mealType: m.mealType, recipeTitle: m.recipe.title, servings: m.servings,
+      meals: (d.meals || []).map((m: { id: number; mealType: string; recipeId: number; servings: number; sortOrder: number; recipe: { title: string } }) => ({
+        id: m.id, mealType: m.mealType, recipeId: m.recipeId, recipeTitle: m.recipe.title,
+        servings: m.servings, sortOrder: m.sortOrder,
+      })),
+      exercises: (d.exercises || []).map((ex: {
+        id: number; workoutId: number; orderIndex: number;
+        sets: number | null; repsLow: number | null; repsHigh: number | null;
+        durationSeconds: number | null; restSeconds: number | null;
+        weightKg: number | null; notes: string | null;
+        workout: { id: number; title: string; slug: string; gifUrl: string | null; videoUrl: string; bodyPart: string | null; equipment: string | null };
+      }) => ({
+        id: ex.id, workoutId: ex.workoutId, orderIndex: ex.orderIndex,
+        sets: ex.sets, repsLow: ex.repsLow, repsHigh: ex.repsHigh,
+        durationSeconds: ex.durationSeconds, restSeconds: ex.restSeconds,
+        weightKg: ex.weightKg, notes: ex.notes,
+        workoutTitle: ex.workout.title, workoutSlug: ex.workout.slug,
+        gifUrl: ex.workout.gifUrl, videoUrl: ex.workout.videoUrl,
+        bodyPart: ex.workout.bodyPart, equipment: ex.workout.equipment,
       })),
     })),
     progress: activePlan.progress.map(p => ({
@@ -253,6 +287,14 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
       planTemplates={serializedTemplates}
       activePlan={serializedActivePlan}
       weeklyTargets={serializedTargets}
+      coachWorkouts={coachWorkouts.map(w => ({
+        id: w.id, title: w.title, slug: w.slug, gifUrl: w.gifUrl, videoUrl: w.videoUrl,
+        bodyPart: w.bodyPart, equipment: w.equipment, primaryMuscles: w.primaryMuscles,
+        difficulty: w.difficulty,
+      }))}
+      coachRecipes={coachRecipes.map(r => ({
+        id: r.id, title: r.title, slug: r.slug, categoryName: r.category?.name ?? null,
+      }))}
     />
   );
 }
