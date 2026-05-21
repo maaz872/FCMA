@@ -47,7 +47,18 @@ export async function POST(request: Request) {
       // Verify template belongs to this coach
       const template = await prisma.planTemplate.findFirst({
         where: { id: parseInt(templateId), coachId },
-        include: { days: { include: { meals: true } } },
+        include: {
+          days: {
+            include: {
+              meals: true,
+              // Phase 5 added PlanExercise rows on the template. The
+              // assign flow was originally written before that and
+              // dropped them — fixed here so assigned plans get the
+              // same multi-exercise prescription the coach built.
+              exercises: { orderBy: { orderIndex: "asc" } },
+            },
+          },
+        },
       });
       if (!template) {
         return NextResponse.json({ error: "Template not found" }, { status: 404 });
@@ -83,11 +94,14 @@ export async function POST(request: Request) {
       },
     });
 
-    // Create ClientPlanDays (with nested meals if from template)
+    // Create ClientPlanDays (with nested meals + exercises if from template)
     if (daysToCreate.length > 0) {
       for (let i = 0; i < daysToCreate.length; i++) {
         const d = daysToCreate[i];
-        // Get meals from template day if available
+        // Get meals + exercises from the matching template day. We index
+        // by position because `daysToCreate` was built in the same order
+        // as `template.days`. For custom-days flows, there is no template
+        // day so exercises/meals are empty.
         const templateDay = templateDaysWithMeals[i];
         const mealsToCreate = templateDay?.meals?.length
           ? templateDay.meals.map((m: { mealType: string; recipeId: number; servings: number; sortOrder: number }) => ({
@@ -95,6 +109,29 @@ export async function POST(request: Request) {
               recipeId: m.recipeId,
               servings: m.servings,
               sortOrder: m.sortOrder,
+            }))
+          : [];
+        const exercisesToCreate = templateDay?.exercises?.length
+          ? templateDay.exercises.map((ex: {
+              workoutId: number;
+              orderIndex: number;
+              sets: number | null;
+              repsLow: number | null;
+              repsHigh: number | null;
+              durationSeconds: number | null;
+              restSeconds: number | null;
+              weightKg: number | null;
+              notes: string | null;
+            }) => ({
+              workoutId: ex.workoutId,
+              orderIndex: ex.orderIndex,
+              sets: ex.sets,
+              repsLow: ex.repsLow,
+              repsHigh: ex.repsHigh,
+              durationSeconds: ex.durationSeconds,
+              restSeconds: ex.restSeconds,
+              weightKg: ex.weightKg,
+              notes: ex.notes,
             }))
           : [];
 
@@ -112,6 +149,7 @@ export async function POST(request: Request) {
             fatTarget: d.fatTarget || null,
             notes: d.notes || null,
             meals: mealsToCreate.length > 0 ? { create: mealsToCreate } : undefined,
+            exercises: exercisesToCreate.length > 0 ? { create: exercisesToCreate } : undefined,
           },
         });
       }

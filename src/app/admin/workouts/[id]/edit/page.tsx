@@ -4,6 +4,9 @@ import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import PreviewModal from "@/components/admin/PreviewModal";
+import IllustrationPicker from "@/components/admin/IllustrationPicker";
+import ExerciseGif from "@/components/ui/ExerciseGif";
+import type { ExerciseLibraryEntry } from "@/lib/exercise-library";
 
 interface Subcategory {
   id: number;
@@ -17,6 +20,17 @@ interface Category {
   slug: string;
   subcategories: Subcategory[];
 }
+
+const BODYPART_TO_SUB_SLUG: Record<string, string> = {
+  chest: "chest",
+  back: "back",
+  legs: "legs",
+  shoulders: "shoulders",
+  arms: "arms",
+  core: "core",
+  full_body: "full-body",
+  cardio: "hiit",
+};
 
 export default function EditWorkoutPage({
   params,
@@ -44,6 +58,49 @@ export default function EditWorkoutPage({
   const [duration, setDuration] = useState("");
   const [targetGoal, setTargetGoal] = useState("All");
   const [isPublished, setIsPublished] = useState(false);
+  // Phase 4: illustration metadata.
+  const [gifUrl, setGifUrl] = useState<string | null>(null);
+  const [bodyPart, setBodyPart] = useState<string | null>(null);
+  const [equipment, setEquipment] = useState<string | null>(null);
+  const [primaryMuscles, setPrimaryMuscles] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  function generateSlug(val: string) {
+    return val
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-")
+      .trim();
+  }
+
+  function applyLibraryEntry(entry: ExerciseLibraryEntry) {
+    setTitle(entry.name);
+    setSlug(generateSlug(entry.name));
+    setDescription(
+      entry.instructions[0]?.slice(0, 240) ||
+        `Library-sourced exercise — ${entry.name}`
+    );
+    setInstructions(entry.instructions.length ? entry.instructions : [""]);
+    setGifUrl(entry.primaryImageUrl);
+    setBodyPart(entry.appBodyPart);
+    setEquipment(entry.appEquipment);
+    setPrimaryMuscles(entry.primaryMuscles.join(","));
+
+    const strength = categories.find((c) => c.slug === "strength");
+    const subSlug = BODYPART_TO_SUB_SLUG[entry.appBodyPart];
+    const sub = strength?.subcategories.find((s) => s.slug === subSlug);
+    if (strength) setCategoryId(strength.id);
+    if (sub) setSubcategoryId(sub.id);
+
+    setDifficulty(
+      entry.level === "beginner"
+        ? "Beginner"
+        : entry.level === "expert"
+          ? "Advanced"
+          : "Intermediate"
+    );
+  }
 
   useEffect(() => {
     Promise.all([
@@ -66,6 +123,10 @@ export default function EditWorkoutPage({
         setDuration(workout.duration || "");
         setTargetGoal(workout.targetGoal || "All");
         setIsPublished(workout.isPublished);
+        setGifUrl(workout.gifUrl ?? null);
+        setBodyPart(workout.bodyPart ?? null);
+        setEquipment(workout.equipment ?? null);
+        setPrimaryMuscles(workout.primaryMuscles ?? null);
       })
       .catch(() => setError("Failed to load workout"))
       .finally(() => setFetching(false));
@@ -97,8 +158,14 @@ export default function EditWorkoutPage({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!title || !slug || !description || !videoUrl || !subcategoryId) {
-      setError("Please fill in all required fields.");
+    if (!title || !slug || !description || !subcategoryId) {
+      setError("Please fill in title, description and subcategory.");
+      return;
+    }
+    if (!videoUrl && !gifUrl) {
+      setError(
+        "Add either a video URL or pick an illustration so users have something to watch."
+      );
       return;
     }
 
@@ -122,6 +189,10 @@ export default function EditWorkoutPage({
           duration: duration || null,
           targetGoal: targetGoal === "All" ? null : targetGoal,
           isPublished,
+          gifUrl,
+          bodyPart,
+          equipment,
+          primaryMuscles,
         }),
       });
 
@@ -190,6 +261,58 @@ export default function EditWorkoutPage({
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Illustration picker */}
+        <div className="bg-[#1A1A1A] border border-[#2A2A2A] rounded-xl p-4">
+          <div className="flex items-start gap-4">
+            <div className="w-24 h-24 bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
+              {gifUrl ? (
+                <ExerciseGif src={gifUrl} alt="Illustration preview" className="w-full h-full" />
+              ) : (
+                <span className="text-white/20 text-[10px] text-center px-2">
+                  No illustration
+                </span>
+              )}
+            </div>
+            <div className="flex-1">
+              <p className="text-white text-sm font-semibold">Illustration</p>
+              <p className="text-white/40 text-xs mt-1">
+                {gifUrl
+                  ? `${bodyPart?.replace("_", " ") ?? ""} · ${equipment ?? ""}`
+                  : "Pick from the bundled exercise library to attach a GIF illustration."}
+              </p>
+              <div className="flex gap-2 mt-2">
+                <button
+                  type="button"
+                  onClick={() => setPickerOpen(true)}
+                  className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-[#E51A1A] text-white hover:bg-[#E51A1A]/90 cursor-pointer"
+                >
+                  {gifUrl ? "Change illustration" : "Choose illustration"}
+                </button>
+                {gifUrl && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setGifUrl(null);
+                      setBodyPart(null);
+                      setEquipment(null);
+                      setPrimaryMuscles(null);
+                    }}
+                    className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-transparent text-white/40 hover:text-white/70 border border-[#2A2A2A] cursor-pointer"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <IllustrationPicker
+          open={pickerOpen}
+          onClose={() => setPickerOpen(false)}
+          onSelect={(entry) => applyLibraryEntry(entry)}
+        />
+
         {/* Title */}
         <div>
           <label className="block text-sm font-semibold text-white/70 mb-2">
@@ -244,10 +367,10 @@ export default function EditWorkoutPage({
           />
         </div>
 
-        {/* YouTube Video URL */}
+        {/* Video URL (optional when an illustration is picked) */}
         <div>
           <label className="block text-sm font-semibold text-white/70 mb-2">
-            YouTube Video URL *
+            Video URL {gifUrl ? "(optional)" : "*"}
           </label>
           <input
             type="url"
@@ -454,7 +577,21 @@ export default function EditWorkoutPage({
       {showPreview && (
         <PreviewModal
           type="workout"
-          data={{ title, description, videoUrl, difficulty, duration, targetGoal, instructions: JSON.stringify(instructions.filter(Boolean)) }}
+          data={{
+            title,
+            description,
+            videoUrl,
+            difficulty,
+            duration,
+            targetGoal,
+            instructions: JSON.stringify(instructions.filter(Boolean)),
+            // Phase 4 illustration fields, so the preview reflects what
+            // the picker just attached (without needing a save first).
+            gifUrl,
+            bodyPart,
+            equipment,
+            primaryMuscles,
+          }}
           onClose={() => setShowPreview(false)}
         />
       )}

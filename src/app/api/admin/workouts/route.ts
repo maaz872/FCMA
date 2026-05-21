@@ -44,11 +44,40 @@ export async function POST(request: Request) {
       duration,
       targetGoal,
       isPublished,
+      // Phase 4: illustration fields (optional — library or coach-uploaded).
+      gifUrl,
+      bodyPart,
+      equipment,
+      primaryMuscles,
     } = body;
 
-    if (!title || !slug || !description || !videoUrl || !subcategoryId) {
+    // videoUrl is no longer strictly required — a workout can be illustrated
+    // by a GIF instead of a video. Either gifUrl or videoUrl must be present
+    // so the user-facing detail page has something to render.
+    if (!title || !slug || !description || !subcategoryId) {
       return NextResponse.json(
-        { error: "Title, slug, description, videoUrl, and subcategoryId are required" },
+        { error: "Title, slug, description, and subcategoryId are required" },
+        { status: 400 }
+      );
+    }
+    if (!videoUrl && !gifUrl) {
+      return NextResponse.json(
+        { error: "Either a video URL or an illustration (gifUrl) is required" },
+        { status: 400 }
+      );
+    }
+
+    // Gotcha #23 fix: verify the subcategory belongs to this coach before
+    // writing it as a foreign key. Previously a coach could attach their
+    // workout to another coach's subcategory by submitting any int.
+    const subcategoryIdInt = parseInt(subcategoryId);
+    const sub = await prisma.workoutSubcategory.findFirst({
+      where: { id: subcategoryIdInt, coachId },
+      select: { id: true },
+    });
+    if (!sub) {
+      return NextResponse.json(
+        { error: "Invalid subcategory for this coach" },
         { status: 400 }
       );
     }
@@ -60,13 +89,17 @@ export async function POST(request: Request) {
         description,
         sets: sets || null,
         reps: reps || null,
-        videoUrl,
+        videoUrl: videoUrl || "",
         instructions: JSON.stringify(instructions || []),
-        subcategoryId: parseInt(subcategoryId),
+        subcategoryId: subcategoryIdInt,
         difficulty: difficulty || "Intermediate",
         duration: duration || null,
         targetGoal: targetGoal || null,
         isPublished: isPublished ?? false,
+        gifUrl: gifUrl || null,
+        bodyPart: bodyPart || null,
+        equipment: equipment || null,
+        primaryMuscles: primaryMuscles || null,
         coachId,
       },
       include: { subcategory: { include: { category: true } } },

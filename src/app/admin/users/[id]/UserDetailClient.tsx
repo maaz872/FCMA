@@ -52,13 +52,39 @@ type PlanTemplate = {
   type: string; durationWeeks: number; dayCount: number;
 };
 
+type PlanDayMealRow = {
+  id: number; mealType: string; recipeId: number; recipeTitle: string;
+  servings: number; sortOrder: number;
+};
+
+type PlanDayExerciseRow = {
+  id: number; workoutId: number; orderIndex: number;
+  sets: number | null; repsLow: number | null; repsHigh: number | null;
+  durationSeconds: number | null; restSeconds: number | null;
+  weightKg: number | null; notes: string | null;
+  workoutTitle: string; workoutSlug: string;
+  gifUrl: string | null; videoUrl: string | null;
+  bodyPart: string | null; equipment: string | null;
+};
+
 type PlanDay = {
   id: number; dayOfWeek: number; weekNumber: number;
   workoutNotes: string | null; mealPlan: string | null;
   calorieTarget: number | null; proteinTarget: number | null;
   carbsTarget: number | null; fatTarget: number | null; notes: string | null;
   workoutTitle: string | null; workoutVideoUrl: string | null;
-  meals?: { mealType: string; recipeTitle: string; servings: number }[];
+  meals?: PlanDayMealRow[];
+  exercises?: PlanDayExerciseRow[];
+};
+
+export type CoachWorkout = {
+  id: number; title: string; slug: string;
+  gifUrl: string | null; videoUrl: string;
+  bodyPart: string | null; equipment: string | null;
+  primaryMuscles: string | null; difficulty: string;
+};
+export type CoachRecipe = {
+  id: number; title: string; slug: string; categoryName: string | null;
 };
 
 type PlanProgress = {
@@ -140,11 +166,13 @@ function getMonday(d?: Date) {
 
 /* ─── Main Component ─────────────────────────────────────────────────── */
 
-export default function UserDetailClient({ user, planTemplates, activePlan, weeklyTargets }: {
+export default function UserDetailClient({ user, planTemplates, activePlan, weeklyTargets, coachWorkouts = [], coachRecipes = [] }: {
   user: UserData;
   planTemplates: PlanTemplate[];
   activePlan: ActivePlan | null;
   weeklyTargets: WeeklyTargetData[];
+  coachWorkouts?: CoachWorkout[];
+  coachRecipes?: CoachRecipe[];
 }) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("Overview");
@@ -259,7 +287,7 @@ export default function UserDetailClient({ user, planTemplates, activePlan, week
         {tab === "Steps" && <StepsTab logs={user.stepLogs} userId={user.id} onDelete={(id) => deleteEntry("step", id)} onRefresh={() => router.refresh()} />}
         {tab === "Body" && <BodyTab measurements={user.bodyMeasurements} userId={user.id} onDelete={(id) => deleteEntry("measurement", id)} onRefresh={() => router.refresh()} />}
         {tab === "Messages" && <MessagesTab messages={user.messages} msgText={msgText} setMsgText={setMsgText} sendMessage={sendMessage} sending={sending} />}
-        {tab === "Plans" && <PlansTab userId={user.id} activePlan={activePlan} planTemplates={planTemplates} onRefresh={() => router.refresh()} />}
+        {tab === "Plans" && <PlansTab userId={user.id} activePlan={activePlan} planTemplates={planTemplates} coachWorkouts={coachWorkouts} coachRecipes={coachRecipes} onRefresh={() => router.refresh()} />}
         {tab === "Targets" && <TargetsTab userId={user.id} weeklyTargets={weeklyTargets} onRefresh={() => router.refresh()} />}
         {tab === "Analytics" && <AnalyticsTab mealLogs={user.mealLogs} weightLogs={user.weightLogs} bodyMeasurements={user.bodyMeasurements} stepLogs={user.stepLogs} calorieTarget={user.macroTarget?.calories || null} targetWeightKg={user.targetWeightKg} />}
       </div>
@@ -531,18 +559,21 @@ function OverviewTab({ user, notifTitle, notifMsg, setNotifTitle, setNotifMsg, s
 
 /* ─── Plans Tab ──────────────────────────────────────────────────────── */
 
-function PlansTab({ userId, activePlan, planTemplates, onRefresh }: {
-  userId: string; activePlan: ActivePlan | null; planTemplates: PlanTemplate[]; onRefresh: () => void;
+function PlansTab({ userId, activePlan, planTemplates, coachWorkouts, coachRecipes, onRefresh }: {
+  userId: string; activePlan: ActivePlan | null; planTemplates: PlanTemplate[];
+  coachWorkouts: CoachWorkout[]; coachRecipes: CoachRecipe[]; onRefresh: () => void;
 }) {
   if (activePlan) {
-    return <ActivePlanView userId={userId} plan={activePlan} onRefresh={onRefresh} />;
+    return <ActivePlanView userId={userId} plan={activePlan} coachWorkouts={coachWorkouts} coachRecipes={coachRecipes} onRefresh={onRefresh} />;
   }
   return <AssignPlanForm userId={userId} templates={planTemplates} onRefresh={onRefresh} />;
 }
 
-function ActivePlanView({ userId, plan, onRefresh }: {
-  userId: string; plan: ActivePlan; onRefresh: () => void;
+function ActivePlanView({ userId, plan, coachWorkouts, coachRecipes, onRefresh }: {
+  userId: string; plan: ActivePlan;
+  coachWorkouts: CoachWorkout[]; coachRecipes: CoachRecipe[]; onRefresh: () => void;
 }) {
+  const [editingDay, setEditingDay] = useState<PlanDay | null>(null);
   const [updating, setUpdating] = useState(false);
 
   const maxWeek = Math.max(...plan.days.map(d => d.weekNumber), 1);
@@ -622,24 +653,57 @@ function ActivePlanView({ userId, plan, onRefresh }: {
                 const isToday = dayDate === today;
                 const isMissed = isPast && !isCompleted && !!day;
 
+                const exCount = day?.exercises?.length ?? 0;
+                const mealCount = day?.meals?.length ?? 0;
+                const baseCls = `rounded-lg p-1.5 text-center text-[10px] min-h-[72px] flex flex-col items-stretch justify-start border transition-colors ${
+                  isToday ? "border-[#E51A1A] bg-[#E51A1A]/10" :
+                  isCompleted ? "border-green-500/30 bg-green-500/10" :
+                  isMissed ? "border-orange-500/30 bg-orange-500/10" :
+                  "border-[#2A2A2A] bg-[#0A0A0A]"
+                } ${!day ? "opacity-30" : "hover:border-[#E51A1A]/60 cursor-pointer"}`;
+
+                const inner = (
+                  <>
+                    <div className="flex items-center justify-between mb-0.5">
+                      <span className="text-white/40 font-medium">{DAY_NAMES[dow]}</span>
+                      {isCompleted && <span className="text-green-400 text-xs">✓</span>}
+                      {isMissed && <span className="text-orange-400 text-xs">✗</span>}
+                    </div>
+                    {day ? (
+                      <div className="flex-1 flex flex-col gap-0.5 text-left">
+                        {exCount > 0 ? (
+                          <span className="text-white/80 truncate" title={day.exercises?.map(e => e.workoutTitle).join(", ")}>
+                            🏋️ {exCount} ex
+                          </span>
+                        ) : day.workoutTitle ? (
+                          <span className="text-white/50 truncate" title={day.workoutTitle}>
+                            🏋️ {day.workoutTitle}
+                          </span>
+                        ) : (
+                          <span className="text-white/20">Rest</span>
+                        )}
+                        {mealCount > 0 && (
+                          <span className="text-green-400/70 truncate">
+                            🍽 {mealCount} meal{mealCount !== 1 ? "s" : ""}
+                          </span>
+                        )}
+                      </div>
+                    ) : null}
+                  </>
+                );
+
+                if (!day) {
+                  return <div key={dow} className={baseCls}>{inner}</div>;
+                }
                 return (
-                  <div key={dow} className={`rounded-lg p-1.5 text-center text-[10px] min-h-[52px] flex flex-col items-center justify-center border ${
-                    isToday ? "border-[#E51A1A] bg-[#E51A1A]/10" :
-                    isCompleted ? "border-green-500/30 bg-green-500/10" :
-                    isMissed ? "border-orange-500/30 bg-orange-500/10" :
-                    "border-[#2A2A2A] bg-[#0A0A0A]"
-                  } ${!day ? "opacity-30" : ""}`}>
-                    <span className="text-white/40 font-medium">{DAY_NAMES[dow]}</span>
-                    {day && (
-                      <>
-                        {isCompleted && <span className="text-green-400 text-sm mt-0.5">&#10003;</span>}
-                        {isMissed && <span className="text-orange-400 text-sm mt-0.5">&#10007;</span>}
-                        {!isPast && !isToday && <span className="text-white/20 text-sm mt-0.5">-</span>}
-                        {day.workoutTitle && <span className="text-white/50 truncate w-full">{day.workoutTitle}</span>}
-                        {day.meals && day.meals.length > 0 && <span className="text-green-400/70 truncate w-full">{day.meals.length} recipe{day.meals.length !== 1 ? "s" : ""}</span>}
-                      </>
-                    )}
-                  </div>
+                  <button
+                    key={dow}
+                    type="button"
+                    onClick={() => setEditingDay(day)}
+                    className={`${baseCls} text-left bg-[#0A0A0A]`}
+                  >
+                    {inner}
+                  </button>
                 );
               })}
             </div>
@@ -658,7 +722,323 @@ function ActivePlanView({ userId, plan, onRefresh }: {
           {updating ? "..." : "Complete Plan"}
         </button>
       </div>
+
+      {editingDay && (
+        <EditPlanDayModal
+          userId={userId}
+          day={editingDay}
+          coachWorkouts={coachWorkouts}
+          coachRecipes={coachRecipes}
+          onClose={() => setEditingDay(null)}
+          onSaved={() => {
+            setEditingDay(null);
+            onRefresh();
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+/* ─── Edit Plan Day Modal — writes to ClientPlanDay (not the template) ── */
+
+const MEAL_TYPES = ["Breakfast", "Lunch", "Snack", "Dinner"] as const;
+
+function EditPlanDayModal({
+  userId, day, coachWorkouts, coachRecipes, onClose, onSaved,
+}: {
+  userId: string;
+  day: PlanDay;
+  coachWorkouts: CoachWorkout[];
+  coachRecipes: CoachRecipe[];
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  // Local editable copies of exercises + meals for this day.
+  const [exercises, setExercises] = useState<PlanDayExerciseRow[]>(
+    () => (day.exercises ?? []).map((ex) => ({ ...ex })),
+  );
+  const [meals, setMeals] = useState<PlanDayMealRow[]>(
+    () => (day.meals ?? []).map((m) => ({ ...m })),
+  );
+  const [workoutNotes, setWorkoutNotes] = useState(day.workoutNotes ?? "");
+  const [dayNotes, setDayNotes] = useState(day.notes ?? "");
+  const [saving, setSaving] = useState(false);
+  const [showWorkoutPicker, setShowWorkoutPicker] = useState(false);
+  const [bodyPartFilter, setBodyPartFilter] = useState<string | null>(null);
+
+  const visibleWorkouts = useMemo(() => {
+    if (!bodyPartFilter) return coachWorkouts;
+    return coachWorkouts.filter(
+      (w) => (w.bodyPart || "").toLowerCase() === bodyPartFilter,
+    );
+  }, [coachWorkouts, bodyPartFilter]);
+
+  function addExercise(w: CoachWorkout) {
+    setExercises((prev) => [
+      ...prev,
+      {
+        id: -Date.now(), // negative placeholder for new rows
+        workoutId: w.id,
+        orderIndex: prev.length,
+        sets: 3, repsLow: 10, repsHigh: 12,
+        durationSeconds: null, restSeconds: 60, weightKg: null, notes: null,
+        workoutTitle: w.title, workoutSlug: w.slug,
+        gifUrl: w.gifUrl, videoUrl: w.videoUrl,
+        bodyPart: w.bodyPart, equipment: w.equipment,
+      },
+    ]);
+    setShowWorkoutPicker(false);
+  }
+
+  function updateExercise(idx: number, patch: Partial<PlanDayExerciseRow>) {
+    setExercises((prev) => prev.map((ex, i) => (i === idx ? { ...ex, ...patch } : ex)));
+  }
+  function removeExercise(idx: number) {
+    setExercises((prev) => prev.filter((_, i) => i !== idx));
+  }
+  function moveExercise(idx: number, dir: -1 | 1) {
+    setExercises((prev) => {
+      const j = idx + dir;
+      if (j < 0 || j >= prev.length) return prev;
+      const next = [...prev];
+      [next[idx], next[j]] = [next[j], next[idx]];
+      return next;
+    });
+  }
+
+  function addMeal(mealType: string, recipeId: number) {
+    const recipe = coachRecipes.find((r) => r.id === recipeId);
+    if (!recipe) return;
+    setMeals((prev) => [
+      ...prev,
+      {
+        id: -Date.now(),
+        mealType,
+        recipeId,
+        recipeTitle: recipe.title,
+        servings: 1,
+        sortOrder: prev.filter((m) => m.mealType === mealType).length,
+      },
+    ]);
+  }
+  function removeMeal(idx: number) {
+    setMeals((prev) => prev.filter((_, i) => i !== idx));
+  }
+  function updateMeal(idx: number, patch: Partial<PlanDayMealRow>) {
+    setMeals((prev) => prev.map((m, i) => (i === idx ? { ...m, ...patch } : m)));
+  }
+
+  async function save() {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/plan/days/${day.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workoutNotes: workoutNotes.trim() || null,
+          notes: dayNotes.trim() || null,
+          exercises: exercises.map((ex, idx) => ({
+            workoutId: ex.workoutId,
+            orderIndex: idx,
+            sets: ex.sets, repsLow: ex.repsLow, repsHigh: ex.repsHigh,
+            durationSeconds: ex.durationSeconds, restSeconds: ex.restSeconds,
+            weightKg: ex.weightKg, notes: ex.notes,
+          })),
+          meals: meals.map((m, idx) => ({
+            mealType: m.mealType, recipeId: m.recipeId,
+            servings: m.servings, sortOrder: idx,
+          })),
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.error || "Save failed");
+        setSaving(false);
+        return;
+      }
+      onSaved();
+    } catch {
+      alert("Save failed");
+      setSaving(false);
+    }
+  }
+
+  const fullDayName = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"][day.dayOfWeek - 1];
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-stretch sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
+      <div className="bg-[#111111] border border-[#2A2A2A] sm:rounded-2xl w-full max-w-3xl h-full sm:h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[#1A1A1A]">
+          <div>
+            <h2 className="text-white font-semibold text-lg">Week {day.weekNumber} — {fullDayName}</h2>
+            <p className="text-white/40 text-xs mt-0.5">Editing this client's day only. The plan template stays unchanged.</p>
+          </div>
+          <button type="button" onClick={onClose} className="text-white/40 hover:text-white text-2xl leading-none bg-transparent border-none cursor-pointer p-1">&times;</button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-5 space-y-5">
+          {/* Exercises */}
+          <section>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xs font-semibold text-white/60 uppercase tracking-wider">
+                Exercises{exercises.length > 0 && <span className="text-green-400 ml-1 normal-case font-normal">({exercises.length})</span>}
+              </h3>
+              <button type="button" onClick={() => setShowWorkoutPicker(true)} className="text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-[#E51A1A] text-white hover:bg-[#E51A1A]/90 cursor-pointer">+ Add exercise</button>
+            </div>
+            {exercises.length === 0 ? (
+              <p className="text-[11px] text-white/30 italic">No exercises — this is a rest day until you add one.</p>
+            ) : (
+              <div className="space-y-2">
+                {exercises.map((ex, i) => (
+                  <div key={i} className="bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg p-2.5">
+                    <div className="flex items-start gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-1">
+                          <p className="text-xs text-white font-medium">{i + 1}. {ex.workoutTitle}</p>
+                          <div className="flex gap-0.5">
+                            <button type="button" onClick={() => moveExercise(i, -1)} disabled={i === 0} className="w-6 h-6 text-white/30 hover:text-white disabled:opacity-20 cursor-pointer bg-transparent border-none text-xs">▲</button>
+                            <button type="button" onClick={() => moveExercise(i, 1)} disabled={i === exercises.length - 1} className="w-6 h-6 text-white/30 hover:text-white disabled:opacity-20 cursor-pointer bg-transparent border-none text-xs">▼</button>
+                            <button type="button" onClick={() => removeExercise(i)} className="w-6 h-6 text-red-400/60 hover:text-red-400 cursor-pointer bg-transparent border-none text-xs">×</button>
+                          </div>
+                        </div>
+                        <p className="text-[10px] text-white/40 mt-0.5 capitalize">
+                          {(ex.bodyPart || "").replace("_", " ")}{ex.equipment ? ` · ${ex.equipment}` : ""}
+                        </p>
+                        <div className="grid grid-cols-4 gap-1.5 mt-2">
+                          <NumberField label="Sets" value={ex.sets} onChange={(v) => updateExercise(i, { sets: v })} />
+                          <NumberField label="Reps lo" value={ex.repsLow} onChange={(v) => updateExercise(i, { repsLow: v })} />
+                          <NumberField label="Reps hi" value={ex.repsHigh} onChange={(v) => updateExercise(i, { repsHigh: v })} />
+                          <NumberField label="Rest s" value={ex.restSeconds} onChange={(v) => updateExercise(i, { restSeconds: v })} />
+                          <NumberField label="Duration s" value={ex.durationSeconds} onChange={(v) => updateExercise(i, { durationSeconds: v })} />
+                          <NumberField label="Weight kg" value={ex.weightKg} step="0.5" onChange={(v) => updateExercise(i, { weightKg: v })} />
+                          <input
+                            type="text"
+                            value={ex.notes ?? ""}
+                            onChange={(e) => updateExercise(i, { notes: e.target.value })}
+                            placeholder="Notes"
+                            className="col-span-2 px-2 py-1 bg-[#1E1E1E] border border-[#2A2A2A] rounded text-[10px] text-white placeholder-white/20 focus:outline-none focus:border-[#E51A1A]/50"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* Workout notes */}
+          <section>
+            <label className="block text-xs font-medium text-white/50 mb-1">Workout notes (visible to client)</label>
+            <textarea value={workoutNotes} onChange={(e) => setWorkoutNotes(e.target.value)} rows={2} placeholder="e.g. Focus on form — add 2.5 kg next week if all sets hit the top of the rep range."
+              className="w-full px-3 py-2 bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#E51A1A]/50 resize-none" />
+          </section>
+
+          {/* Meals */}
+          <section className="border-t border-[#1A1A1A] pt-4">
+            <h3 className="text-xs font-semibold text-white/60 uppercase tracking-wider mb-3">Meals</h3>
+            {MEAL_TYPES.map((mt) => {
+              const slot = meals
+                .map((m, idx) => ({ m, idx }))
+                .filter((x) => x.m.mealType === mt);
+              return (
+                <div key={mt} className="mb-3">
+                  <p className="text-xs font-medium text-white/70 mb-1.5">{mt}</p>
+                  <div className="space-y-1.5 pl-3">
+                    {slot.length === 0 && <p className="text-[10px] text-white/20 italic">none</p>}
+                    {slot.map(({ m, idx }) => (
+                      <div key={idx} className="flex items-center gap-2 bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg px-2.5 py-1.5">
+                        <span className="text-xs text-white flex-1 truncate">{m.recipeTitle}</span>
+                        <input type="number" min={0.5} step={0.5} value={m.servings} onChange={(e) => updateMeal(idx, { servings: parseFloat(e.target.value) || 1 })}
+                          className="w-14 px-1.5 py-1 bg-[#1E1E1E] border border-[#2A2A2A] rounded text-xs text-white text-center focus:outline-none" title="Servings" />
+                        <button type="button" onClick={() => removeMeal(idx)} className="text-red-400/60 hover:text-red-400 text-sm bg-transparent border-none cursor-pointer">×</button>
+                      </div>
+                    ))}
+                    <select value="" onChange={(e) => { if (e.target.value) addMeal(mt, parseInt(e.target.value)); }} className="w-full px-2 py-1.5 bg-[#0A0A0A] border border-dashed border-[#2A2A2A] rounded-lg text-xs text-white/50 focus:outline-none focus:border-[#E51A1A]/50">
+                      <option value="">+ Add {mt.toLowerCase()}…</option>
+                      {coachRecipes.map((r) => (
+                        <option key={r.id} value={r.id}>{r.title}{r.categoryName ? ` (${r.categoryName})` : ""}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              );
+            })}
+          </section>
+
+          {/* Day notes */}
+          <section>
+            <label className="block text-xs font-medium text-white/50 mb-1">Day notes (private — coach reference)</label>
+            <textarea value={dayNotes} onChange={(e) => setDayNotes(e.target.value)} rows={2}
+              className="w-full px-3 py-2 bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#E51A1A]/50 resize-none" />
+          </section>
+        </div>
+
+        <div className="px-5 py-4 border-t border-[#1A1A1A] flex items-center justify-end gap-2">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-white/50 hover:text-white/70 bg-transparent border-none cursor-pointer">Cancel</button>
+          <button onClick={save} disabled={saving} className="px-5 py-2 bg-[#E51A1A] text-white text-sm font-semibold rounded-lg hover:bg-[#E51A1A]/90 disabled:opacity-50 cursor-pointer">
+            {saving ? "Saving…" : "Save Day"}
+          </button>
+        </div>
+
+        {/* Inline workout picker (filters by bodyPart) */}
+        {showWorkoutPicker && (
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm sm:rounded-2xl flex items-stretch sm:items-center justify-center p-0 sm:p-4" onClick={() => setShowWorkoutPicker(false)}>
+            <div className="bg-[#111111] border border-[#2A2A2A] sm:rounded-2xl w-full max-w-2xl h-full sm:h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between px-5 py-4 border-b border-[#1A1A1A]">
+                <h3 className="text-white font-semibold">Add exercise</h3>
+                <button type="button" onClick={() => setShowWorkoutPicker(false)} className="text-white/40 hover:text-white text-2xl leading-none bg-transparent border-none cursor-pointer">&times;</button>
+              </div>
+              <div className="px-5 py-3 border-b border-[#1A1A1A] flex flex-wrap gap-1.5">
+                {[null, "chest", "back", "legs", "shoulders", "arms", "core", "full_body", "cardio"].map((bp) => {
+                  const active = bodyPartFilter === bp;
+                  const label = bp ? bp.replace("_", " ") : "All";
+                  return (
+                    <button key={bp ?? "all"} type="button" onClick={() => setBodyPartFilter(bp)} className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors cursor-pointer capitalize ${active ? "bg-[#E51A1A] border-[#E51A1A] text-white" : "border-[#2A2A2A] text-white/50 hover:text-white/80"}`}>
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="flex-1 overflow-y-auto p-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {visibleWorkouts.map((w) => (
+                    <button key={w.id} type="button" onClick={() => addExercise(w)} className="text-left bg-[#1E1E1E] border border-[#2A2A2A] rounded-lg p-2 hover:border-[#E51A1A]/60 cursor-pointer">
+                      <p className="text-sm text-white truncate">{w.title}</p>
+                      <p className="text-[10px] text-white/40 capitalize">{(w.bodyPart || "").replace("_", " ")}{w.equipment ? ` · ${w.equipment}` : ""}</p>
+                    </button>
+                  ))}
+                  {visibleWorkouts.length === 0 && <p className="text-white/40 text-sm py-6 text-center col-span-full">No workouts match this filter.</p>}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function NumberField({ label, value, onChange, step = "1" }: {
+  label: string; value: number | null; onChange: (v: number | null) => void; step?: string;
+}) {
+  return (
+    <label className="flex flex-col gap-0.5">
+      <span className="text-[9px] text-white/40 uppercase tracking-wide">{label}</span>
+      <input
+        type="number"
+        step={step}
+        value={value ?? ""}
+        onChange={(e) => {
+          const raw = e.target.value;
+          if (raw === "") return onChange(null);
+          const n = parseFloat(raw);
+          onChange(Number.isFinite(n) ? n : null);
+        }}
+        className="w-full px-1.5 py-0.5 bg-[#1E1E1E] border border-[#2A2A2A] rounded text-[11px] text-white focus:outline-none focus:border-[#E51A1A]/50"
+      />
+    </label>
   );
 }
 

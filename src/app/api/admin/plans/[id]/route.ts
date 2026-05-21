@@ -18,7 +18,26 @@ export async function GET(
       where: { id: templateId, coachId },
       include: {
         days: {
-          include: { workout: { select: { id: true, title: true, slug: true } } },
+          include: {
+            workout: { select: { id: true, title: true, slug: true } },
+            exercises: {
+              include: {
+                workout: {
+                  select: {
+                    id: true,
+                    title: true,
+                    slug: true,
+                    gifUrl: true,
+                    videoUrl: true,
+                    bodyPart: true,
+                    equipment: true,
+                    primaryMuscles: true,
+                  },
+                },
+              },
+              orderBy: { orderIndex: "asc" },
+            },
+          },
           orderBy: [{ weekNumber: "asc" }, { dayOfWeek: "asc" }],
         },
       },

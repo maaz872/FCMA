@@ -15,10 +15,15 @@ interface WorkoutRow {
   subcategoryName: string;
   categoryName: string;
   videoUrl: string;
+  gifUrl: string | null;
+  bodyPart: string | null;
+  equipment: string | null;
 }
 
 import VideoThumbnail from "@/components/ui/VideoThumbnail";
 import PreviewModal from "@/components/admin/PreviewModal";
+import ExerciseGif from "@/components/ui/ExerciseGif";
+import WorkoutMediaThumbnail from "@/components/ui/WorkoutMediaThumbnail";
 
 export default function AdminWorkoutsClient({
   workouts,
@@ -29,6 +34,11 @@ export default function AdminWorkoutsClient({
   const [deleting, setDeleting] = useState<number | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [previewData, setPreviewData] = useState<any>(null);
+  const [bodyPart, setBodyPart] = useState<string | null>(null);
+
+  const filtered = bodyPart
+    ? workouts.filter((w) => (w.bodyPart || "").toLowerCase() === bodyPart)
+    : workouts;
 
   async function openPreview(id: number) {
     try {
@@ -36,7 +46,21 @@ export default function AdminWorkoutsClient({
       if (res.ok) {
         const data = await res.json();
         const w = data.workout || data;
-        setPreviewData({ title: w.title, description: w.description, videoUrl: w.videoUrl, difficulty: w.difficulty, duration: w.duration, targetGoal: w.targetGoal, instructions: w.instructions });
+        setPreviewData({
+          title: w.title,
+          description: w.description,
+          videoUrl: w.videoUrl,
+          difficulty: w.difficulty,
+          duration: w.duration,
+          targetGoal: w.targetGoal,
+          instructions: w.instructions,
+          // Phase 4 illustration fields — required for the PreviewModal
+          // to render the gif when a workout has no video.
+          gifUrl: w.gifUrl,
+          bodyPart: w.bodyPart,
+          equipment: w.equipment,
+          primaryMuscles: w.primaryMuscles,
+        });
       }
     } catch { /* ignore */ }
   }
@@ -103,21 +127,73 @@ export default function AdminWorkoutsClient({
         </Link>
       </div>
 
+      {/* Body-part tabs — primary navigation per spec follow-up. */}
+      {workouts.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 border-b border-[#1A1A1A] pb-3">
+          {(
+            [
+              { v: null, l: "All" },
+              { v: "chest", l: "Chest" },
+              { v: "back", l: "Back" },
+              { v: "legs", l: "Legs" },
+              { v: "shoulders", l: "Shoulders" },
+              { v: "arms", l: "Arms" },
+              { v: "core", l: "Core" },
+              { v: "full_body", l: "Full body" },
+              { v: "cardio", l: "Cardio" },
+            ] as const
+          ).map((p) => {
+            const count = p.v
+              ? workouts.filter((w) => (w.bodyPart || "").toLowerCase() === p.v).length
+              : workouts.length;
+            const active = bodyPart === p.v;
+            return (
+              <button
+                key={p.l}
+                type="button"
+                onClick={() => setBodyPart(p.v as string | null)}
+                className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors cursor-pointer ${
+                  active
+                    ? "bg-[#E51A1A] border-[#E51A1A] text-white"
+                    : "bg-transparent border-[#2A2A2A] text-white/50 hover:border-[#E51A1A]/40 hover:text-white/80"
+                }`}
+              >
+                {p.l} <span className="opacity-50">({count})</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {workouts.length === 0 ? (
         <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl px-6 py-12 text-center text-white/40">
           No workouts yet. Add your first workout to get started.
         </div>
+      ) : filtered.length === 0 ? (
+        <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl px-6 py-12 text-center text-white/40">
+          No workouts in this body part. Try another tab or add one.
+        </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {workouts.map((w) => {
+          {filtered.map((w) => {
             return (
               <div
                 key={w.id}
                 className="group bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl overflow-hidden hover:border-[#3A3A3A] transition-colors flex flex-col"
               >
-                {/* Thumbnail */}
+                {/* Thumbnail — prefer the gif illustration when present
+                    (Phase 4), fall back to the existing VideoThumbnail. */}
                 <div className="relative w-full aspect-video bg-[#0A0A0A]">
-                  <VideoThumbnail url={w.videoUrl} height="h-full" />
+                  {w.videoUrl || w.gifUrl ? (
+                    <WorkoutMediaThumbnail
+                      videoUrl={w.videoUrl}
+                      gifUrl={w.gifUrl}
+                      title={w.title}
+                      className="w-full h-full"
+                    />
+                  ) : (
+                    <VideoThumbnail url={w.videoUrl} height="h-full" />
+                  )}
                   {/* Duration badge */}
                   {w.duration && (
                     <span className="absolute bottom-2 right-2 bg-black/70 text-white text-[10px] font-semibold px-2 py-0.5 rounded">

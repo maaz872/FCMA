@@ -26,6 +26,9 @@ export default async function AdminWorkoutsPage() {
       duration: string | null;
       isPublished: boolean;
       createdAt: Date;
+      gifUrl: string | null;
+      bodyPart: string | null;
+      equipment: string | null;
       subcategory: {
         name: string;
         category: { name: string };
@@ -39,6 +42,9 @@ export default async function AdminWorkoutsPage() {
       duration: w.duration,
       isPublished: w.isPublished,
       createdAt: w.createdAt.toISOString(),
+      gifUrl: w.gifUrl,
+      bodyPart: w.bodyPart,
+      equipment: w.equipment,
       subcategoryName: w.subcategory.name,
       categoryName: w.subcategory.category.name,
     })

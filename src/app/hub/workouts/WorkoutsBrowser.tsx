@@ -12,31 +12,23 @@ interface WorkoutData {
   difficulty: string;
   duration: string | null;
   targetGoal: string | null;
+  gifUrl: string | null;
+  bodyPart: string | null;
+  equipment: string | null;
+  primaryMuscles: string | null;
   subcategoryId: number;
   subcategoryName: string;
   categoryId: number;
   categoryName: string;
 }
 
-interface Subcategory {
-  id: number;
-  name: string;
-  slug: string;
-}
-
-interface Category {
-  id: number;
-  name: string;
-  slug: string;
-  subcategories: Subcategory[];
-}
-
 interface Props {
   workouts: WorkoutData[];
-  categories: Category[];
 }
 
 import VideoThumbnail from "@/components/ui/VideoThumbnail";
+import ExerciseGif from "@/components/ui/ExerciseGif";
+import WorkoutMediaThumbnail from "@/components/ui/WorkoutMediaThumbnail";
 
 const difficultyColor: Record<string, string> = {
   Beginner: "bg-green-500/20 text-green-400",
@@ -50,24 +42,11 @@ const goalColor: Record<string, string> = {
   "General Fitness": "bg-teal-500/20 text-teal-400",
 };
 
-export default function WorkoutsBrowser({ workouts, categories }: Props) {
+export default function WorkoutsBrowser({ workouts }: Props) {
   const [search, setSearch] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
-  const [selectedSubcategory, setSelectedSubcategory] = useState<number | null>(
-    null
-  );
+  const [selectedBodyPart, setSelectedBodyPart] = useState<string | null>(null);
   const [difficulty, setDifficulty] = useState<string>("All");
   const [goal, setGoal] = useState<string>("All");
-  const [expandedCats, setExpandedCats] = useState<Set<number>>(new Set());
-
-  function toggleCatExpand(catId: number) {
-    setExpandedCats((prev) => {
-      const next = new Set(prev);
-      if (next.has(catId)) next.delete(catId);
-      else next.add(catId);
-      return next;
-    });
-  }
 
   const filtered = useMemo(() => {
     let result = [...workouts];
@@ -77,14 +56,14 @@ export default function WorkoutsBrowser({ workouts, categories }: Props) {
       result = result.filter(
         (w) =>
           w.title.toLowerCase().includes(q) ||
-          w.description.toLowerCase().includes(q)
+          w.description.toLowerCase().includes(q),
       );
     }
 
-    if (selectedSubcategory) {
-      result = result.filter((w) => w.subcategoryId === selectedSubcategory);
-    } else if (selectedCategory) {
-      result = result.filter((w) => w.categoryId === selectedCategory);
+    if (selectedBodyPart) {
+      result = result.filter(
+        (w) => (w.bodyPart || "").toLowerCase() === selectedBodyPart,
+      );
     }
 
     if (difficulty !== "All") {
@@ -96,7 +75,7 @@ export default function WorkoutsBrowser({ workouts, categories }: Props) {
     }
 
     return result;
-  }, [workouts, search, selectedCategory, selectedSubcategory, difficulty, goal]);
+  }, [workouts, search, selectedBodyPart, difficulty, goal]);
 
   const difficultyOptions = ["All", "Beginner", "Intermediate", "Advanced"];
   const goalOptions = ["All", "Fat Loss", "Muscle Gain", "General Fitness"];
@@ -104,9 +83,48 @@ export default function WorkoutsBrowser({ workouts, categories }: Props) {
   return (
     <div>
       <h1 className="text-3xl font-black mb-2 text-white">Workouts</h1>
-      <p className="text-white/60 mb-8">
+      <p className="text-white/60 mb-6">
         Follow along with workout videos for every fitness level.
       </p>
+
+      {/* Body-part fast filter — primary nav. */}
+      <div className="flex flex-wrap gap-1.5 mb-8">
+        {(
+          [
+            { v: null, l: "All" },
+            { v: "chest", l: "Chest" },
+            { v: "back", l: "Back" },
+            { v: "legs", l: "Legs" },
+            { v: "shoulders", l: "Shoulders" },
+            { v: "arms", l: "Arms" },
+            { v: "core", l: "Core" },
+            { v: "full_body", l: "Full body" },
+            { v: "cardio", l: "Cardio" },
+          ] as const
+        ).map((p) => {
+          const count = p.v
+            ? workouts.filter(
+                (w) => (w.bodyPart || "").toLowerCase() === p.v
+              ).length
+            : workouts.length;
+          if (p.v && count === 0) return null;
+          const active = selectedBodyPart === p.v;
+          return (
+            <button
+              key={p.l}
+              type="button"
+              onClick={() => setSelectedBodyPart(p.v as string | null)}
+              className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors cursor-pointer ${
+                active
+                  ? "bg-[#E51A1A] border-[#E51A1A] text-white"
+                  : "bg-transparent border-[#2A2A2A] text-white/50 hover:border-[#E51A1A]/40 hover:text-white/80"
+              }`}
+            >
+              {p.l} <span className="opacity-50">({count})</span>
+            </button>
+          );
+        })}
+      </div>
 
       <div className="flex flex-col lg:flex-row gap-8">
         {/* Sidebar filters */}
@@ -120,85 +138,6 @@ export default function WorkoutsBrowser({ workouts, categories }: Props) {
               onChange={(e) => setSearch(e.target.value)}
               className="w-full bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl py-3 px-4 text-white focus:border-[#E51A1A] focus:outline-none placeholder:text-white/30 text-sm"
             />
-          </div>
-
-          {/* Category filter */}
-          <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-4">
-            <h3 className="text-sm font-semibold text-white/50 uppercase tracking-wider mb-3">
-              Categories
-            </h3>
-            <button
-              onClick={() => {
-                setSelectedCategory(null);
-                setSelectedSubcategory(null);
-              }}
-              className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors mb-1 cursor-pointer ${
-                !selectedCategory
-                  ? "bg-[#E51A1A]/20 text-[#E51A1A]"
-                  : "text-white/60 hover:text-white hover:bg-white/5"
-              }`}
-            >
-              All Categories
-            </button>
-            {categories.map((cat) => (
-              <div key={cat.id}>
-                <button
-                  onClick={() => {
-                    if (selectedCategory === cat.id) {
-                      setSelectedCategory(null);
-                      setSelectedSubcategory(null);
-                    } else {
-                      setSelectedCategory(cat.id);
-                      setSelectedSubcategory(null);
-                    }
-                    toggleCatExpand(cat.id);
-                  }}
-                  className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-between cursor-pointer ${
-                    selectedCategory === cat.id && !selectedSubcategory
-                      ? "bg-[#E51A1A]/20 text-[#E51A1A]"
-                      : "text-white/60 hover:text-white hover:bg-white/5"
-                  }`}
-                >
-                  {cat.name}
-                  {cat.subcategories.length > 0 && (
-                    <svg
-                      className={`w-4 h-4 transition-transform ${
-                        expandedCats.has(cat.id) ? "rotate-180" : ""
-                      }`}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 9l-7 7-7-7"
-                      />
-                    </svg>
-                  )}
-                </button>
-                {expandedCats.has(cat.id) &&
-                  cat.subcategories.map((sub) => (
-                    <button
-                      key={sub.id}
-                      onClick={() => {
-                        setSelectedCategory(cat.id);
-                        setSelectedSubcategory(
-                          selectedSubcategory === sub.id ? null : sub.id
-                        );
-                      }}
-                      className={`w-full text-left pl-8 pr-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
-                        selectedSubcategory === sub.id
-                          ? "bg-[#E51A1A]/20 text-[#E51A1A]"
-                          : "text-white/40 hover:text-white/70 hover:bg-white/5"
-                      }`}
-                    >
-                      {sub.name}
-                    </button>
-                  ))}
-              </div>
-            ))}
           </div>
 
           {/* Difficulty filter */}
@@ -262,7 +201,19 @@ export default function WorkoutsBrowser({ workouts, categories }: Props) {
                     href={`/hub/workouts/${workout.slug}`}
                     className="group bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:border-[#E51A1A]/30"
                   >
-                    <VideoThumbnail url={workout.videoUrl} height="h-[180px]" />
+                    {/* Video autoplays muted+looped when available; gif is
+                        the fallback. VideoThumbnail (YouTube poster
+                        image) is the last-resort when neither is set. */}
+                    {workout.videoUrl || workout.gifUrl ? (
+                      <WorkoutMediaThumbnail
+                        videoUrl={workout.videoUrl}
+                        gifUrl={workout.gifUrl}
+                        title={workout.title}
+                        className="h-[180px] bg-[#0A0A0A] w-full"
+                      />
+                    ) : (
+                      <VideoThumbnail url={workout.videoUrl} height="h-[180px]" />
+                    )}
 
                     {/* Card body */}
                     <div className="p-4">
@@ -279,6 +230,16 @@ export default function WorkoutsBrowser({ workouts, categories }: Props) {
                         >
                           {workout.difficulty}
                         </span>
+                        {workout.bodyPart && (
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/10 text-white/50 capitalize">
+                            {workout.bodyPart.replace("_", " ")}
+                          </span>
+                        )}
+                        {workout.equipment && (
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/10 text-white/50 capitalize">
+                            {workout.equipment}
+                          </span>
+                        )}
                         {workout.duration && (
                           <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/10 text-white/50">
                             {workout.duration}
@@ -296,6 +257,11 @@ export default function WorkoutsBrowser({ workouts, categories }: Props) {
                         )}
                       </div>
 
+                      {workout.primaryMuscles && (
+                        <p className="text-[10px] text-white/30 mb-1 capitalize">
+                          {workout.primaryMuscles.split(",").slice(0, 3).join(", ")}
+                        </p>
+                      )}
                       <p className="text-xs text-white/40">
                         {workout.categoryName}{" "}
                         <span className="text-white/20">&gt;</span>{" "}

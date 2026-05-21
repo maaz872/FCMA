@@ -34,6 +34,36 @@ export default function VideoEmbed({ url, className = "" }: VideoEmbedProps) {
 
   const platform = getPlatformLabel(info.platform);
 
+  // Direct video file (MP4/WebM/MOV) — render with native <video> tag.
+  // Used for self-hosted HD demos like wger.de's CC-licensed catalog.
+  if (info.platform === "direct") {
+    return (
+      <div className={`relative ${className}`}>
+        <div
+          className="absolute top-2 left-2 z-10 px-2 py-0.5 rounded text-[10px] font-bold text-white flex items-center gap-1"
+          style={{ backgroundColor: platform.color + "CC" }}
+        >
+          <span>{platform.icon}</span>
+          <span>{platform.name}</span>
+        </div>
+        <div
+          className="relative w-full overflow-hidden rounded-xl bg-black"
+          style={{ aspectRatio: "16/9" }}
+        >
+          <video
+            src={info.embedUrl}
+            controls
+            preload="metadata"
+            playsInline
+            className="absolute inset-0 w-full h-full object-contain"
+          >
+            Your browser doesn&apos;t support embedded video.
+          </video>
+        </div>
+      </div>
+    );
+  }
+
   // TikTok short URLs can't be embedded — show link
   if (info.platform === "tiktok" && info.embedUrl === info.originalUrl) {
     return (

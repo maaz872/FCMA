@@ -59,6 +59,25 @@ export async function GET(request: NextRequest) {
         workout: {
           select: { id: true, title: true, videoUrl: true, description: true, slug: true },
         },
+        exercises: {
+          include: {
+            workout: {
+              select: {
+                id: true,
+                title: true,
+                slug: true,
+                gifUrl: true,
+                videoUrl: true,
+                bodyPart: true,
+                equipment: true,
+                primaryMuscles: true,
+                description: true,
+                instructions: true,
+              },
+            },
+          },
+          orderBy: { orderIndex: "asc" },
+        },
         meals: {
           include: {
             recipe: {
@@ -134,6 +153,18 @@ export async function GET(request: NextRequest) {
       selectedDate: targetStr,
       today: {
         workout: targetPlanDay?.workout || null,
+        exercises: (targetPlanDay?.exercises || []).map((ex) => ({
+          id: ex.id,
+          orderIndex: ex.orderIndex,
+          sets: ex.sets,
+          repsLow: ex.repsLow,
+          repsHigh: ex.repsHigh,
+          durationSeconds: ex.durationSeconds,
+          restSeconds: ex.restSeconds,
+          weightKg: ex.weightKg,
+          notes: ex.notes,
+          workout: ex.workout,
+        })),
         mealPlan,
         meals: (targetPlanDay?.meals || []).map((m) => ({
           id: m.id,

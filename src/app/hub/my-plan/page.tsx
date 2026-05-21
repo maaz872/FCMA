@@ -3,6 +3,9 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { fetchWithRetry } from "@/lib/fetch-retry";
+import ExerciseGif from "@/components/ui/ExerciseGif";
+import WorkoutMediaThumbnail from "@/components/ui/WorkoutMediaThumbnail";
+import VideoEmbed from "@/components/ui/VideoEmbed";
 
 type Workout = {
   id: number;
@@ -10,6 +13,30 @@ type Workout = {
   videoUrl: string;
   description: string;
   slug: string;
+};
+
+type PlanExercise = {
+  id: number;
+  orderIndex: number;
+  sets: number | null;
+  repsLow: number | null;
+  repsHigh: number | null;
+  durationSeconds: number | null;
+  restSeconds: number | null;
+  weightKg: number | null;
+  notes: string | null;
+  workout: {
+    id: number;
+    title: string;
+    slug: string;
+    gifUrl: string | null;
+    videoUrl: string;
+    bodyPart: string | null;
+    equipment: string | null;
+    primaryMuscles: string | null;
+    description: string;
+    instructions: string;
+  };
 };
 
 type PlanData = {
@@ -28,6 +55,7 @@ type PlanData = {
   selectedDate: string;
   today: {
     workout: Workout | null;
+    exercises: PlanExercise[];
     mealPlan: string | null;
     meals: {
       id: number;
@@ -95,6 +123,15 @@ export default function MyPlanPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  // Ephemeral per-set checkmarks: keyed by `${exerciseId}-${setIdx}`. Lives
+  // for the current session only — spec §9 explicitly calls out that v1
+  // ships set-by-set checkoff without persistence beyond the existing
+  // DailyProgress.workoutCompleted boolean (which is auto-toggled below
+  // once every set is ticked).
+  const [setsCompleted, setSetsCompleted] = useState<Record<string, boolean>>({});
+  // Modal: shows the full video + instructions for the currently-tapped exercise
+  // without taking the user away from /hub/my-plan.
+  const [openExercise, setOpenExercise] = useState<PlanExercise | null>(null);
 
   // Off-plan meal logging
   const [offPlanOpen, setOffPlanOpen] = useState<Set<string>>(new Set());
@@ -173,6 +210,44 @@ export default function MyPlanPage() {
       // ignore
     } finally {
       setSaving(false);
+    }
+  }
+
+  // Helper: count total sets across all exercises (each exercise contributes
+  // `sets ?? 1` slots — time-based exercises with no sets count as 1).
+  function totalSetSlots(exercises: PlanExercise[]): number {
+    return exercises.reduce((n, ex) => n + (ex.sets ?? 1), 0);
+  }
+  function completedSetSlots(
+    exercises: PlanExercise[],
+    completed: Record<string, boolean>
+  ): number {
+    let n = 0;
+    for (const ex of exercises) {
+      const setsForEx = ex.sets ?? 1;
+      for (let i = 0; i < setsForEx; i++) {
+        if (completed[`${ex.id}-${i}`]) n++;
+      }
+    }
+    return n;
+  }
+
+  async function toggleExerciseSet(exerciseId: number, setIdx: number) {
+    if (!data || data.viewMode !== "today") return;
+    const key = `${exerciseId}-${setIdx}`;
+    const next = { ...setsCompleted, [key]: !setsCompleted[key] };
+    setSetsCompleted(next);
+
+    // If this tick made the workout fully complete (or unticked from
+    // complete state), reflect that in DailyProgress.workoutCompleted.
+    const exercises = data.today.exercises;
+    if (exercises.length === 0) return;
+    const allDone =
+      completedSetSlots(exercises, next) === totalSetSlots(exercises);
+    const currentlyMarked = data.todayProgress.workoutCompleted;
+    if (allDone !== currentlyMarked && !saving) {
+      // Fire-and-forget; this is best-effort.
+      void toggleProgress("workoutCompleted");
     }
   }
 
@@ -515,7 +590,7 @@ export default function MyPlanPage() {
         <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-2xl p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-white">Workout</h2>
-            {today.workout && canToggle && (
+            {(today.workout || today.exercises?.length > 0) && canToggle && (
               <button
                 onClick={() => toggleProgress("workoutCompleted")}
                 disabled={saving}
@@ -537,12 +612,104 @@ export default function MyPlanPage() {
                 {progress.workoutCompleted ? "Completed" : "Mark Complete"}
               </button>
             )}
-            {today.workout && !canToggle && progress.workoutCompleted && (
+            {(today.workout || today.exercises?.length > 0) && !canToggle && progress.workoutCompleted && (
               <span className="text-xs font-semibold text-green-400 bg-green-500/10 px-3 py-1.5 rounded-lg">Completed</span>
             )}
           </div>
 
-          {today.workout ? (
+          {today.exercises && today.exercises.length > 0 ? (
+            <div className="space-y-4">
+              {today.workoutNotes && (
+                <p className="text-white/40 text-sm italic">Coach notes: {today.workoutNotes}</p>
+              )}
+              <p className="text-white/40 text-xs">
+                {completedSetSlots(today.exercises, setsCompleted)} of{" "}
+                {totalSetSlots(today.exercises)} sets complete
+              </p>
+              {today.exercises.map((ex, idx) => {
+                const setCount = ex.sets ?? 1;
+                const reps =
+                  ex.repsLow != null && ex.repsHigh != null
+                    ? ex.repsLow === ex.repsHigh
+                      ? `${ex.repsLow} reps`
+                      : `${ex.repsLow}-${ex.repsHigh} reps`
+                    : ex.durationSeconds != null
+                    ? `${ex.durationSeconds}s`
+                    : "";
+                return (
+                  <div
+                    key={ex.id}
+                    className="bg-[#0A0A0A] border border-[#2A2A2A] rounded-xl p-4"
+                  >
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setOpenExercise(ex)}
+                        className="w-20 h-20 bg-[#1E1E1E] rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center cursor-pointer border-none p-0"
+                        title="Tap for full video"
+                      >
+                        {ex.workout.videoUrl || ex.workout.gifUrl ? (
+                          <WorkoutMediaThumbnail
+                            videoUrl={ex.workout.videoUrl}
+                            gifUrl={ex.workout.gifUrl}
+                            title={ex.workout.title}
+                            className="w-full h-full"
+                          />
+                        ) : (
+                          <span className="text-white/20 text-[10px]">no media</span>
+                        )}
+                      </button>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-white/40 font-semibold">
+                          {idx + 1}. {(ex.workout.bodyPart ?? "").replace("_", " ")}
+                          {ex.workout.equipment ? ` · ${ex.workout.equipment}` : ""}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setOpenExercise(ex)}
+                          className="text-white font-semibold hover:text-[#E51A1A] transition-colors cursor-pointer bg-transparent border-none p-0 text-left"
+                        >
+                          {ex.workout.title}
+                        </button>
+                        <p className="text-white/50 text-xs mt-0.5">
+                          {setCount} × {reps}
+                          {ex.restSeconds ? ` · ${ex.restSeconds}s rest` : ""}
+                          {ex.weightKg ? ` · ${ex.weightKg} kg` : ""}
+                        </p>
+                        {ex.notes && (
+                          <p className="text-white/30 text-[11px] italic mt-1">
+                            {ex.notes}
+                          </p>
+                        )}
+                        {canToggle && (
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {Array.from({ length: setCount }).map((_, i) => {
+                              const key = `${ex.id}-${i}`;
+                              const done = !!setsCompleted[key];
+                              return (
+                                <button
+                                  key={key}
+                                  type="button"
+                                  onClick={() => toggleExerciseSet(ex.id, i)}
+                                  className={`min-w-[36px] px-2 py-1 rounded-lg text-[11px] font-semibold border transition-colors cursor-pointer ${
+                                    done
+                                      ? "bg-green-500/20 border-green-500/40 text-green-400"
+                                      : "bg-transparent border-[#2A2A2A] text-white/40 hover:text-white/70"
+                                  }`}
+                                >
+                                  Set {i + 1}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : today.workout ? (
             <div>
               <h3 className="text-xl font-bold text-white mb-2">{today.workout.title}</h3>
               <p className="text-white/50 text-sm mb-4">{today.workout.description}</p>
@@ -806,6 +973,116 @@ export default function MyPlanPage() {
           </div>
         )}
 
+      </div>
+
+      {/* Exercise detail modal — tap a card or title to open. Plays the
+          full video with controls + audio without leaving /hub/my-plan. */}
+      {openExercise && (
+        <ExerciseDetailModal exercise={openExercise} onClose={() => setOpenExercise(null)} />
+      )}
+    </div>
+  );
+}
+
+function ExerciseDetailModal({ exercise, onClose }: {
+  exercise: PlanExercise;
+  onClose: () => void;
+}) {
+  const w = exercise.workout;
+  let instructions: string[] = [];
+  try {
+    instructions = JSON.parse(w.instructions || "[]");
+  } catch { instructions = []; }
+
+  // Lock body scroll while open.
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
+  const setCount = exercise.sets ?? 1;
+  const reps =
+    exercise.repsLow != null && exercise.repsHigh != null
+      ? exercise.repsLow === exercise.repsHigh
+        ? `${exercise.repsLow} reps`
+        : `${exercise.repsLow}-${exercise.repsHigh} reps`
+      : exercise.durationSeconds != null
+      ? `${exercise.durationSeconds}s`
+      : "";
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-stretch sm:items-center justify-center p-0 sm:p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-[#111111] border border-[#2A2A2A] sm:rounded-2xl w-full max-w-2xl h-full sm:h-auto sm:max-h-[90vh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[#1A1A1A]">
+          <div className="min-w-0">
+            <h2 className="text-white font-semibold text-lg truncate">{w.title}</h2>
+            <p className="text-white/40 text-xs mt-0.5 capitalize">
+              {(w.bodyPart ?? "").replace("_", " ")}
+              {w.equipment ? ` · ${w.equipment}` : ""}
+              {w.primaryMuscles ? ` · ${w.primaryMuscles.split(",").slice(0,2).join(", ")}` : ""}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-white/40 hover:text-white text-2xl leading-none bg-transparent border-none cursor-pointer p-1"
+            aria-label="Close"
+          >
+            &times;
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          {/* Video */}
+          {w.videoUrl ? (
+            <VideoEmbed url={w.videoUrl} />
+          ) : w.gifUrl ? (
+            <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl overflow-hidden aspect-square max-h-80 mx-auto">
+              <img src={w.gifUrl} alt={w.title} className="w-full h-full object-contain" />
+            </div>
+          ) : null}
+
+          {/* Prescription */}
+          <div className="bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg p-3">
+            <p className="text-xs text-white/40 font-semibold uppercase mb-1">Today's prescription</p>
+            <p className="text-white text-sm">
+              {setCount} × {reps}
+              {exercise.restSeconds ? ` · ${exercise.restSeconds}s rest` : ""}
+              {exercise.weightKg ? ` · ${exercise.weightKg} kg` : ""}
+            </p>
+            {exercise.notes && (
+              <p className="text-white/50 text-xs italic mt-1">{exercise.notes}</p>
+            )}
+          </div>
+
+          {/* Instructions */}
+          {instructions.length > 0 && (
+            <div>
+              <p className="text-xs text-white/40 font-semibold uppercase mb-2">Instructions</p>
+              <ol className="space-y-2">
+                {instructions.map((step, i) => (
+                  <li key={i} className="flex gap-3 text-sm">
+                    <span className="text-[#E51A1A] font-bold shrink-0">{i + 1}.</span>
+                    <span className="text-white/70">{step}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+        </div>
+
+        <div className="px-5 py-3 border-t border-[#1A1A1A] flex justify-end">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-white/70 hover:text-white bg-transparent border-none cursor-pointer">
+            Close
+          </button>
+        </div>
       </div>
     </div>
   );

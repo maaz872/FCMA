@@ -3,15 +3,31 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import WorkoutPickerModal, {
+  type PickableWorkout,
+} from "@/components/admin/WorkoutPickerModal";
+import WorkoutMediaThumbnail from "@/components/ui/WorkoutMediaThumbnail";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
 
-interface Workout {
-  id: number;
-  title: string;
-  slug: string;
+type Workout = PickableWorkout;
+
+interface ExerciseEntry {
+  workoutId: number;
+  workoutTitle: string;
+  gifUrl: string | null;
+  videoUrl: string | null;
+  bodyPart: string | null;
+  equipment: string | null;
+  sets: number | null;
+  repsLow: number | null;
+  repsHigh: number | null;
+  durationSeconds: number | null;
+  restSeconds: number | null;
+  weightKg: number | null;
+  notes: string;
 }
 
 interface RecipeOption {
@@ -43,7 +59,7 @@ interface TemplateDay {
   id?: number;
   dayOfWeek: number;
   weekNumber: number;
-  workoutId: number | null;
+  workoutId: number | null; // legacy single-workout field, retained for back-compat
   workoutNotes: string;
   mealPlan: string;
   calorieTarget: string;
@@ -52,6 +68,7 @@ interface TemplateDay {
   fatTarget: string;
   notes: string;
   meals: MealEntry[];
+  exercises: ExerciseEntry[];
 }
 
 interface Template {
@@ -84,6 +101,7 @@ function emptyDay(weekNumber: number, dayOfWeek: number): TemplateDay {
     fatTarget: "",
     notes: "",
     meals: [],
+    exercises: [],
   };
 }
 
@@ -107,8 +125,63 @@ export default function EditPlanTemplatePage() {
 
   // Edit form state for current cell
   const [cellForm, setCellForm] = useState<TemplateDay>(emptyDay(1, 1));
+  const [workoutPickerOpen, setWorkoutPickerOpen] = useState(false);
 
   const dayKey = (week: number, day: number) => `${week}-${day}`;
+
+  // ── Exercise list helpers (used by the cell modal) ──
+  function addExerciseFromWorkout(w: PickableWorkout) {
+    setCellForm((prev) => ({
+      ...prev,
+      exercises: [
+        ...prev.exercises,
+        {
+          workoutId: w.id,
+          workoutTitle: w.title,
+          gifUrl: w.gifUrl,
+          videoUrl: (w as PickableWorkout & { videoUrl?: string }).videoUrl ?? null,
+          bodyPart: w.bodyPart,
+          equipment: w.equipment,
+          sets: 3,
+          repsLow: 10,
+          repsHigh: 12,
+          durationSeconds: null,
+          restSeconds: 60,
+          weightKg: null,
+          notes: "",
+        },
+      ],
+    }));
+  }
+
+  function removeExerciseAt(i: number) {
+    setCellForm((prev) => ({
+      ...prev,
+      exercises: prev.exercises.filter((_, idx) => idx !== i),
+    }));
+  }
+
+  function moveExercise(i: number, direction: -1 | 1) {
+    setCellForm((prev) => {
+      const j = i + direction;
+      if (j < 0 || j >= prev.exercises.length) return prev;
+      const next = [...prev.exercises];
+      [next[i], next[j]] = [next[j], next[i]];
+      return { ...prev, exercises: next };
+    });
+  }
+
+  function updateExerciseField<K extends keyof ExerciseEntry>(
+    i: number,
+    key: K,
+    value: ExerciseEntry[K]
+  ) {
+    setCellForm((prev) => {
+      const next = [...prev.exercises];
+      next[i] = { ...next[i], [key]: value };
+      return { ...prev, exercises: next };
+    });
+  }
 
   const loadData = useCallback(async () => {
     try {
@@ -123,11 +196,20 @@ export default function EditPlanTemplatePage() {
 
       setTemplate(tData);
       setWorkouts(
-        (wData as Workout[]).map((w: Workout) => ({
-          id: w.id,
-          title: w.title,
-          slug: w.slug,
-        }))
+        (wData as Array<Workout & { subcategory?: Workout["subcategory"]; videoUrl?: string }>).map(
+          (w) => ({
+            id: w.id,
+            title: w.title,
+            slug: w.slug,
+            gifUrl: w.gifUrl ?? null,
+            videoUrl: w.videoUrl ?? null,
+            bodyPart: w.bodyPart ?? null,
+            equipment: w.equipment ?? null,
+            primaryMuscles: w.primaryMuscles ?? null,
+            difficulty: w.difficulty || "Intermediate",
+            subcategory: w.subcategory ?? null,
+          })
+        )
       );
       setRecipes(
         (rData.recipes || []).map((r: RecipeOption & { categoryId?: number }) => ({
@@ -168,6 +250,40 @@ export default function EditPlanTemplatePage() {
             fat: m.recipe?.fat || 0,
             baseServings: m.recipe?.servings || 1,
           })),
+          exercises: (d.exercises || []).map(
+            (ex: {
+              workoutId: number;
+              orderIndex: number;
+              sets: number | null;
+              repsLow: number | null;
+              repsHigh: number | null;
+              durationSeconds: number | null;
+              restSeconds: number | null;
+              weightKg: number | null;
+              notes: string | null;
+              workout?: {
+                title?: string;
+                gifUrl?: string | null;
+                videoUrl?: string | null;
+                bodyPart?: string | null;
+                equipment?: string | null;
+              } | null;
+            }) => ({
+              workoutId: ex.workoutId,
+              workoutTitle: ex.workout?.title || "Exercise",
+              gifUrl: ex.workout?.gifUrl ?? null,
+              videoUrl: ex.workout?.videoUrl ?? null,
+              bodyPart: ex.workout?.bodyPart ?? null,
+              equipment: ex.workout?.equipment ?? null,
+              sets: ex.sets,
+              repsLow: ex.repsLow,
+              repsHigh: ex.repsHigh,
+              durationSeconds: ex.durationSeconds,
+              restSeconds: ex.restSeconds,
+              weightKg: ex.weightKg,
+              notes: ex.notes ?? "",
+            })
+          ),
         });
       }
       setDays(map);
@@ -206,7 +322,8 @@ export default function EditPlanTemplatePage() {
       cellForm.mealPlan.trim() ||
       cellForm.calorieTarget ||
       cellForm.notes.trim() ||
-      cellForm.meals.length > 0;
+      cellForm.meals.length > 0 ||
+      cellForm.exercises.length > 0;
 
     if (hasData) {
       updated.set(editingCell, { ...cellForm });
@@ -258,6 +375,7 @@ export default function EditPlanTemplatePage() {
         weekNumber: weekNum,
         dayOfWeek: dayNum,
         meals: source.meals.map(m => ({ ...m })),
+        exercises: source.exercises.map(ex => ({ ...ex })),
       });
     }
     setDays(updated);
@@ -279,6 +397,7 @@ export default function EditPlanTemplatePage() {
             weekNumber: w,
             dayOfWeek: dow,
             meals: src.meals.map(m => ({ ...m })),
+            exercises: src.exercises.map(ex => ({ ...ex })),
           });
         } else {
           updated.delete(tgtKey);
@@ -384,6 +503,17 @@ export default function EditPlanTemplatePage() {
           recipeId: m.recipeId,
           servings: m.servings,
           sortOrder: idx,
+        })),
+        exercises: d.exercises.map((ex, idx) => ({
+          workoutId: ex.workoutId,
+          orderIndex: idx,
+          sets: ex.sets,
+          repsLow: ex.repsLow,
+          repsHigh: ex.repsHigh,
+          durationSeconds: ex.durationSeconds,
+          restSeconds: ex.restSeconds,
+          weightKg: ex.weightKg,
+          notes: ex.notes || null,
         })),
       }));
 
@@ -622,27 +752,165 @@ export default function EditPlanTemplatePage() {
             </div>
 
             <div className="p-5 space-y-4">
-              {/* Workout */}
+              {/* ── Exercises (multi-exercise prescription) ── */}
               <div>
-                <label className="block text-xs font-medium text-white/50 mb-1">Workout</label>
-                <select
-                  value={cellForm.workoutId || ""}
-                  onChange={(e) =>
-                    setCellForm({
-                      ...cellForm,
-                      workoutId: e.target.value ? parseInt(e.target.value) : null,
-                    })
-                  }
-                  className="w-full px-3 py-2 bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg text-sm text-white focus:outline-none focus:border-[#E51A1A]/50"
-                >
-                  <option value="">No workout</option>
-                  {workouts.map((w) => (
-                    <option key={w.id} value={w.id}>
-                      {w.title}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-xs font-semibold text-white/60 uppercase tracking-wider">
+                    Exercises
+                    {cellForm.exercises.length > 0 && (
+                      <span className="ml-1.5 text-green-400 normal-case font-normal">
+                        ({cellForm.exercises.length})
+                      </span>
+                    )}
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setWorkoutPickerOpen(true)}
+                    className="text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-[#E51A1A] text-white hover:bg-[#E51A1A]/90 cursor-pointer"
+                  >
+                    + Add exercise
+                  </button>
+                </div>
+                {cellForm.exercises.length === 0 ? (
+                  <p className="text-[11px] text-white/30 italic">
+                    No exercises yet. Click <em>Add exercise</em> to pick from your library.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {cellForm.exercises.map((ex, i) => (
+                      <div
+                        key={i}
+                        className="bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg p-2.5"
+                      >
+                        <div className="flex items-start gap-2">
+                          <div className="w-14 h-14 bg-[#1E1E1E] rounded overflow-hidden flex items-center justify-center flex-shrink-0">
+                            {ex.videoUrl || ex.gifUrl ? (
+                              <WorkoutMediaThumbnail
+                                videoUrl={ex.videoUrl}
+                                gifUrl={ex.gifUrl}
+                                title={ex.workoutTitle}
+                                className="w-full h-full"
+                              />
+                            ) : (
+                              <span className="text-white/20 text-[9px]">no media</span>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-1">
+                              <p className="text-xs text-white font-medium truncate">
+                                {i + 1}. {ex.workoutTitle}
+                              </p>
+                              <div className="flex gap-0.5">
+                                <button
+                                  type="button"
+                                  onClick={() => moveExercise(i, -1)}
+                                  disabled={i === 0}
+                                  className="w-6 h-6 flex items-center justify-center text-white/30 hover:text-white disabled:opacity-20 cursor-pointer bg-transparent border-none text-xs"
+                                  title="Move up"
+                                >
+                                  &#9650;
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => moveExercise(i, 1)}
+                                  disabled={i === cellForm.exercises.length - 1}
+                                  className="w-6 h-6 flex items-center justify-center text-white/30 hover:text-white disabled:opacity-20 cursor-pointer bg-transparent border-none text-xs"
+                                  title="Move down"
+                                >
+                                  &#9660;
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => removeExerciseAt(i)}
+                                  className="w-6 h-6 flex items-center justify-center text-red-400/60 hover:text-red-400 cursor-pointer bg-transparent border-none text-xs"
+                                  title="Remove"
+                                >
+                                  &times;
+                                </button>
+                              </div>
+                            </div>
+                            <p className="text-[10px] text-white/40 mt-0.5 capitalize">
+                              {(ex.bodyPart || "").replace("_", " ")}
+                              {ex.equipment ? ` · ${ex.equipment}` : ""}
+                            </p>
+                            <div className="grid grid-cols-4 gap-1.5 mt-2">
+                              <NumField
+                                label="Sets"
+                                value={ex.sets}
+                                onChange={(v) => updateExerciseField(i, "sets", v)}
+                              />
+                              <NumField
+                                label="Reps lo"
+                                value={ex.repsLow}
+                                onChange={(v) => updateExerciseField(i, "repsLow", v)}
+                              />
+                              <NumField
+                                label="Reps hi"
+                                value={ex.repsHigh}
+                                onChange={(v) => updateExerciseField(i, "repsHigh", v)}
+                              />
+                              <NumField
+                                label="Rest s"
+                                value={ex.restSeconds}
+                                onChange={(v) => updateExerciseField(i, "restSeconds", v)}
+                              />
+                              <NumField
+                                label="Duration s"
+                                value={ex.durationSeconds}
+                                onChange={(v) =>
+                                  updateExerciseField(i, "durationSeconds", v)
+                                }
+                              />
+                              <NumField
+                                label="Weight kg"
+                                value={ex.weightKg}
+                                onChange={(v) => updateExerciseField(i, "weightKg", v)}
+                                step="0.5"
+                              />
+                              <input
+                                type="text"
+                                value={ex.notes}
+                                onChange={(e) =>
+                                  updateExerciseField(i, "notes", e.target.value)
+                                }
+                                placeholder="Notes"
+                                className="col-span-2 px-2 py-1 bg-[#1E1E1E] border border-[#2A2A2A] rounded text-[10px] text-white placeholder-white/20 focus:outline-none focus:border-[#E51A1A]/50"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
+
+              {/* Legacy single-workout fallback (only shown if no new-style
+                  exercises are configured, so older templates keep working). */}
+              {cellForm.exercises.length === 0 && (
+                <div>
+                  <label className="block text-xs font-medium text-white/50 mb-1">
+                    Legacy workout (fallback)
+                  </label>
+                  <select
+                    value={cellForm.workoutId || ""}
+                    onChange={(e) =>
+                      setCellForm({
+                        ...cellForm,
+                        workoutId: e.target.value ? parseInt(e.target.value) : null,
+                      })
+                    }
+                    className="w-full px-3 py-2 bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg text-sm text-white focus:outline-none focus:border-[#E51A1A]/50"
+                  >
+                    <option value="">No workout</option>
+                    {workouts.map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* Workout Notes */}
               <div>
@@ -930,6 +1198,48 @@ export default function EditPlanTemplatePage() {
           </div>
         </div>
       )}
+
+      {/* ── Workout picker for the Add-exercise flow ── */}
+      <WorkoutPickerModal
+        open={workoutPickerOpen}
+        onClose={() => setWorkoutPickerOpen(false)}
+        onSelect={(w) => addExerciseFromWorkout(w)}
+        workouts={workouts}
+      />
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Small inline helpers                                               */
+/* ------------------------------------------------------------------ */
+
+function NumField({
+  label,
+  value,
+  onChange,
+  step = "1",
+}: {
+  label: string;
+  value: number | null;
+  onChange: (v: number | null) => void;
+  step?: string;
+}) {
+  return (
+    <label className="flex flex-col gap-0.5">
+      <span className="text-[9px] text-white/40 uppercase tracking-wide">{label}</span>
+      <input
+        type="number"
+        step={step}
+        value={value ?? ""}
+        onChange={(e) => {
+          const raw = e.target.value;
+          if (raw === "") return onChange(null);
+          const n = parseFloat(raw);
+          onChange(Number.isFinite(n) ? n : null);
+        }}
+        className="w-full px-1.5 py-0.5 bg-[#1E1E1E] border border-[#2A2A2A] rounded text-[11px] text-white focus:outline-none focus:border-[#E51A1A]/50"
+      />
+    </label>
   );
 }
