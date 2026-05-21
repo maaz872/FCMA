@@ -90,19 +90,13 @@ function WorkoutPreviewContent({ data }: { data: WorkoutPreview }) {
           than rendering nothing when both are missing. Mirrors the
           /hub/workouts/[slug] layout introduced in Phase 6 so coaches
           preview exactly what their clients see. */}
-      {hasGif && hasVideo ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl overflow-hidden aspect-square">
-            <ExerciseGif src={data.gifUrl!} alt={data.title} className="w-full h-full" />
-          </div>
-          <VideoEmbed url={data.videoUrl!} />
-        </div>
+      {/* Video wins when present — single big player, no side-by-side. */}
+      {hasVideo ? (
+        <VideoEmbed url={data.videoUrl!} />
       ) : hasGif ? (
         <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl overflow-hidden aspect-square max-h-96 mx-auto">
           <ExerciseGif src={data.gifUrl!} alt={data.title} className="w-full h-full" />
         </div>
-      ) : hasVideo ? (
-        <VideoEmbed url={data.videoUrl!} />
       ) : (
         <div className="aspect-video bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl flex flex-col items-center justify-center text-center px-6">
           <svg className="w-10 h-10 text-white/20 mb-2" fill="currentColor" viewBox="0 0 24 24">

@@ -1,54 +1,51 @@
 /**
  * Static-shape tests for the seed content. Validates that the curated
- * lists in `workout-picks.ts`, `recipes.ts`, and `plans.ts` match the
- * spec §6 distribution and cross-reference one another correctly.
+ * lists in `workout-picks.ts`, `recipes.ts`, and `plans.ts` are
+ * internally consistent: counts match expectations, slugs are unique,
+ * cross-references resolve.
  *
- * These tests do NOT touch the database. The DB-write happy-path is
- * verified manually with `scripts/backfill-coach-seed-content.ts`
- * during development and by the integration suite in Phase 7.
+ * These tests do NOT touch the database.
  */
 
 import { describe, it, expect } from "vitest";
 import { WORKOUT_PICKS } from "./workout-picks";
 import { SEED_RECIPES } from "./recipes";
-import { SEED_PLANS, workoutSlugFromLibraryId } from "./plans";
-import {
-  getExerciseLibraryEntry,
-  deriveAppBodyPart,
-} from "../exercise-library";
+import { SEED_PLANS } from "./plans";
 
-describe("workout-picks", () => {
-  it("contains exactly 50 picks", () => {
-    expect(WORKOUT_PICKS.length).toBe(50);
+describe("workout-picks (HD-video curated library)", () => {
+  it("contains exactly 22 picks", () => {
+    expect(WORKOUT_PICKS.length).toBe(22);
   });
 
-  it("every pick resolves to a real library entry", () => {
-    for (const p of WORKOUT_PICKS) {
-      const entry = getExerciseLibraryEntry(p.libraryId);
-      expect(entry, `libraryId "${p.libraryId}" missing in dataset`).not.toBeNull();
-    }
-  });
-
-  it("body-part distribution matches spec §6", () => {
+  it("body-part coverage", () => {
     const counts: Record<string, number> = {};
     for (const p of WORKOUT_PICKS) {
-      const entry = getExerciseLibraryEntry(p.libraryId)!;
-      const bp = p.bodyPartOverride ?? deriveAppBodyPart(entry);
-      counts[bp] = (counts[bp] ?? 0) + 1;
+      counts[p.bodyPart] = (counts[p.bodyPart] ?? 0) + 1;
     }
-    expect(counts.chest).toBe(5);
-    expect(counts.back).toBe(6);
-    expect(counts.legs).toBe(12);
-    expect(counts.shoulders).toBe(5);
+    expect(counts.chest).toBe(3);
+    expect(counts.back).toBe(4);
+    expect(counts.legs).toBe(6);
+    expect(counts.shoulders).toBe(2);
     expect(counts.arms).toBe(6);
-    expect(counts.core).toBe(8);
-    expect(counts.full_body).toBe(4);
-    expect(counts.cardio).toBe(4);
+    expect(counts.core).toBe(1);
   });
 
-  it("derived slugs are unique", () => {
-    const slugs = WORKOUT_PICKS.map((p) => workoutSlugFromLibraryId(p.libraryId));
+  it("every pick has a non-empty videoUrl", () => {
+    for (const p of WORKOUT_PICKS) {
+      expect(p.videoUrl, `pick "${p.slug}"`).toBeTruthy();
+      expect(p.videoUrl.length, `pick "${p.slug}"`).toBeGreaterThan(10);
+    }
+  });
+
+  it("slugs are unique", () => {
+    const slugs = WORKOUT_PICKS.map((p) => p.slug);
     expect(new Set(slugs).size).toBe(slugs.length);
+  });
+
+  it("every pick has non-empty instructions", () => {
+    for (const p of WORKOUT_PICKS) {
+      expect(p.instructions.length, `pick "${p.slug}"`).toBeGreaterThan(0);
+    }
   });
 });
 
@@ -57,13 +54,7 @@ describe("seed recipes", () => {
     expect(SEED_RECIPES.length).toBe(50);
   });
 
-  it("meal-type distribution matches spec §6 (breakfast 12, lunch 15, dinner 15, snacks 8)", () => {
-    // Note: a few recipes use smoothies/salads/soups categories — they
-    // logically belong to a meal slot. We bucket by their intended meal
-    // by counting the categorySlug categories the spec lists for each.
-    // Spec maps: breakfast → "breakfast"+"smoothies" (smoothies are
-    // typically breakfast/snack here), lunch → "lunch"+"salads"+"soups",
-    // dinner → "dinner", snacks → "snacks".
+  it("meal-type distribution (breakfast 12, lunch 15, dinner 15, snacks 8)", () => {
     const buckets = { breakfast: 0, lunch: 0, dinner: 0, snacks: 0 };
     for (const r of SEED_RECIPES) {
       if (
@@ -84,9 +75,6 @@ describe("seed recipes", () => {
       }
     }
     expect(buckets.breakfast).toBe(12);
-    // Lunch + salads + soups; spec asks for 15 lunch — one of our 15 is
-    // a Mediterranean Quinoa bowl tagged "lunch". The bucketing here
-    // collapses salads/soups into lunch since they're served midday.
     expect(buckets.lunch).toBe(15);
     expect(buckets.dinner).toBe(15);
     expect(buckets.snacks).toBe(8);
@@ -95,7 +83,6 @@ describe("seed recipes", () => {
   it("regional vs international ratio is roughly 60/40", () => {
     const regional = SEED_RECIPES.filter((r) => r.regional).length;
     const intl = SEED_RECIPES.length - regional;
-    // Allow ±15% tolerance because the ratio counts whole recipes.
     expect(regional).toBeGreaterThanOrEqual(25);
     expect(regional).toBeLessThanOrEqual(35);
     expect(intl).toBeGreaterThanOrEqual(15);
@@ -116,47 +103,35 @@ describe("seed recipes", () => {
   it("every recipe has plausible macros", () => {
     for (const r of SEED_RECIPES) {
       expect(r.calories).toBeGreaterThan(0);
-      // sanity: calories shouldn't massively exceed kcal-from-macros
       const kcalFromMacros = r.protein * 4 + r.carbs * 4 + r.fat * 9;
       const diff = Math.abs(r.calories - kcalFromMacros);
-      // Allow 25 % slack since these are estimates, not lab data.
       expect(
         diff / r.calories,
-        `recipe "${r.slug}" macros/calories mismatch (${diff} kcal)`
+        `recipe "${r.slug}" macros/calories mismatch (${diff} kcal)`,
       ).toBeLessThan(0.25);
     }
   });
 });
 
-describe("seed plans", () => {
-  it("contains exactly 6 plan templates with spec-defined slugs", () => {
+describe("seed plans (3 HD-video curated plans)", () => {
+  it("contains exactly 3 plan templates with expected slugs", () => {
     const slugs = SEED_PLANS.map((p) => p.slug);
     expect(slugs.sort()).toEqual(
-      [
-        "beginner-fat-loss",
-        "intermediate-fat-loss",
-        "beginner-muscle-gain",
-        "intermediate-muscle-gain",
-        "home-workout-no-equipment",
-        "maintenance-recomp",
-      ].sort()
+      ["upper-lower-split", "arm-specialization", "8-week-foundation"].sort(),
     );
   });
 
-  it("each plan has the spec's duration and days/week", () => {
+  it("each plan has the expected duration and days/week", () => {
     const map = Object.fromEntries(SEED_PLANS.map((p) => [p.slug, p]));
-    expect([map["beginner-fat-loss"].durationWeeks, map["beginner-fat-loss"].daysPerWeek]).toEqual([4, 3]);
-    expect([map["intermediate-fat-loss"].durationWeeks, map["intermediate-fat-loss"].daysPerWeek]).toEqual([8, 4]);
-    expect([map["beginner-muscle-gain"].durationWeeks, map["beginner-muscle-gain"].daysPerWeek]).toEqual([8, 3]);
-    expect([map["intermediate-muscle-gain"].durationWeeks, map["intermediate-muscle-gain"].daysPerWeek]).toEqual([12, 4]);
-    expect([map["home-workout-no-equipment"].durationWeeks, map["home-workout-no-equipment"].daysPerWeek]).toEqual([4, 5]);
-    expect([map["maintenance-recomp"].durationWeeks, map["maintenance-recomp"].daysPerWeek]).toEqual([4, 3]);
+    expect([map["upper-lower-split"].durationWeeks, map["upper-lower-split"].daysPerWeek]).toEqual([4, 3]);
+    expect([map["arm-specialization"].durationWeeks, map["arm-specialization"].daysPerWeek]).toEqual([4, 3]);
+    expect([map["8-week-foundation"].durationWeeks, map["8-week-foundation"].daysPerWeek]).toEqual([8, 3]);
   });
 
-  it("every training day has 4-8 exercises", () => {
+  it("every training day has 3-8 exercises (no empty days)", () => {
     for (const p of SEED_PLANS) {
       for (const td of p.trainingDays) {
-        expect(td.exercises.length, `${p.slug}/${td.label}`).toBeGreaterThanOrEqual(4);
+        expect(td.exercises.length, `${p.slug}/${td.label}`).toBeGreaterThanOrEqual(3);
         expect(td.exercises.length, `${p.slug}/${td.label}`).toBeLessThanOrEqual(8);
       }
     }
@@ -172,15 +147,13 @@ describe("seed plans", () => {
   });
 
   it("every plan exercise references a known workout slug", () => {
-    const valid = new Set(
-      WORKOUT_PICKS.map((p) => workoutSlugFromLibraryId(p.libraryId))
-    );
+    const valid = new Set(WORKOUT_PICKS.map((p) => p.slug));
     for (const p of SEED_PLANS) {
       for (const td of p.trainingDays) {
         for (const ex of td.exercises) {
           expect(
             valid.has(ex.workoutSlug),
-            `plan "${p.slug}" references unknown workout "${ex.workoutSlug}"`
+            `plan "${p.slug}" references unknown workout "${ex.workoutSlug}"`,
           ).toBe(true);
         }
       }
@@ -193,7 +166,7 @@ describe("seed plans", () => {
       for (const slot of [...p.trainingDayMeals, ...p.restDayMeals]) {
         expect(
           valid.has(slot.recipeSlug),
-          `plan "${p.slug}" references unknown recipe "${slot.recipeSlug}"`
+          `plan "${p.slug}" references unknown recipe "${slot.recipeSlug}"`,
         ).toBe(true);
       }
     }

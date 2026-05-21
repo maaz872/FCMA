@@ -29,19 +29,12 @@
 
 import { prisma } from "./db";
 import {
-  getExerciseLibraryEntry,
-  deriveAppBodyPart,
-  deriveAppEquipment,
-  type ExerciseLibraryEntry,
-} from "./exercise-library";
-import {
   WORKOUT_PICKS,
   type WorkoutPick,
 } from "./seed/workout-picks";
 import { SEED_RECIPES, type RecipeDef } from "./seed/recipes";
 import {
   SEED_PLANS,
-  workoutSlugFromLibraryId,
   type PlanDefinition,
 } from "./seed/plans";
 
@@ -343,62 +336,41 @@ async function seedWorkouts(coachId: string): Promise<Map<string, number>> {
 
   const map = new Map<string, number>();
   for (const pick of WORKOUT_PICKS) {
-    const entry = getExerciseLibraryEntry(pick.libraryId);
-    if (!entry) {
-      console.warn(
-        `[seed] Workout pick "${pick.libraryId}" not found in exercise library — skipping`
-      );
-      continue;
-    }
-    const bodyPart = pick.bodyPartOverride ?? deriveAppBodyPart(entry);
-    const equipment = pick.equipmentOverride ?? deriveAppEquipment(entry);
-    const subSlug = BODYPART_TO_SUBCATEGORY[bodyPart];
+    const subSlug = BODYPART_TO_SUBCATEGORY[pick.bodyPart];
     const subcategoryId = subBySlug.get(subSlug);
     if (!subcategoryId) {
       console.warn(
-        `[seed] No subcategory "${subSlug}" found for coach — workout "${pick.libraryId}" skipped`
+        `[seed] No subcategory "${subSlug}" found for coach — workout "${pick.slug}" skipped`
       );
       continue;
     }
 
-    const slug = slugify(pick.libraryId);
     const existing = await prisma.workout.findUnique({
-      where: { slug_coachId: { slug, coachId } },
+      where: { slug_coachId: { slug: pick.slug, coachId } },
     });
     if (existing) {
-      map.set(slug, existing.id);
+      map.set(pick.slug, existing.id);
       continue;
     }
 
-    const description =
-      entry.instructions[0]?.slice(0, 240) ||
-      `Library-sourced exercise — ${entry.name}`;
-    const difficulty =
-      pick.difficulty ||
-      (entry.level === "beginner"
-        ? "Beginner"
-        : entry.level === "expert"
-        ? "Advanced"
-        : "Intermediate");
-
     const created = await prisma.workout.create({
       data: {
-        title: entry.name,
-        slug,
+        title: pick.title,
+        slug: pick.slug,
         coachId,
-        description,
-        videoUrl: "",
-        instructions: JSON.stringify(entry.instructions),
+        description: pick.description,
+        videoUrl: pick.videoUrl,
+        instructions: JSON.stringify(pick.instructions),
         subcategoryId,
-        difficulty,
-        gifUrl: entry.primaryImageUrl,
-        bodyPart,
-        equipment,
-        primaryMuscles: entry.primaryMuscles.join(","),
+        difficulty: pick.difficulty,
+        gifUrl: pick.gifUrl,
+        bodyPart: pick.bodyPart,
+        equipment: pick.equipment,
+        primaryMuscles: pick.primaryMuscles,
         isPublished: true,
       },
     });
-    map.set(slug, created.id);
+    map.set(pick.slug, created.id);
   }
   return map;
 }
@@ -547,10 +519,5 @@ export async function seedCoachDefaults(
 }
 
 // Convenience re-exports for tests / scripts
-export {
-  WORKOUT_PICKS,
-  SEED_RECIPES,
-  SEED_PLANS,
-  workoutSlugFromLibraryId,
-};
-export type { WorkoutPick, RecipeDef, PlanDefinition, ExerciseLibraryEntry };
+export { WORKOUT_PICKS, SEED_RECIPES, SEED_PLANS };
+export type { WorkoutPick, RecipeDef, PlanDefinition };
